@@ -1,0 +1,16 @@
+#ifndef ACTONQTSO_ACTIONEXECUTIONSTATESTRMAPPING_H_
+#define ACTONQTSO_ACTIONEXECUTIONSTATESTRMAPPING_H_
+
+#include "actionExecutionStates.hpp"
+
+#include <QString>
+//#include <QHash>
+
+#include <unordered_map>
+
+
+//extern const QHash<QString, actionExecutionState_ec> strToActionExecutionStateUMap_glo_sta_con;
+//only output for now
+extern const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_glo_sta_con;
+
+#endif // ACTONQTSO_ACTIONEXECUTIONSTATESTRMAPPING_H_

@@ -1,5 +1,5 @@
-#ifndef ACTONQTG_RUNPROCESS_HPP
-#define ACTONQTG_RUNPROCESS_HPP
+#ifndef ACTONQTSO_RUNPROCESS_HPP
+#define ACTONQTSO_RUNPROCESS_HPP
 
 #include <QString>
 #include <QJsonObject>
@@ -54,12 +54,12 @@ class runProcessAction_c
     QString processPath_pri;
     std::vector<argument_c> arguments_pri;
     QString workingDirectory_pri;
-    //enviroment  requires some extra options
+    //enviroment requires some extra options
 
     //copy acton environment as a base
     //otherwise use an empty one
     bool useActonEnvironment_pri = true;
-    //specifit environment to add to the "base" one
+    //specific environment to add to the "base" one
     //keys must be unique
     QHash<QString, environmentPair_c> environmentToAdd_pri;
 public:
@@ -87,4 +87,4 @@ public:
     void setUseActonEnvironment_f(const bool useActonEnvironment_par_con);
 };
 
-#endif // ACTONQTG_RUNPROCESS_HPP
+#endif // ACTONQTSO_RUNPROCESS_HPP

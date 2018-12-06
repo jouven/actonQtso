@@ -22,6 +22,9 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 !win32:MYPATH = "/"
 win32:MYPATH = "H:/veryuseddata/portable/msys64/"
 
+#mine
+INCLUDEPATH += $${MYPATH}home/jouven/mylibs/include
+
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3
 
@@ -43,10 +46,28 @@ HEADERS += \
     actionExecution/runProcessExecution.hpp \
     actions/createDirectory.hpp \
     actions/runProcess.hpp \
-    mappings/actionExecutionStates.hpp \
-    mappings/actionExecutionStateStrMapping.hpp \
-    mappings/actions.hpp \
-    mappings/actionStrMapping.hpp
+    actionMappings/actionExecutionStates.hpp \
+    actionMappings/actionExecutionStateStrMapping.hpp \
+    actionMappings/actions.hpp \
+    actionMappings/actionStrMapping.hpp \
+    checkMappings/checks.hpp \
+    actionDataExecutionResult.hpp \
+    checkData.hpp \
+    checkMappings/checkExecutionStates.hpp \
+    checkMappings/checkExecutionStateStrMapping.hpp \
+    checkMappings/checkStrMapping.hpp \
+    checkDataExecutionResult.hpp \
+    checks/sameFile.hpp \
+    checkExecution/actionFinishedExecution.hpp \
+    checkExecution/sameFileExecution.hpp \
+    actionExecution/baseActionExecution.hpp \
+    checkExecution/baseCheckExecution.hpp \
+    actonBaseSerialization.hpp \
+    checks/actionFinished.hpp \
+    actonExecutionOptions.hpp \
+    actonDataHub.hpp \
+    checksBaseSerialization.hpp \
+    checksDataHub.hpp
 
 SOURCES += \
     actionData.cpp \
@@ -54,5 +75,47 @@ SOURCES += \
     actionExecution/runProcessExecution.cpp \
     actions/createDirectory.cpp \
     actions/runProcess.cpp \
-    mappings/actionExecutionStateStrMapping.cpp \
-    mappings/actionStrMapping.cpp
+    actionMappings/actionExecutionStateStrMapping.cpp \
+    actionMappings/actionStrMapping.cpp \
+    actionDataExecutionResult.cpp \
+    checkData.cpp \
+    checkMappings/checkExecutionStateStrMapping.cpp \
+    checkMappings/checkStrMapping.cpp \
+    checkDataExecutionResult.cpp \
+    checks/sameFile.cpp \
+    checkExecution/actionFinishedExecution.cpp \
+    checkExecution/sameFileExecution.cpp \
+    actonBaseSerialization.cpp \
+    checks/actionFinished.cpp \
+    actonExecutionOptions.cpp \
+    actonDataHub.cpp \
+    checksDataHub.cpp \
+    checksBaseSerialization.cpp \
+    checkExecution/baseCheckExecution.cpp \
+    actionExecution/baseActionExecution.cpp
+
+if (!android){
+#don't new line the "{"
+#release
+CONFIG(release, debug|release){
+
+}
+#debug
+CONFIG(debug, debug|release){
+
+    DEFINES += DEBUGJOUVEN
+}
+}
+
+if (android){
+#release
+CONFIG(release, debug|release){
+
+}
+#debug
+CONFIG(debug, debug|release){
+
+    DEFINES += DEBUGJOUVEN
+}
+
+}

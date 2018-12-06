@@ -1,21 +1,27 @@
-#ifndef ACTONQTG_RUNPROCESSEXECUTION_HPP
-#define ACTONQTG_RUNPROCESSEXECUTION_HPP
+#ifndef ACTONQTSO_RUNPROCESSEXECUTION_HPP
+#define ACTONQTSO_RUNPROCESSEXECUTION_HPP
+
+#include "baseActionExecution.hpp"
 
 #include "../actions/runProcess.hpp"
-#include "../mappings/actionExecutionStates.hpp"
 
 #include <QProcess>
-#include <QObject>
 
-//QObject objects of this can't be copied, fields can
-class runProcessActionExecution_c : public QObject, public runProcessAction_c
+class runProcessActionExecution_c : public baseActionExecution_c, public runProcessAction_c
 {
     Q_OBJECT
 
     //to prevent reruns
     bool startedOnce_pri = false;
+    //the function "setFinished_f"
+    bool setFinishedCalled_pri = false;
 
     QProcess actionProcess_pri;
+
+    //when executing: actionProcess_pri.terminate();
+    void terminateExecution_f();
+    //when executing: actionProcess_pri.kill();
+    void killExecution_f();
 public:
     runProcessActionExecution_c() = delete;
     explicit runProcessActionExecution_c(
@@ -24,29 +30,22 @@ public:
             , const int_fast32_t timeoutMilliseconds_par_con = 0
     );
 
-    //int returnValue_f() const;
-    //returns true if was successfull trying to execute/start the process
-    //this has to do with retrying to execute the process or executing it again when already has ended
-    //a process can only be executed/started once per object
-    bool execute_f();
-    void terminateExecution_f();
-    void killExecution_f();
+    void execute_f() override;
+    //sends sigterm
+    void stop_f() override;
+    //sends sigkill
+    void kill_f() override;
+
 Q_SIGNALS:
-    void executionStateChange_signal(const actionExecutionState_ec actionExecutionState_par_con);
-    //no need to emit output for the process since the meaningful output comes from the process
-    //AKA external output
-    //this action errors
-    void addError_signal(const QString& error_par_con);
     //for the called process stdout
     void addProcessOutput_signal(const QString& processOutput_par_con);
     //for the called process stderr
     void addProcessError_signal(const QString& processError_par_con);
 
     void setReturnCode_signal(const int returnCode_par_con);
-    //when the process "finishes" in any way, error, user stopped, successful
-    void anyFinish_signal();
+
 private Q_SLOTS:
-    //slots for QProcess signal catching
+    //slots to catch QProcess signals
     void readError_f(QProcess::ProcessError error_par);
     void setStarted_f();
     void setFinished_f(int exitCode_par, QProcess::ExitStatus exitStatus_par);
@@ -56,4 +55,4 @@ private Q_SLOTS:
 
 };
 
-#endif // ACTONQTG_RUNPROCESSEXECUTION_HPP
+#endif // ACTONQTSO_RUNPROCESSEXECUTION_HPP

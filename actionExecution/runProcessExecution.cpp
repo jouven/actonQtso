@@ -15,6 +15,10 @@ runProcessActionExecution_c::runProcessActionExecution_c(
     //, initialized_pri(true)
     //FUTURE implement the other arguments
 {
+    //main issue here that might need some testing, if the process crashes or ends because error
+    //will always "errorOcurred" happen before "finished"?
+
+    //process writing the stderr doesn't trigger this
     connect(&actionProcess_pri, &QProcess::errorOccurred, this, &runProcessActionExecution_c::readError_f);
     connect(&actionProcess_pri, &QProcess::started, this, &runProcessActionExecution_c::setStarted_f);
     connect(&actionProcess_pri, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &runProcessActionExecution_c::setFinished_f);
@@ -33,9 +37,11 @@ runProcessActionExecution_c::runProcessActionExecution_c(
 //    return exitCodeTmp;
 //}
 
-bool runProcessActionExecution_c::execute_f()
+void runProcessActionExecution_c::execute_f()
 {
-    bool resultTmp(false);
+#ifdef DEBUGJOUVEN
+    qDebug() << "runProcessActionExecution_c::execute_f()" << endl;
+#endif
     while (not startedOnce_pri)
     {
         startedOnce_pri = true;
@@ -64,7 +70,6 @@ bool runProcessActionExecution_c::execute_f()
             {
                 processEnvironmentTmp.clear();
 #ifdef DEBUGJOUVEN
-                //TODO remove? (the include too)
                 //I need to see what output this gives
                 qDebug() << "processEnvironmentTmp.clear()" << endl;
                 qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
@@ -78,7 +83,6 @@ bool runProcessActionExecution_c::execute_f()
                     if (iteratorTmp.value().enabled_f())
                     {
 #ifdef DEBUGJOUVEN
-                //TODO remove? (the include too)
                 //I need to see what output this gives
                 qDebug() << "iteratorTmp.key() " << iteratorTmp.key() << "iteratorTmp.value_f() " << iteratorTmp.value().value_f()  << endl;
 #endif
@@ -89,7 +93,6 @@ bool runProcessActionExecution_c::execute_f()
             }
             actionProcess_pri.setProcessEnvironment(processEnvironmentTmp);
 #ifdef DEBUGJOUVEN
-                //TODO remove? (the include too)
                 //I need to see what output this gives
                 qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
                 qDebug() << "actionProcess_pri.processEnvironment().value(\"PATH\") " << actionProcess_pri.processEnvironment().value("PATH") << endl;
@@ -101,11 +104,22 @@ bool runProcessActionExecution_c::execute_f()
         }
 
         actionProcess_pri.setWorkingDirectory(workingDirectory_f());
-        //TODO issue an error on the "qt site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
+        Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
+        //TODO issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
         actionProcess_pri.start(processPath_f(), argumentsTmp);
-        resultTmp = true;
     }
-    return resultTmp;
+}
+
+void runProcessActionExecution_c::stop_f()
+{
+    Q_EMIT executionStateChange_signal(actionExecutionState_ec::stoppingByUser);
+    terminateExecution_f();
+}
+
+void runProcessActionExecution_c::kill_f()
+{
+    Q_EMIT executionStateChange_signal(actionExecutionState_ec::killingByUser);
+    killExecution_f();
 }
 
 void runProcessActionExecution_c::terminateExecution_f()
@@ -133,6 +147,7 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
     //if the error is not given by the process being run
     //i.e. process file no existing
     bool calleeErrorTmp(false);
+    bool anyFinishTmp(false);
     QString errorStrTmp;
     switch (error_par)
     {
@@ -140,11 +155,13 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
         {
             errorStrTmp.append(actionProcess_pri.errorString());
             calleeErrorTmp = true;
+            anyFinishTmp = true;
         }
         break;
         case QProcess::Crashed:
         {
             errorStrTmp.append(actionProcess_pri.errorString());
+            anyFinishTmp = true;
         }
         break;
             //this only applies for the functions that block the thread (won't use them)
@@ -153,23 +170,24 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
 //            errorStrTmp.append(actionProcess_pri.errorString());
 //        }
 //        break;
-            //this would apply if anything was written into the process, right now nothing, maybe in the future
+            //this would apply if anything was written into the process while executing,
+            //right now nothing is, maybe in the future
 //        case QProcess::WriteError:
 //        {
 //            errorStrTmp.append(actionProcess_pri.errorString());
 //        }
 //        break;
-            //this one shouldn't happen because "An error occurred when attempting to read from the process. For example, the process may not be running."
+            //this one shouldn't happen because "An error occurred when attempting to read from the process. For example, the process may not be executing."
             //reading only happens when the readReady signal happens and I don't think that it would signal to read when that would trigger an error
 //        case QProcess::ReadError:
 //        {
 //            errorStrTmp.append(actionProcess_pri.errorString());
 //        }
 //        break;
+            //I don't know if this happens when the one at fault is the process or the callee
         case QProcess::UnknownError:
         {
             errorStrTmp.append(actionProcess_pri.errorString());
-            //I don't know if this happens when the one at fault is the process or the callee
         }
         break;
         default:
@@ -182,17 +200,30 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
     if (calleeErrorTmp)
     {
         Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+        Q_EMIT anyFinish_signal();
+    }
+    else
+    {
+        if (anyFinishTmp and not setFinishedCalled_pri)
+        {
+            //setFinished_f(actionProcess_pri.exitCode(), actionProcess_pri.exitStatus());
+            setFinished_f(actionProcess_pri.exitCode(), actionProcess_pri.exitStatus());
+        }
     }
 }
 
 void runProcessActionExecution_c::setStarted_f()
 {
-    Q_EMIT executionStateChange_signal(actionExecutionState_ec::running);
+    Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
 }
 
 void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::ExitStatus exitStatus_par)
 {
-    //finished_pri = true;
+    if (setFinishedCalled_pri)
+    {
+        return;
+    }
+    setFinishedCalled_pri = true;
     if (exitStatus_par == QProcess::ExitStatus::CrashExit)
     {
         //theoretically readError_f takes care of this already
@@ -211,6 +242,7 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
             //it's assumed that if the return code != 0 some error might happened
             //but there might be a case that the process will end with the exit status NormalExit
             //and the return code != 0
+            Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
         }
     }
     Q_EMIT anyFinish_signal();
@@ -231,7 +263,6 @@ void runProcessActionExecution_c::readStdout_f()
 void runProcessActionExecution_c::readProcessState_f(QProcess::ProcessState newState_par)
 {
 #ifdef DEBUGJOUVEN
-    //TODO remove? (the include too)
     //I need to see what output this gives
     qDebug() << newState_par << endl;
 #endif

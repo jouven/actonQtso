@@ -76,8 +76,10 @@ void runProcessAction_c::write_f(QJsonObject& json_par) const
         }
         json_par["environmentToAdd"] = environmentPairArray;
     }
-
-    json_par["workingDirectory"] = workingDirectory_pri;
+    if (not workingDirectory_pri.isEmpty())
+    {
+        json_par["workingDirectory"] = workingDirectory_pri;
+    }
     json_par["useActonEnvironment"] = useActonEnvironment_pri;
 }
 

@@ -5,46 +5,74 @@
 createDirectoryActionExecution_c::createDirectoryActionExecution_c(
         const createDirectoryAction_c& createDirectoryAction_par_con)
     : createDirectoryAction_c(createDirectoryAction_par_con)
-{
-}
+{}
 
-bool createDirectoryActionExecution_c::execute_f()
+void createDirectoryActionExecution_c::execute_f()
 {
-    bool resultTmp(false);
-    if (not startedOnce_pri)
+    QDir pathToCreateTmp(directoryPath_f());
+    if (pathToCreateTmp.exists())
     {
-        startedOnce_pri = true;
-        Q_EMIT executionStateChange_signal(actionExecutionState_ec::running);
-
-        QDir pathToCreateTmp(directoryPath_f());
-        if (pathToCreateTmp.exists())
+        if (errorIfExists_f())
         {
-            Q_EMIT addOutput_signal("Already exists");
-            resultTmp = true;
+            Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+            Q_EMIT addError_signal("Already exists");
         }
         else
         {
-            if (createParents_f())
+            Q_EMIT addOutput_signal("Already exists");
+            Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+        }
+    }
+    else
+    {
+        Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
+        while (true)
+        {
+            bool resultTmp(false);
+            QString directoryNameTmp(pathToCreateTmp.dirName());
+            bool parentExistsTmp(pathToCreateTmp.cdUp());
+            if (not parentExistsTmp and not createParents_f())
             {
-                resultTmp = pathToCreateTmp.mkpath(directoryPath_f());
+                Q_EMIT addOutput_signal("Can't create directory because parent directory doesn't exists");
+                Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+                break;
             }
             else
             {
-                resultTmp = pathToCreateTmp.mkdir(directoryPath_f());
+                //parent exist else createParents_f() == true
+                if (parentExistsTmp)
+                {
+                    resultTmp = pathToCreateTmp.mkdir(directoryNameTmp);
+                }
+                else
+                {
+                    resultTmp = pathToCreateTmp.mkpath(".");
+                }
             }
+
+            if (resultTmp)
+            {
+                Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+            }
+            else
+            {
+                Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+                Q_EMIT addError_signal("Couldn't create the directory, no permissions?");
+            }
+            break;
         }
-        if (resultTmp)
-        {
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
-        }
-        else
-        {
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-            Q_EMIT addError_signal("Couldn't create the directory, no permissions? trying to create a sub-directory without existing parent/s?");
-        }
-        Q_EMIT anyFinish_signal();
     }
-    return resultTmp;
+    Q_EMIT anyFinish_signal();
+}
+
+void createDirectoryActionExecution_c::stop_f()
+{
+    //no need
+}
+
+void createDirectoryActionExecution_c::kill_f()
+{
+    //no need
 }
 
 
