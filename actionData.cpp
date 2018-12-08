@@ -16,7 +16,6 @@
 //#include "criptoQtso/hashQt.hpp"
 //#include "signalso/signal.hpp"
 
-#include <QApplication>
 #include <QJsonArray>
 #include <QTimer>
 

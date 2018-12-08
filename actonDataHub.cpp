@@ -12,14 +12,14 @@
 
 #include "comuso/practicalTemplates.hpp"
 
-#include <QApplication>
+#include <QCoreApplication>
 
 #include <functional>
 
 //the qapp instance, QApplication qtapp(argc, argv); in the main,
 //can dtor this when it goes out of the scope
 actonDataHubProxyQObj_c::actonDataHubProxyQObj_c()
-    : QObject(QApplication::instance())
+    : QObject(QCoreApplication::instance())
 {}
 
 bool actonDataHub_c::moveRowActionData_f(
