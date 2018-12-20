@@ -3,6 +3,8 @@
 
 #include "checkMappings/checks.hpp"
 
+#include "crossPlatformMacros.hpp"
+
 //#include <QObject>
 #include <QString>
 #include <QJsonObject>
@@ -27,7 +29,7 @@ class actionData_c;
 
 //FUTURE? detect is checks are on the same storage and do them sequentially, else all at the same time
 
-class checkData_c
+class EXPIMP_ACTONQTSO checkData_c
 {
     //the id is a, fast, means to map the row position with the checkData
     int_fast64_t id_pri = 0;
@@ -62,6 +64,10 @@ class checkData_c
 
     void prepareToRun_f();
     void execute_f();
+
+    bool isEditable_f() const;
+    //use only on sets
+    bool tryClearResultsOnEdit_f();
 public:
     explicit checkData_c();
     explicit checkData_c(
@@ -117,7 +123,7 @@ public:
     //returns if true if it's stopping else false
     void stopExecution_f();
     //will initialize (new checkDataExecutionResult_pri) if it hasn't been initilized
-    checkDataExecutionResult_c* createGetCheckDataExecutionResult_ptr_f(const bool deleteObject_par_con = false);
+    checkDataExecutionResult_c* createGetCheckDataExecutionResult_ptr_f();
     checkDataExecutionResult_c* checkDataExecutionResult_ptr_f() const;
 
     actionData_c* parentAction_f() const;

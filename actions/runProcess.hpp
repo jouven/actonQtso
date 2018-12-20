@@ -1,6 +1,8 @@
 #ifndef ACTONQTSO_RUNPROCESS_HPP
 #define ACTONQTSO_RUNPROCESS_HPP
 
+#include "../crossPlatformMacros.hpp"
+
 #include <QString>
 #include <QJsonObject>
 #include <QDir>
@@ -8,7 +10,7 @@
 
 #include <vector>
 
-class argument_c
+class EXPIMP_ACTONQTSO argument_c
 {
     QString value_pri;
     bool enabled_pri = true;
@@ -28,7 +30,7 @@ public:
 };
 
 
-class environmentPair_c
+class EXPIMP_ACTONQTSO environmentPair_c
 {
     QString value_pri;
     bool enabled_pri = true;
@@ -49,7 +51,7 @@ public:
     void setEnabled_f(const bool enabled_par_con);
 };
 
-class runProcessAction_c
+class EXPIMP_ACTONQTSO runProcessAction_c
 {
     QString processPath_pri;
     std::vector<argument_c> arguments_pri;

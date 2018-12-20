@@ -9,14 +9,17 @@ class sameFileCheckExecution_c : public baseCheckExecution_c, public sameFileChe
 {
     Q_OBJECT
 
+    bool stopping_pri = false;
+protected:
+    void derivedExecute_f() override;
+    void derivedStop_f() override;
+public:
 public:
     sameFileCheckExecution_c() = delete;
     explicit sameFileCheckExecution_c(
-            const sameFileCheck_c& samefileCheck_par_con
+            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            , const sameFileCheck_c& samefileCheck_par_con
     );
-
-    void execute_f() override;
-//Q_SIGNALS:
 
 };
 

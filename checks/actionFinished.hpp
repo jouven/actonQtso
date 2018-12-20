@@ -1,12 +1,14 @@
 #ifndef ACTONQTSO_ACTIONFINISHED_HPP
 #define ACTONQTSO_ACTIONFINISHED_HPP
 
+#include "../crossPlatformMacros.hpp"
+
 #include <QString>
 #include <QJsonObject>
 
 //this only "supports" one actionStringId because an action can have multiple
 //checks (keep it simple)
-class actionFinishedCheck_c
+class EXPIMP_ACTONQTSO actionFinishedCheck_c
 {
     QString actionStringId_pri = 0;
     //FUTURE timeout setting?

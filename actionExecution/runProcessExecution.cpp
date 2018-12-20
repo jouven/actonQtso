@@ -1,43 +1,47 @@
 #include "runProcessExecution.hpp"
 
+#include "../actionDataExecutionResult.hpp"
+#include "../actonDataHub.hpp"
+
+#include "essentialQtso/macros.hpp"
+
+
 //#include <QThread>
+//#include <QCoreApplication>
 #ifdef DEBUGJOUVEN
 #include <QDebug>
 #endif
 
-#include <QProcessEnvironment>
+#ifdef Q_OS_WIN
+#include <Windows.h>
+#endif
 
 runProcessActionExecution_c::runProcessActionExecution_c(
-        const runProcessAction_c& processAction_par_con
+        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        , const runProcessAction_c& processAction_par_con
+        //FUTURE implement the other arguments
         , const bool mergeOutErr_par_con
         , const int_fast32_t timeoutMilliseconds_par_con)
-    : runProcessAction_c(processAction_par_con)
-    //, initialized_pri(true)
-    //FUTURE implement the other arguments
+    : baseActionExecution_c(actionExecutionResultObj_par_con)
+    , runProcessAction_c(processAction_par_con)
 {
+    QObject::connect(this, &runProcessActionExecution_c::addProcessError_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendExternalError_f);
+    QObject::connect(this, &runProcessActionExecution_c::addProcessOutput_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendExternalOutput_f);
+    QObject::connect(this, &runProcessActionExecution_c::setReturnCode_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::setReturnCode_f);
+
     //main issue here that might need some testing, if the process crashes or ends because error
     //will always "errorOcurred" happen before "finished"?
 
     //process writing the stderr doesn't trigger this
-    connect(&actionProcess_pri, &QProcess::errorOccurred, this, &runProcessActionExecution_c::readError_f);
-    connect(&actionProcess_pri, &QProcess::started, this, &runProcessActionExecution_c::setStarted_f);
-    connect(&actionProcess_pri, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &runProcessActionExecution_c::setFinished_f);
-    connect(&actionProcess_pri, &QProcess::readyReadStandardError, this, &runProcessActionExecution_c::readStderr_f);
-    connect(&actionProcess_pri, &QProcess::readyReadStandardOutput, this, &runProcessActionExecution_c::readStdout_f);
-    connect(&actionProcess_pri, &QProcess::stateChanged, this, &runProcessActionExecution_c::readProcessState_f);
+    QObject::connect(&actionProcess_pri, &QProcess::errorOccurred, this, &runProcessActionExecution_c::readError_f);
+    QObject::connect(&actionProcess_pri, &QProcess::started, this, &runProcessActionExecution_c::setStarted_f);
+    QObject::connect(&actionProcess_pri, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &runProcessActionExecution_c::setFinished_f);
+    QObject::connect(&actionProcess_pri, &QProcess::readyReadStandardError, this, &runProcessActionExecution_c::readStderr_f);
+    QObject::connect(&actionProcess_pri, &QProcess::readyReadStandardOutput, this, &runProcessActionExecution_c::readStdout_f);
+    QObject::connect(&actionProcess_pri, &QProcess::stateChanged, this, &runProcessActionExecution_c::readProcessState_f);
 }
 
-//int runProcessActionExecution_c::returnValue_f() const
-//{
-//    int exitCodeTmp(-1);
-//    if (actionProcess_pri.exitStatus() == QProcess::NormalExit)
-//    {
-//        exitCodeTmp = actionProcess_pri.exitCode();
-//    }
-//    return exitCodeTmp;
-//}
-
-void runProcessActionExecution_c::execute_f()
+void runProcessActionExecution_c::derivedExecute_f()
 {
 #ifdef DEBUGJOUVEN
     qDebug() << "runProcessActionExecution_c::execute_f()" << endl;
@@ -70,7 +74,6 @@ void runProcessActionExecution_c::execute_f()
             {
                 processEnvironmentTmp.clear();
 #ifdef DEBUGJOUVEN
-                //I need to see what output this gives
                 qDebug() << "processEnvironmentTmp.clear()" << endl;
                 qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
 #endif
@@ -83,7 +86,6 @@ void runProcessActionExecution_c::execute_f()
                     if (iteratorTmp.value().enabled_f())
                     {
 #ifdef DEBUGJOUVEN
-                //I need to see what output this gives
                 qDebug() << "iteratorTmp.key() " << iteratorTmp.key() << "iteratorTmp.value_f() " << iteratorTmp.value().value_f()  << endl;
 #endif
                         processEnvironmentTmp.insert(iteratorTmp.key(), iteratorTmp.value().value_f());
@@ -93,7 +95,6 @@ void runProcessActionExecution_c::execute_f()
             }
             actionProcess_pri.setProcessEnvironment(processEnvironmentTmp);
 #ifdef DEBUGJOUVEN
-                //I need to see what output this gives
                 qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
                 qDebug() << "actionProcess_pri.processEnvironment().value(\"PATH\") " << actionProcess_pri.processEnvironment().value("PATH") << endl;
 #endif
@@ -104,21 +105,27 @@ void runProcessActionExecution_c::execute_f()
         }
 
         actionProcess_pri.setWorkingDirectory(workingDirectory_f());
-        Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
+#ifdef Q_OS_WIN
+        //(WINDOWS) use a console to run a process, otherwise it's impossible to stop them nicely
+        //and the only option is "hard" kill
+        actionProcess_pri.setCreateProcessArgumentsModifier([] (QProcess::CreateProcessArguments *args)
+        {
+            args->flags |= CREATE_NEW_CONSOLE;
+            args->startupInfo->dwFlags &= ~STARTF_USESTDHANDLES;
+        });
+#endif
         //TODO issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
         actionProcess_pri.start(processPath_f(), argumentsTmp);
     }
 }
 
-void runProcessActionExecution_c::stop_f()
+void runProcessActionExecution_c::derivedStop_f()
 {
-    Q_EMIT executionStateChange_signal(actionExecutionState_ec::stoppingByUser);
     terminateExecution_f();
 }
 
-void runProcessActionExecution_c::kill_f()
+void runProcessActionExecution_c::derivedKill_f()
 {
-    Q_EMIT executionStateChange_signal(actionExecutionState_ec::killingByUser);
     killExecution_f();
 }
 
@@ -126,6 +133,7 @@ void runProcessActionExecution_c::terminateExecution_f()
 {
     if (actionProcess_pri.state() == QProcess::Running)
     {
+        MACRO_ADDACTONQTSOLOG("Terminate while running, this is SIGTERM(Linux) or WM_CLOSE(Windows)", logItem_c::type_ec::debug);
         actionProcess_pri.terminate();
     }
 }
@@ -140,7 +148,7 @@ void runProcessActionExecution_c::killExecution_f()
 
 void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
 {
-    //TODO requires test, maybe the switch case isn't needed
+    //requires test, maybe the switch case isn't needed
     //if nothing comes out of errorString, use the documentation descriptions
     //some of the errors aren't critical like timeout or the read/write ones
 
@@ -187,6 +195,7 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
             //I don't know if this happens when the one at fault is the process or the callee
         case QProcess::UnknownError:
         {
+            MACRO_ADDACTONQTSOLOG("QProcess::UnknownError", logItem_c::type_ec::debug);
             errorStrTmp.append(actionProcess_pri.errorString());
         }
         break;
@@ -196,20 +205,25 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
             //theoretically it shouldn't enter here ever, default is QProcess::UnknownError
         }
     }
+
+    //MACRO_ADDACTONQTSOLOG("same thread as main " + QSTRINGBOOL(QThread::currentThread() == QCoreApplication::instance()->thread()), logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(errorStrTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Callee error " + QSTRINGBOOL(calleeErrorTmp), logItem_c::type_ec::debug);
     Q_EMIT addError_signal(errorStrTmp);
     if (calleeErrorTmp)
     {
-        Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-        Q_EMIT anyFinish_signal();
+        //adderror does both
+        //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+        //Q_EMIT anyFinish_signal();
     }
     else
     {
         if (anyFinishTmp and not setFinishedCalled_pri)
         {
-            //setFinished_f(actionProcess_pri.exitCode(), actionProcess_pri.exitStatus());
             setFinished_f(actionProcess_pri.exitCode(), actionProcess_pri.exitStatus());
         }
     }
+
 }
 
 void runProcessActionExecution_c::setStarted_f()
@@ -224,26 +238,27 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
         return;
     }
     setFinishedCalled_pri = true;
+    Q_EMIT setReturnCode_signal(exitCode_par);
+    MACRO_ADDACTONQTSOLOG("Exit code " + QString::number(exitCode_par), logItem_c::type_ec::debug);
     if (exitStatus_par == QProcess::ExitStatus::CrashExit)
     {
+        MACRO_ADDACTONQTSOLOG("Crash exit, shoudn't? enter here", logItem_c::type_ec::debug);
         //theoretically readError_f takes care of this already
-        //Q_EMIT stateChange_f(actionExecutionState_ec::error);
+        //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+        Q_EMIT addError_signal("Crash exit");
     }
     else
     {
-        Q_EMIT setReturnCode_signal(exitCode_par);
+        //return code != 0, doesn't always mean it's an error
         if (exitCode_par == 0)
         {
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+
         }
         else
         {
-            //this case might need an extra end state, because right now
-            //it's assumed that if the return code != 0 some error might happened
-            //but there might be a case that the process will end with the exit status NormalExit
-            //and the return code != 0
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+            Q_EMIT addOutput_signal("Exit/return code: " + QString::number(exitCode_par));
         }
+        Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
     }
     Q_EMIT anyFinish_signal();
 }
@@ -264,7 +279,7 @@ void runProcessActionExecution_c::readProcessState_f(QProcess::ProcessState newS
 {
 #ifdef DEBUGJOUVEN
     //I need to see what output this gives
-    qDebug() << newState_par << endl;
+    qDebug() << "readProcessState_f newState_par" << newState_par << endl;
 #endif
 }
 

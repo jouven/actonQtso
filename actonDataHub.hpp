@@ -6,6 +6,8 @@
 
 #include "logsinJSONQtso/logDataHub.hpp"
 
+#include "crossPlatformMacros.hpp"
+
 #include <QObject>
 #include <QHash>
 #include <QStringList>
@@ -30,7 +32,7 @@
 //3 allow to use the result clases or the result files of point 2 as source for actions
 //
 
-class actonDataHubProxyQObj_c : public QObject
+class EXPIMP_ACTONQTSO actonDataHubProxyQObj_c : public QObject
 {
     Q_OBJECT
 public:
@@ -45,10 +47,11 @@ Q_SIGNALS:
     void anyExecutingChecksStopped_signal();
 };
 
+
 class logDataHub_c;
 
 //main hub of data
-class actonDataHub_c
+class EXPIMP_ACTONQTSO actonDataHub_c
 {
     actonDataHubProxyQObj_c* const proxyQObj_pri;
     //"row" is defines the position "order" of the actions when visually represented,
@@ -79,14 +82,11 @@ class actonDataHub_c
     bool actionsExecutionStopped_pri = false;
     bool killingActionsExecution_pri = false;
     bool actionsExecutionKilled_pri = false;
-    //TODO implement
-    //when looping execution, right now stopping will stop leaving actions midway execution
-    //or actions that were waiting for others will just not execute at all
-    //create an option to stop at the end of the loop
+
     bool stopOnThisLoopEnd_pri = false;
 
     void executeActions_f(const bool loop_par_con = false);
-    void verifyExecutionFinished_f();
+    void verifyExecutionFinished_f(actionData_c* actionDataPtr_par);
     void killingStarted_f();
 public:
     explicit actonDataHub_c();
@@ -164,6 +164,10 @@ public:
 //public Q_SLOTS:
     //FUTURE add try to stop for a selection of actions
     void tryStopExecutingActions_f(const bool killAfterTimeout_par_con = false);
+    //because otherwise when executing loops the only way to stop them is using tryStopExecutingActions_f
+    //and that leaves some actions finished, some executing-stopped and some not executed at all
+    //this will stop at the end of the execution cycle (if there is any)
+    void stopWhenLoopFinished_f();
 //private Q_SLOTS:
     //void checkLoopExecution_f();
     //ways to run actions
@@ -196,6 +200,6 @@ public:
     );
 };
 
-extern actonDataHub_c* actonDataHub_ptr_ext;
+extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;
 
 #endif // ACTONQTSO_ACTONDATAHUB_HPP

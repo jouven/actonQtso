@@ -8,21 +8,18 @@
 class createDirectoryActionExecution_c : public baseActionExecution_c, public createDirectoryAction_c
 {
     Q_OBJECT
-
+protected:
+    void derivedExecute_f() override;
+    //does nothing
+    void derivedStop_f() override;
+    //does nothing
+    void derivedKill_f() override;
 public:
     createDirectoryActionExecution_c() = delete;
     explicit createDirectoryActionExecution_c(
-            const createDirectoryAction_c& createDirectoryAction_par_con
+            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            , const createDirectoryAction_c& createDirectoryAction_par_con
     );
-
-    void execute_f() override;
-    //does nothing
-    void stop_f() override;
-    //does nothing
-    void kill_f() override;
-Q_SIGNALS:
-
-private Q_SLOTS:
 };
 
 #endif // ACTONQTSO_CREATEDIRECTORYEXECUTION_HPP

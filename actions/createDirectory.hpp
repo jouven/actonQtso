@@ -1,10 +1,12 @@
 #ifndef ACTONQTSO_CREATEDIRECTORY_HPP
 #define ACTONQTSO_CREATEDIRECTORY_HPP
 
+#include "../crossPlatformMacros.hpp"
+
 #include <QString>
 #include <QJsonObject>
 
-class createDirectoryAction_c
+class EXPIMP_ACTONQTSO createDirectoryAction_c
 {
     //this can be absolute or relative
     QString directoryPath_pri;

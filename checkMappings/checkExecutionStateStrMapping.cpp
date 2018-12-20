@@ -19,6 +19,8 @@ const std::unordered_map<checkExecutionState_ec, QString> checkExecutionStateToS
     , {	checkExecutionState_ec::stoppingByUser, "Stopping by the user" }
     , {	checkExecutionState_ec::stoppedByUser, "Stopped by the user" }
     , {	checkExecutionState_ec::timeOut, "Time out" }
-    , {	checkExecutionState_ec::finished, "Finished" }
+    , {	checkExecutionState_ec::finishedTrue, "Finished true" }
+    , {	checkExecutionState_ec::finishedFalse, "Finished false" }
 });
+
 

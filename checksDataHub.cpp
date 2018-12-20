@@ -142,7 +142,18 @@ void checksDataHub_c::executeNextSeqCheck_f()
         checkDataExecutionResult_c* checkDataExecutionResultTmp_ptr(checkDataTmp->createGetCheckDataExecutionResult_ptr_f());
         if (checksToRunSeq_pri.size() > 1)
         {
-            QObject::connect(checkDataExecutionResultTmp_ptr, &checkDataExecutionResult_c::finished_signal, proxyQObj_pri, std::bind(&checksDataHub_c::executeNextSeqCheck_f, this));
+            QObject* discObj(new QObject(checkDataExecutionResultTmp_ptr));
+            QObject::connect(
+                        checkDataExecutionResultTmp_ptr
+                        , &checkDataExecutionResult_c::finished_signal
+                        , discObj
+                        //, std::bind(&checksDataHub_c::executeNextSeqCheck_f, this)
+            , [this, discObj]()
+            {
+                discObj->deleteLater();
+                executeNextSeqCheck_f();
+            }
+            );
         }
 
         checkDataTmp->tryExecute_f();
@@ -223,7 +234,7 @@ checksDataHub_c& checksDataHub_c::operator=(checksDataHub_c&& from_par) noexcept
     checkDataIdToCheckDataUMap_pri = std::move(from_par.checkDataIdToCheckDataUMap_pri);
     parentAction_pri = from_par.parentAction_pri;
     proxyQObj_pri = from_par.proxyQObj_pri;
-    lastRunChecks_pri = std::move(from_par.lastRunChecks_pri);
+    //lastRunChecks_pri = std::move(from_par.lastRunChecks_pri);
 
     //setParentAction_f(parentAction_pri);
 
@@ -239,7 +250,7 @@ checksDataHub_c::checksDataHub_c(checksDataHub_c&& from_par) noexcept
     , checkDataIdToCheckDataUMap_pri(std::move(from_par.checkDataIdToCheckDataUMap_pri))
     , parentAction_pri(from_par.parentAction_pri)
     , proxyQObj_pri(from_par.proxyQObj_pri)
-    , lastRunChecks_pri(std::move(from_par.lastRunChecks_pri))
+    //, lastRunChecks_pri(std::move(from_par.lastRunChecks_pri))
 {
     //setParentAction_f(parentAction_pri);
 
@@ -265,11 +276,6 @@ void checksDataHub_c::setParentAction_f(actionData_c* parentAction_par)
 bool checksDataHub_c::checksExecutionFinished_f() const
 {
     return checksExecutionFinished_pri;
-}
-
-std::vector<checkData_c*> checksDataHub_c::lastRunChecks_f() const
-{
-    return lastRunChecks_pri;
 }
 
 actionData_c* checksDataHub_c::parentAction_f() const
@@ -315,8 +321,19 @@ void checksDataHub_c::executeChecks_f()
         proxyQObj_pri->checksExecutionStarted_signal();
         for (checkData_c* checkData_ite_ptr : checksToRun_pri)
         {
-            checkDataExecutionResult_c* checkDataExecutionResultTmp(checkData_ite_ptr->createGetCheckDataExecutionResult_ptr_f());
-            QObject::connect(checkDataExecutionResultTmp, &checkDataExecutionResult_c::finished_signal, proxyQObj_pri, std::bind(&checksDataHub_c::verifyExecutionFinished_f, this));
+            checkDataExecutionResult_c* checkDataExecutionResultPtrTmp(checkData_ite_ptr->createGetCheckDataExecutionResult_ptr_f());
+            QObject* discObj(new QObject(checkDataExecutionResultPtrTmp));
+            QObject::connect(
+                        checkDataExecutionResultPtrTmp
+                        , &checkDataExecutionResult_c::finished_signal
+                        , discObj
+                        //, std::bind(&checksDataHub_c::verifyExecutionFinished_f, this)
+            , [this, discObj]()
+            {
+                discObj->deleteLater();
+                verifyExecutionFinished_f();
+            }
+            );
 
             if (checkData_ite_ptr->threaded_f())
             {
@@ -345,7 +362,7 @@ void checksDataHub_c::verifyExecutionFinished_f()
             allFinishedTmp = false;
             break;
         }
-        if (checkData_ite_ptr->checkDataExecutionResult_ptr_f()->state_f() == checkExecutionState_ec::stoppingByUser)
+        if (checkData_ite_ptr->checkDataExecutionResult_ptr_f()->lastState_f() == checkExecutionState_ec::stoppedByUser)
         {
             somethingStoppedTmp = true;
         }
@@ -353,17 +370,15 @@ void checksDataHub_c::verifyExecutionFinished_f()
     if (allFinishedTmp)
     {
         MACRO_ADDACTONQTSOLOG("All checks finished executing", logItem_c::type_ec::info);
-        executingChecks_pri = false;
-        checksExecutionFinished_pri = true;
-        lastRunChecks_pri = checksToRun_pri;
-        proxyQObj_pri->checksExecutionFinished_signal(checksToRun_pri);
+
         if (stoppingChecksExecution_pri)
         {
-            MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", logItem_c::type_ec::info);
             stoppingChecksExecution_pri = false;
+            MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", logItem_c::type_ec::info);
             if (somethingStoppedTmp)
             {
                 MACRO_ADDACTONQTSOLOG("Execution finished, one or more checks were stopped", logItem_c::type_ec::info);
+                checksExecutionStopped_pri = true;
                 proxyQObj_pri->checksExecutionStopped_signal();
             }
         }
@@ -375,6 +390,10 @@ void checksDataHub_c::verifyExecutionFinished_f()
 //                executeChecks_f(true);
 //            }
         }
+
+        executingChecks_pri = false;
+        checksExecutionFinished_pri = true;
+        proxyQObj_pri->checksExecutionFinished_signal(checksToRun_pri);
     }
 }
 
@@ -601,7 +620,7 @@ bool checksDataHub_c::removeCheckDataUsingRow_f(
         //remove actionId - object mapping (removing the object from the data "container")
         checkDataIdToCheckDataUMap_pri.erase(checkIdToRemoveTmp);
 
-        lastRunChecks_pri.clear();
+        //lastRunChecks_pri.clear();
 
         resultTmp = true;
         break;

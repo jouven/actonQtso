@@ -11,18 +11,18 @@ class actionFinishedCheckExecution_c : public baseCheckExecution_c, public actio
 {
     Q_OBJECT
 
+protected:
+    void derivedExecute_f() override;
+    void derivedStop_f() override;
 public:
     actionFinishedCheckExecution_c() = delete;
     explicit actionFinishedCheckExecution_c(
-            const actionFinishedCheck_c& actionFinishedCheck_par_con
+            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            , const actionFinishedCheck_c& actionFinishedCheck_par_con
     );
-
-    void execute_f() override;
-//Q_SIGNALS:
 
 private Q_SLOTS:
     void actionFinished_f(actionData_c* const actionData_par_ptr_con);
-    void verifyStopped_f();
 };
 
 #endif // ACTONQTSO_ACTIONFINISHEDEXECUTION_HPP

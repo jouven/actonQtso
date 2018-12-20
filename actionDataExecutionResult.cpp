@@ -2,6 +2,8 @@
 
 #include "actionData.hpp"
 
+#include "comuso/practicalTemplates.hpp"
+
 #include <QDateTime>
 
 QString actionDataExecutionResult_c::error_f() const
@@ -24,14 +26,19 @@ int actionDataExecutionResult_c::returnCode_f() const
     return returnCode_pri;
 }
 
-actionExecutionState_ec actionDataExecutionResult_c::state_f() const
+actionExecutionState_ec actionDataExecutionResult_c::lastState_f() const
 {
-    return executionState_pri;
+    return executionStateVector_pri.back();
 }
 
 bool actionDataExecutionResult_c::returnCodeSet_f() const
 {
     return returnCodeSet_pri;
+}
+
+std::vector<actionExecutionState_ec> actionDataExecutionResult_c::executionStateVector_f() const
+{
+    return executionStateVector_pri;
 }
 
 actionData_c* actionDataExecutionResult_c::parent_ptr_f() const
@@ -60,29 +67,35 @@ qint64 actionDataExecutionResult_c::finishedTime_f() const
     return finishedTime_pri;
 }
 
-void actionDataExecutionResult_c::clear_f()
+bool actionDataExecutionResult_c::tryClear_f()
 {
-    output_pri.clear();
+    bool resultTmp(false);
+    if (finished_pri)
+    {
+        output_pri.clear();
 
-    externalOutput_pri.clear();
+        externalOutput_pri.clear();
 
-    externalErrorOutput_pri.clear();
+        externalErrorOutput_pri.clear();
 
-    errors_pri.clear();
+        errors_pri.clear();
 
-    returnCode_pri = -1;
-    returnCodeSet_pri = false;
+        returnCode_pri = -1;
+        returnCodeSet_pri = false;
 
-    executionState_pri = actionExecutionState_ec::initial;
+        executionStateVector_pri = { actionExecutionState_ec::initial };
 
-    started_pri = false;
-    finished_pri = false;
-    stoppedByUser_pri = false;
+        started_pri = false;
+        finished_pri = false;
+        stoppedByUser_pri = false;
 
-    startTime_pri = 0;
-    finishedTime_pri = 0;
+        startTime_pri = 0;
+        finishedTime_pri = 0;
 
-    Q_EMIT resultsCleared_signal(parent_ptr_pri);
+        resultTmp = true;
+        Q_EMIT resultsCleared_signal(parent_ptr_pri);
+    }
+    return resultTmp;
 }
 
 bool actionDataExecutionResult_c::stoppedByUser_f() const
@@ -109,8 +122,9 @@ void actionDataExecutionResult_c::appendOutput_f(const QString& output_par_con)
 
 void actionDataExecutionResult_c::appendError_f(const QString& error_par_con)
 {
+    trySetExecutionState_f(actionExecutionState_ec::error);
     errors_pri.append(error_par_con);
-    Q_EMIT errorUpdated_signal(parent_ptr_pri);
+    Q_EMIT error_signal(parent_ptr_pri);
 }
 
 void actionDataExecutionResult_c::appendExternalOutput_f(const QString& actionOutput_par_con)
@@ -131,53 +145,233 @@ void actionDataExecutionResult_c::setReturnCode_f(const int returnCode_par_con)
     {
         returnCode_pri = returnCode_par_con;
         returnCodeSet_pri = true;
-        Q_EMIT returnCodeUpdated_signal(parent_ptr_pri);
+        Q_EMIT returnCodeSet_signal(parent_ptr_pri);
     }
 }
 
-void actionDataExecutionResult_c::setExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con)
+bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con)
 {
+    bool resultTmp(false);
+    bool finishItTmp(false);
+    bool emitPreparingTmp(false);
+    bool emitExecutingChecksTmp(false);
+    bool emitExecutingTmp(false);
+    bool emitStoppingTmp(false);
+    bool emitKillingTmp(false);
+    bool emitSuccessTmp(false);
+    bool emitErrorTmp(false);
     //verify if is on a "final" state
-    if (not finished_pri)
+    while (not finished_pri and (lastState_f() not_eq actionExecutionState_par_con))
     {
-        executionState_pri = actionExecutionState_par_con;
-        if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser)
+        //actions that can't be set outside of this class
+        if (equalOnce_ft(actionExecutionState_par_con
+                         , actionExecutionState_ec::initial
+                         , actionExecutionState_ec::stoppedByUser
+                         , actionExecutionState_ec::killedByUser)
+        )
         {
-            Q_EMIT stopping_signal(parent_ptr_pri);
+            break;
         }
-        if (actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+
+        //from initial it can only go to preparing, executing checks
+        if (lastState_f() == actionExecutionState_ec::initial
+            and equalOnce_ft(actionExecutionState_par_con
+                              , actionExecutionState_ec::preparing
+                              , actionExecutionState_ec::executingChecks)
+        )
         {
-            Q_EMIT killing_signal(parent_ptr_pri);
+            resultTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::preparing)
+            {
+                emitPreparingTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::executingChecks)
+            {
+                emitExecutingChecksTmp = true;
+                break;
+            }
+        }
+
+        //from executhing checks it can only go to preparing, stopping/killing
+        if (lastState_f() == actionExecutionState_ec::executingChecks
+            and equalOnce_ft(actionExecutionState_par_con
+                             , actionExecutionState_ec::preparing
+                             , actionExecutionState_ec::stoppingByUser
+                             , actionExecutionState_ec::killingByUser)
+        )
+        {
+            resultTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::preparing)
+            {
+                emitPreparingTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser
+                or actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            {
+                emitStoppingTmp = true;
+                break;
+            }
+            break;
+        }
+
+        //from preparing it can only go to executing, stopping/killing
+        if (lastState_f() == actionExecutionState_ec::preparing
+            and equalOnce_ft(actionExecutionState_par_con
+                             , actionExecutionState_ec::error
+                             , actionExecutionState_ec::executing
+                             , actionExecutionState_ec::stoppingByUser
+                             , actionExecutionState_ec::killingByUser)
+            )
+        {
+            resultTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::error)
+            {
+                emitErrorTmp = true;
+                finishItTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::executing)
+            {
+                emitExecutingTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser
+                or actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            {
+                emitStoppingTmp = true;
+                break;
+            }
+            break;
+        }
+
+        //from executing it can only go to error, success, stopping/killing
+        if (lastState_f() == actionExecutionState_ec::executing
+            and equalOnce_ft(actionExecutionState_par_con
+                             , actionExecutionState_ec::error
+                             , actionExecutionState_ec::stoppingByUser
+                             , actionExecutionState_ec::killingByUser
+                             , actionExecutionState_ec::success)
+        )
+        {
+            resultTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::success)
+            {
+                finishItTmp = true;
+                emitSuccessTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::error)
+            {
+                emitErrorTmp = true;
+                finishItTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser)
+            {
+                emitStoppingTmp = true;
+                break;
+            }
+            if (actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            {
+                emitKillingTmp = true;
+                break;
+            }
+            break;
+        }
+        break;
+    }
+    while (resultTmp)
+    {
+        executionStateVector_pri.emplace_back(actionExecutionState_par_con);
+        if (finishItTmp)
+        {
+            trySetFinished_f();
         }
         Q_EMIT executionStateUpdated_signal(parent_ptr_pri);
+        if (emitPreparingTmp)
+        {
+            Q_EMIT preparing_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitExecutingChecksTmp)
+        {
+            Q_EMIT executingChecks_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitExecutingTmp)
+        {
+            setStarted_f();
+            Q_EMIT executing_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitSuccessTmp)
+        {
+            Q_EMIT success_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitStoppingTmp)
+        {
+            Q_EMIT stopping_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitKillingTmp)
+        {
+            Q_EMIT killing_signal(parent_ptr_pri);
+            break;
+        }
+        if (emitErrorTmp)
+        {
+            Q_EMIT error_signal(parent_ptr_pri);
+            break;
+        }
+        break;
     }
+    return resultTmp;
 }
 
 void actionDataExecutionResult_c::setStarted_f()
 {
-    started_pri = true;
-    startTime_pri = QDateTime::currentMSecsSinceEpoch();
+    if (not started_pri)
+    {
+        started_pri = true;
+        startTime_pri = QDateTime::currentMSecsSinceEpoch();
 
-    Q_EMIT started_signal(parent_ptr_pri);
+        Q_EMIT started_signal(parent_ptr_pri);
+    }
 }
 
-void actionDataExecutionResult_c::setFinished_f()
+void actionDataExecutionResult_c::trySetFinished_f()
 {
-    if (executionState_pri == actionExecutionState_ec::stoppingByUser)
+    if (not finished_pri
+        and equalOnce_ft(lastState_f()
+                         , actionExecutionState_ec::success
+                         , actionExecutionState_ec::error
+                         , actionExecutionState_ec::killingByUser
+                         , actionExecutionState_ec::stoppingByUser
+                         )
+    )
     {
-        stoppedByUser_pri = true;
-        setExecutionState_f(actionExecutionState_ec::stoppedByUser);
-        Q_EMIT stopped_signal(parent_ptr_pri);
-    }
-    if (executionState_pri == actionExecutionState_ec::killingByUser)
-    {
-        killedByUser_pri = true;
-        setExecutionState_f(actionExecutionState_ec::killedByUser);
-        Q_EMIT killed_signal(parent_ptr_pri);
-    }
+        finished_pri = true;
+        if (startTime_pri not_eq 0)
+        {
+            finishedTime_pri = QDateTime::currentMSecsSinceEpoch();
+        }
 
-    finished_pri = true;
-    finishedTime_pri = QDateTime::currentMSecsSinceEpoch();
+        if (lastState_f() == actionExecutionState_ec::stoppingByUser)
+        {
+            stoppedByUser_pri = true;
+            executionStateVector_pri.emplace_back(actionExecutionState_ec::stoppedByUser);
+            Q_EMIT stopped_signal(parent_ptr_pri);
+        }
+        if (lastState_f() == actionExecutionState_ec::killingByUser)
+        {
+            killedByUser_pri = true;
+            executionStateVector_pri.emplace_back(actionExecutionState_ec::killedByUser);
+            Q_EMIT killed_signal(parent_ptr_pri);
+        }
 
-    Q_EMIT finished_signal(parent_ptr_pri);
+        Q_EMIT finished_signal(parent_ptr_pri);
+    }
 }

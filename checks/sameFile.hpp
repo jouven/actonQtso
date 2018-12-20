@@ -1,10 +1,12 @@
 #ifndef ACTONQTSO_SAMEFILE_HPP
 #define ACTONQTSO_SAMEFILE_HPP
 
+#include "../crossPlatformMacros.hpp"
+
 #include <QString>
 #include <QJsonObject>
 
-class sameFileCheck_c
+class EXPIMP_ACTONQTSO sameFileCheck_c
 {
     //these can be absolute or relative
     QString fileAPath_pri;

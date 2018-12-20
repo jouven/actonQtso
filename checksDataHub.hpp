@@ -3,6 +3,8 @@
 
 #include "checkData.hpp"
 
+#include "crossPlatformMacros.hpp"
+
 #include <QObject>
 
 #include <unordered_map>
@@ -12,7 +14,7 @@
 
 class actionData_c;
 
-class checksDataHubProxyQObj_c : public QObject
+class EXPIMP_ACTONQTSO checksDataHubProxyQObj_c : public QObject
 {
     Q_OBJECT
 public:
@@ -23,7 +25,7 @@ Q_SIGNALS:
     void checksExecutionFinished_signal(std::vector<checkData_c*> lastRunChecks_par);
 };
 
-class checksDataHub_c //: public QObject
+class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
 {
     //Q_OBJECT
 
@@ -48,15 +50,11 @@ class checksDataHub_c //: public QObject
     std::vector<checkData_c*> checksToRun_pri;
     //checks to run sequentially
     std::deque<checkData_c*> checksToRunSeq_pri;
-    //when the checks of an action finish executing, the action
-    //needs to examine their results to decide if it can run
-    //since action_c is no QObject it's necessary to put
-    //put a property so the action can access them
-    std::vector<checkData_c*> lastRunChecks_pri;
 
     bool executingChecks_pri = false;
     bool checksExecutionFinished_pri = false;
     bool stoppingChecksExecution_pri = false;
+    bool checksExecutionStopped_pri = false;
 
     void executeChecks_f();
     void verifyExecutionFinished_f();
@@ -122,7 +120,6 @@ public:
     bool checksExecutionFinished_f() const;
 
     void stopExecutingChecks_f();
-    std::vector<checkData_c*> lastRunChecks_f() const;
     actionData_c* parentAction_f() const;
     //update all the checks setting that depend on an actionStringId
     //returns the number of updated checks which did match with the oldStringId

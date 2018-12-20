@@ -1,9 +1,11 @@
 #ifndef ACTONQTSO_EXECUTIONOPTIONS_HPP
 #define ACTONQTSO_EXECUTIONOPTIONS_HPP
 
+#include "crossPlatformMacros.hpp"
+
 #include <QJsonObject>
 
-class executionOptions_c
+class EXPIMP_ACTONQTSO executionOptions_c
 {
     //loop execution after everything has finished executing --> anyfinish is true for all the actions
     bool loopExecution_pri = false;

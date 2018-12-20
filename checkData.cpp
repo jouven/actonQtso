@@ -13,6 +13,7 @@
 #include "essentialQtso/macros.hpp"
 //#include "criptoQtso/hashQt.hpp"
 //#include "signalso/signal.hpp"
+#include "comuso/practicalTemplates.hpp"
 
 #include <QJsonArray>
 
@@ -66,8 +67,26 @@ bool checkData_c::isExecuting_f() const
 {
     return checkDataExecutionResult_ptr_pri not_eq nullptr
             and checkDataExecution_ptr_pri not_eq nullptr
-            and checkDataExecutionResult_ptr_pri->state_f() not_eq checkExecutionState_ec::initial
+            and equalOnce_ft(checkDataExecutionResult_ptr_pri->lastState_f()
+                            , checkExecutionState_ec::preparing
+                            , checkExecutionState_ec::executing)
             and not checkDataExecutionResult_ptr_pri->finished_f();
+}
+
+bool checkData_c::isEditable_f() const
+{
+    return not isExecuting_f() or checkDataExecutionResult_ptr_pri == nullptr or checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::initial;
+}
+
+//use only on sets
+bool checkData_c::tryClearResultsOnEdit_f()
+{
+    bool resultTmp(true);
+    if (not isEditable_f())
+    {
+        resultTmp = checkDataExecutionResult_ptr_pri->tryClear_f();
+    }
+    return resultTmp;
 }
 
 void checkData_c::setType_f(const checkType_ec type_par_con)
@@ -81,7 +100,10 @@ void checkData_c::setType_f(const checkType_ec type_par_con)
     }
     else
     {
-        type_pri = type_par_con;
+        if (tryClearResultsOnEdit_f())
+        {
+            type_pri = type_par_con;
+        }
     }
 }
 
@@ -101,13 +123,19 @@ void checkData_c::setCheckDataJSON_f(const QJsonObject& checkDataJSON_par_con)
     }
     else
     {
-        checkDataJSON_pri = checkDataJSON_par_con;
+        if (tryClearResultsOnEdit_f())
+        {
+            checkDataJSON_pri = checkDataJSON_par_con;
+        }
     }
 }
 
 void checkData_c::prepareToRun_f()
 {
-    checkDataExecutionResult_ptr_pri->setExecutionState_f(checkExecutionState_ec::preparing);
+    //IMPORTANT no stop checking here, like an action does, because checks don't run something else like an action with checks,
+    //so it's not necessary, since the function uses the main-thread, which blocks the GUI, it's not possible to execute and immediately stop
+    MACRO_ADDACTONQTSOLOG("Check, id: " + QString::number(this->id_pri) + " preparing to run", logItem_c::type_ec::debug);
+    checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::preparing);
 
     threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&checkData_c::execute_f, this), true);
     QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &QObject::deleteLater);
@@ -117,46 +145,46 @@ void checkData_c::prepareToRun_f()
 
 void checkData_c::execute_f()
 {
-    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " execute", logItem_c::type_ec::info);
-    switch (type_pri)
+    while (true)
     {
-        case checkType_ec::actionFinished:
+        if (checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stoppingByUser)
         {
-            actionFinishedCheck_c actionFinishedCheckTmp;
-            actionFinishedCheckTmp.read_f(checkDataJSON_f());
-            actionFinishedCheckExecution_c* actionFinishedCheckExecutionTmp = new actionFinishedCheckExecution_c(actionFinishedCheckTmp);
-
-            checkDataExecution_ptr_pri = actionFinishedCheckExecutionTmp;
-        }
+            checkDataExecutionResult_ptr_pri->trySetFinished_f();
             break;
-        case checkType_ec::sameFile:
-        {
-            sameFileCheck_c sameFileCheckTmp;
-            sameFileCheckTmp.read_f(checkDataJSON_f());
-            sameFileCheckExecution_c* sameFileCheckExecutionTmp = new sameFileCheckExecution_c(sameFileCheckTmp);
-
-            checkDataExecution_ptr_pri = sameFileCheckExecutionTmp;
         }
-            break;
-        default:
+
+        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " execute", logItem_c::type_ec::info);
+        switch (type_pri)
         {
-            //theoretically it shouldn't enter here ever
+            case checkType_ec::actionFinished:
+            {
+                actionFinishedCheck_c actionFinishedCheckTmp;
+                actionFinishedCheckTmp.read_f(checkDataJSON_f());
+                actionFinishedCheckExecution_c* actionFinishedCheckExecutionTmp = new actionFinishedCheckExecution_c(checkDataExecutionResult_ptr_pri, actionFinishedCheckTmp);
+
+                checkDataExecution_ptr_pri = actionFinishedCheckExecutionTmp;
+            }
+                break;
+            case checkType_ec::sameFile:
+            {
+                sameFileCheck_c sameFileCheckTmp;
+                sameFileCheckTmp.read_f(checkDataJSON_f());
+                sameFileCheckExecution_c* sameFileCheckExecutionTmp = new sameFileCheckExecution_c(checkDataExecutionResult_ptr_pri, sameFileCheckTmp);
+
+                checkDataExecution_ptr_pri = sameFileCheckExecutionTmp;
+            }
+                break;
+            default:
+            {
+                //theoretically it shouldn't enter here ever
+            }
         }
-    }
 
-    QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::executionStateChange_signal, checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::setExecutionState_f);
-    QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::addError_signal, checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::appendError_f);
-    QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::destroyed, checkDataExecutionResult_ptr_pri, [this]() { checkDataExecution_ptr_pri = nullptr; });
-    QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::anyCheckResult_signal, checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::setFinished_f);
+        QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::destroyed, checkDataExecutionResult_ptr_pri, [this]() { checkDataExecution_ptr_pri = nullptr; });
 
-    checkDataExecutionResult_ptr_f()->setStarted_f();
-    if (checkDataExecutionResult_ptr_pri->state_f() == checkExecutionState_ec::stoppingByUser)
-    {
-        checkDataExecutionResult_ptr_pri->setFinished_f(false);
-    }
-    else
-    {
         checkDataExecution_ptr_pri->execute_f();
+
+        break;
     }
 }
 
@@ -195,13 +223,13 @@ void checkData_c::tryExecute_f()
         }
         else
         {
-            if (checkDataExecutionResult_ptr_pri->state_f() == checkExecutionState_ec::initial)
+            if (checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::initial)
             {
                 //initial state requires no changes
             }
             else
             {
-                checkDataExecutionResult_ptr_pri->clear_f();
+                checkDataExecutionResult_ptr_pri->tryClear_f();
             }
         }
 
@@ -230,15 +258,15 @@ void checkData_c::stopExecution_f()
         }
 
         if (checkDataExecutionResult_ptr_pri not_eq nullptr
-            and checkDataExecutionResult_ptr_pri->state_f() == checkExecutionState_ec::stoppingByUser)
+            and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stoppingByUser)
         {
             break;
         }
 
         if (checkDataExecutionResult_ptr_pri not_eq nullptr
-            and checkDataExecutionResult_ptr_pri->state_f() == checkExecutionState_ec::preparing)
+            and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::preparing)
         {
-            checkDataExecutionResult_ptr_pri->setExecutionState_f(checkExecutionState_ec::stoppingByUser);
+            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
             MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " stopped while preparing", logItem_c::type_ec::info);
             break;
         }
@@ -246,7 +274,7 @@ void checkData_c::stopExecution_f()
         if (isExecuting_f())
         {
             MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " stopping execution", logItem_c::type_ec::info);
-            checkDataExecutionResult_ptr_pri->setExecutionState_f(checkExecutionState_ec::stoppingByUser);
+            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
             checkDataExecution_ptr_pri->stop_f();
         }
 
@@ -254,7 +282,7 @@ void checkData_c::stopExecution_f()
     }
 }
 
-checkDataExecutionResult_c* checkData_c::createGetCheckDataExecutionResult_ptr_f(const bool deleteObject_par_con)
+checkDataExecutionResult_c* checkData_c::createGetCheckDataExecutionResult_ptr_f()
 {
     while (true)
     {
@@ -262,11 +290,11 @@ checkDataExecutionResult_c* checkData_c::createGetCheckDataExecutionResult_ptr_f
         {
             break;
         }
-        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
-        if (deleteObject_par_con and not isExecuting_f())
-        {
-            deleteCheckDataExecutionResultObject_f();
-        }
+//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//        if (deleteObject_par_con and not isExecuting_f())
+//        {
+//            deleteCheckDataExecutionResultObject_f();
+//        }
         if (checkDataExecutionResult_ptr_pri == nullptr)
         {
             checkDataExecutionResult_ptr_pri = new checkDataExecutionResult_c(this);
@@ -297,7 +325,10 @@ void checkData_c::setThreaded_f(const bool threaded_par_con)
     }
     else
     {
-        threaded_pri = threaded_par_con;
+        if (tryClearResultsOnEdit_f())
+        {
+            threaded_pri = threaded_par_con;
+        }
     }
 }
 
@@ -317,11 +348,14 @@ void checkData_c::setEnabled_f(const bool enabled_par_con)
     }
     else
     {
-        enabled_pri = enabled_par_con;
-        //on disable delete the execution objects
-        if (not enabled_pri)
+        if (tryClearResultsOnEdit_f())
         {
-            deleteExecutionObjects_f();
+            enabled_pri = enabled_par_con;
+            //on disable delete the execution objects
+            if (not enabled_pri)
+            {
+                deleteExecutionObjects_f();
+            }
         }
     }
 }
@@ -431,7 +465,7 @@ checkData_c::checkData_c(
 checkData_c::checkData_c()
     : id_pri(nextCheckDataId_f())
 {
-MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed", logItem_c::type_ec::debug);
 }
 
 checkData_c::checkData_c(const checkData_c& from_par_con)
@@ -524,7 +558,7 @@ checkData_c&checkData_c::operator=(checkData_c&& from_par) noexcept
 void checkData_c::setParentAction_f(actionData_c* parentAction_par)
 {
     MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " parentAction is nullptr? " +  QSTRINGBOOL(parentAction_par not_eq nullptr), logItem_c::type_ec::debug);
-    //if it's null or (it's not and it's not running)
+    //if it's null or (it's not and it's not executing)
     if (parentAction_pri == nullptr or not parentAction_pri->isExecuting_f())
     {
         parentAction_pri = parentAction_par;
@@ -549,22 +583,23 @@ void checkData_c::write_f(QJsonObject& json) const
 
 void checkData_c::read_f(const QJsonObject& json)
 {
-    if (
-        (parentAction_pri not_eq nullptr and parentAction_pri->isExecuting_f())
-        or isExecuting_f()
-        )
-    {
-        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
-    }
-    else
-    {
+    //no need since the time it's used it to load an empty checkData_c object which won't be execution or have any execution objects
+//    if (
+//        (parentAction_pri not_eq nullptr and parentAction_pri->isExecuting_f())
+//        or isExecuting_f()
+//        )
+//    {
+//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//    }
+//    else
+//    {
         type_pri = strToCheckTypeMap_glo_sta_con.value(json["type"].toString().toLower());
         description_pri = json["description"].toString();
         threaded_pri = json["threaded"].toBool();
         enabled_pri = json["enabled"].toBool();
         checkDataJSON_pri = json["checkDataJSON"].toObject();
         MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " serialized", logItem_c::type_ec::debug);
-    }
+//    }
 }
 
 QString checkData_c::uniqueIdString_f() const
@@ -583,7 +618,10 @@ void checkData_c::setUniqueIdString_f(const QString& uniqueIdString_par_con)
     }
     else
     {
-        uniqueIdString_pri = uniqueIdString_par_con;
+        if (tryClearResultsOnEdit_f())
+        {
+            uniqueIdString_pri = uniqueIdString_par_con;
+        }
     }
 }
 

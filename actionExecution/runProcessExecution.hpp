@@ -22,19 +22,21 @@ class runProcessActionExecution_c : public baseActionExecution_c, public runProc
     void terminateExecution_f();
     //when executing: actionProcess_pri.kill();
     void killExecution_f();
+protected:
+    void derivedExecute_f() override;
+    //sends sigterm
+    void derivedStop_f() override;
+    //sends sigkill
+    void derivedKill_f() override;
 public:
     runProcessActionExecution_c() = delete;
     explicit runProcessActionExecution_c(
+            actionDataExecutionResult_c* actionExecutionResultObj_par_con,
             const runProcessAction_c& processAction_par_con
             , const bool mergeOutErr_par_con = false
             , const int_fast32_t timeoutMilliseconds_par_con = 0
     );
 
-    void execute_f() override;
-    //sends sigterm
-    void stop_f() override;
-    //sends sigkill
-    void kill_f() override;
 
 Q_SIGNALS:
     //for the called process stdout

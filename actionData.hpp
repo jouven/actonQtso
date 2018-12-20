@@ -11,6 +11,7 @@
 #include "checksDataHub.hpp"
 
 //#include "baseClassQtso/baseClassQt.hpp"
+#include "crossPlatformMacros.hpp"
 
 #include <QObject>
 #include <QString>
@@ -34,7 +35,7 @@ class baseActionExecution_c;
 //(an action can use other action results but without knowing if there is any, it can't know),
 //a "check" can query if an action, has ended (or not), if it's successful (or not), if there are results (or not)
 //an action can have multiple checks
-class actionData_c //: public eines::baseClassQt_c
+class EXPIMP_ACTONQTSO actionData_c //: public eines::baseClassQt_c
 {
     //the id is a, fast, means to map the row position with the actionData
     int_fast64_t id_pri = 0;
@@ -77,7 +78,7 @@ class actionData_c //: public eines::baseClassQt_c
 
     void deleteUsedPtrs_f();
     void execute_f();
-    void examineCheckResults_f();
+    void examineCheckResults_f(std::vector<checkData_c*> checksRun_par);
     void prepareToRunAction_f();
 
     bool isKillingExecutionAfterTimeout_pri = false;
@@ -86,6 +87,10 @@ class actionData_c //: public eines::baseClassQt_c
     //FUTURE will tryStop first, if false, it will will try to leave the action half done, if that's possible within the action, else will kill the thread
     //each action must be modified to allow a half done state
     void kill_f();
+
+    bool isEditable_f() const;
+    //use only on sets
+    bool tryClearResultsOnEdit_f();
 
 public:
     explicit actionData_c();
@@ -157,8 +162,7 @@ public:
     //kill timeout can be set in actonDataHub (actonExecutionOptions)
     void tryStopExecution_f(const bool killAfterTimeout_par_con = false);
     //will initialize (new actionDataExecutionResult_pri) if it hasn't been initilized
-    //won't delete the object if the action is executing
-    actionDataExecutionResult_c* createGetActionDataExecutionResult_ptr_f(const bool deleteObject_par_con = false);
+    actionDataExecutionResult_c* createGetActionDataExecutionResult_ptr_f();
     //check against Q_NULLPTR to know if exists
     actionDataExecutionResult_c* actionDataExecutionResult_ptr_f() const;
     //update all the actions/checks setting that depend on an actionStringId

@@ -1,20 +1,26 @@
 #include "createDirectoryExecution.hpp"
 
+#include "../actionDataExecutionResult.hpp"
+
 #include <QDir>
 
 createDirectoryActionExecution_c::createDirectoryActionExecution_c(
-        const createDirectoryAction_c& createDirectoryAction_par_con)
-    : createDirectoryAction_c(createDirectoryAction_par_con)
+        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        , const createDirectoryAction_c& createDirectoryAction_par_con
+)
+    : baseActionExecution_c(actionExecutionResultObj_par_con)
+    , createDirectoryAction_c(createDirectoryAction_par_con)
 {}
 
-void createDirectoryActionExecution_c::execute_f()
+void createDirectoryActionExecution_c::derivedExecute_f()
 {
     QDir pathToCreateTmp(directoryPath_f());
     if (pathToCreateTmp.exists())
     {
         if (errorIfExists_f())
         {
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+            //addError already change the state
+            //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
             Q_EMIT addError_signal("Already exists");
         }
         else
@@ -56,7 +62,7 @@ void createDirectoryActionExecution_c::execute_f()
             }
             else
             {
-                Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+                //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
                 Q_EMIT addError_signal("Couldn't create the directory, no permissions?");
             }
             break;
@@ -65,12 +71,12 @@ void createDirectoryActionExecution_c::execute_f()
     Q_EMIT anyFinish_signal();
 }
 
-void createDirectoryActionExecution_c::stop_f()
+void createDirectoryActionExecution_c::derivedStop_f()
 {
     //no need
 }
 
-void createDirectoryActionExecution_c::kill_f()
+void createDirectoryActionExecution_c::derivedKill_f()
 {
     //no need
 }

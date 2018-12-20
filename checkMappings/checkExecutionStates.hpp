@@ -11,7 +11,8 @@ enum class checkExecutionState_ec
     , stoppingByUser = 4
     , stoppedByUser = 5
     , timeOut = 6
-    , finished = 7
+    , finishedTrue = 7
+    , finishedFalse = 8
 };
 
 #endif // ACTONQTSO_CHECKEXECUTIONSTATES_HPP

@@ -1,5 +1,7 @@
 #include "sameFileExecution.hpp"
 
+#include "../actonDataHub.hpp"
+
 #include <QFile>
 #include <QFileInfo>
 
@@ -9,11 +11,13 @@
 #define BUFFERSIZE 1024 * 32
 
 sameFileCheckExecution_c::sameFileCheckExecution_c(
-        const sameFileCheck_c& samefileCheck_par_con)
-    : sameFileCheck_c(samefileCheck_par_con)
+        checkDataExecutionResult_c* checkExecutionResultObj_par_con
+        , const sameFileCheck_c& samefileCheck_par_con)
+    : baseCheckExecution_c(checkExecutionResultObj_par_con)
+    , sameFileCheck_c(samefileCheck_par_con)
 {}
 
-void sameFileCheckExecution_c::execute_f()
+void sameFileCheckExecution_c::derivedExecute_f()
 {
     bool resultTmp(false);
     bool resultSetTmp(false);
@@ -24,7 +28,7 @@ void sameFileCheckExecution_c::execute_f()
         if (not fileInfoFileA.exists())
         {
             Q_EMIT addError_signal("File A doesn't exist: " + fileAPath_f());
-            Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
+            //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             break;
         }
 
@@ -32,13 +36,13 @@ void sameFileCheckExecution_c::execute_f()
         if (not fileInfoFileB.exists())
         {
             Q_EMIT addError_signal("File B doesn't exist: " + fileBPath_f());
-            Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
+            //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             break;
         }
 
-        if (fileInfoFileA.size() != fileInfoFileB.size())
+        if (fileInfoFileA.size() not_eq fileInfoFileB.size())
         {
-            Q_EMIT anyCheckResult_signal(false);
+            Q_EMIT executionStateChange_signal(checkExecutionState_ec::finishedFalse);
             break;
         }
 
@@ -57,7 +61,7 @@ void sameFileCheckExecution_c::execute_f()
         else
         {
             Q_EMIT addError_signal("Error when opening File A: " + fileAPath_f());
-            Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
+            //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             break;
         }
 
@@ -67,7 +71,7 @@ void sameFileCheckExecution_c::execute_f()
         else
         {
             Q_EMIT addError_signal("Error when opening File B: " + fileBPath_f());
-            Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
+            //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             break;
         }
 
@@ -87,7 +91,7 @@ void sameFileCheckExecution_c::execute_f()
         bool sameBytesReadTmp(true);
         do
         {
-            if (stopping_f())
+            if (stopping_pri)
             {
                 break;
             }
@@ -114,16 +118,26 @@ void sameFileCheckExecution_c::execute_f()
         break;
     }
 
-    if (stopping_f() and not resultSetTmp)
+    if (stopping_pri and not resultSetTmp)
     {
-        Q_EMIT anyCheckResult_signal(false);
+        Q_EMIT executionStateChange_signal(checkExecutionState_ec::finishedFalse);
     }
     else
     {
-        Q_EMIT executionStateChange_signal(checkExecutionState_ec::finished);
-        Q_EMIT anyCheckResult_signal(resultTmp);
+        if (resultTmp)
+        {
+            Q_EMIT executionStateChange_signal(checkExecutionState_ec::finishedTrue);
+        }
+        else
+        {
+            Q_EMIT executionStateChange_signal(checkExecutionState_ec::finishedFalse);
+        }
     }
-    Q_EMIT anyCheckFinish_signal();
+}
+
+void sameFileCheckExecution_c::derivedStop_f()
+{
+    stopping_pri = true;
 }
 
 

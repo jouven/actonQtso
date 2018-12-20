@@ -5,7 +5,7 @@ TARGET = actonQtso
 TEMPLATE = lib
 
 !android:QMAKE_CXXFLAGS += -std=c++17
-android:CONFIG += c++14
+android:QMAKE_CXXFLAGS += -std=c++14
 CONFIG += no_keywords plugin
 #(only windows) fixes the extra tier of debug and release build directories inside the first build directories
 win32:CONFIG -= debug_and_release
@@ -20,6 +20,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
+DEFINES += ACTONQTSO_LIB
 
 HEADERS += \
     actionData.hpp \
@@ -48,7 +50,8 @@ HEADERS += \
     actonExecutionOptions.hpp \
     actonDataHub.hpp \
     checksBaseSerialization.hpp \
-    checksDataHub.hpp
+    checksDataHub.hpp \
+    crossPlatformMacros.hpp
 
 SOURCES += \
     actionData.cpp \
@@ -122,11 +125,16 @@ LIBS += -lthreadedFunctionQtso -llogsinJSONQtso  -lessentialQtso
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3
 
-linux:QMAKE_LFLAGS += -fuse-ld=gold
-QMAKE_LFLAGS_RELEASE += -fvisibility=hidden
-#if not win32, add flto, mingw (on msys2) can't handle lto
+#if not win32, add flto, mingw (on msys2) can't handle lto, CXXFLAGS
 linux:QMAKE_CXXFLAGS_RELEASE += -flto=jobserver
+#win32::QMAKE_CXXFLAGS_RELEASE += -flto
 !android:QMAKE_CXXFLAGS_RELEASE += -mtune=sandybridge
 
-#for -flto=jobserver in the link step to work with -j4
+#for -flto=jobserver in the link step to work with -jX
 linux:!android:QMAKE_LINK = +g++
+
+linux:QMAKE_LFLAGS += -fuse-ld=gold
+QMAKE_LFLAGS_RELEASE += -fvisibility=hidden
+#if not win32, add flto, mingw (on msys2) can't handle lto, LFLAGS
+linux:QMAKE_LFLAGS_RELEASE += -flto=jobserver
+#win32::QMAKE_LFLAGS_RELEASE += -flto

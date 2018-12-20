@@ -209,14 +209,27 @@ void actonDataHub_c::executeActions_f(const bool loop_par_con)
             else
             {
                 actionDataExecutionResult_c* actionDataExecutionResultTmp(actionData_ite_ptr->createGetActionDataExecutionResult_ptr_f());
-                QObject::connect(actionDataExecutionResultTmp, &actionDataExecutionResult_c::finished_signal, proxyQObj_pri, std::bind(&actonDataHub_c::verifyExecutionFinished_f, this));
-                QObject::connect(actionDataExecutionResultTmp, &actionDataExecutionResult_c::killing_signal, proxyQObj_pri, std::bind(&actonDataHub_c::killingStarted_f, this));
-
-                if (executionOptions_pri.stopExecutingOnError_f())
+                QObject::connect(
+                            actionDataExecutionResultTmp
+                            , &actionDataExecutionResult_c::finished_signal
+                            , proxyQObj_pri
+                , [this](actionData_c* actionDataPtr_par)
                 {
-                    actionDataExecutionResult_c* actionDataExecutionResultTmp(actionData_ite_ptr->createGetActionDataExecutionResult_ptr_f());
-                    QObject::connect(actionDataExecutionResultTmp, &actionDataExecutionResult_c::errorUpdated_signal, proxyQObj_pri, std::bind(&actonDataHub_c::tryStopExecutingActions_f, this, false));
+                    QObject::disconnect(actionDataPtr_par->actionDataExecutionResult_ptr_f(), &actionDataExecutionResult_c::finished_signal, proxyQObj_pri, nullptr);
+                    verifyExecutionFinished_f(actionDataPtr_par);
                 }
+                );
+                QObject::connect(
+                            actionDataExecutionResultTmp
+                            , &actionDataExecutionResult_c::killing_signal
+                            , proxyQObj_pri
+                            //, std::bind(&actonDataHub_c::killingStarted_f, this)
+                            , [this](actionData_c* actionDataPtr_par)
+                            {
+                                QObject::disconnect(actionDataPtr_par->actionDataExecutionResult_ptr_f(), &actionDataExecutionResult_c::killing_signal, proxyQObj_pri, nullptr);
+                                killingStarted_f();
+                            }
+                );
             }
 
             actionData_ite_ptr->tryExecute_f();
@@ -224,7 +237,7 @@ void actonDataHub_c::executeActions_f(const bool loop_par_con)
     }
 }
 
-void actonDataHub_c::verifyExecutionFinished_f()
+void actonDataHub_c::verifyExecutionFinished_f(actionData_c* actionDataPtr_par)
 {
     bool allFinishedTmp(true);
     bool somethingStoppedTmp(false);
@@ -236,52 +249,69 @@ void actonDataHub_c::verifyExecutionFinished_f()
             allFinishedTmp = false;
             break;
         }
-        if (actionData_ite_ptr->actionDataExecutionResult_ptr_f()->state_f() == actionExecutionState_ec::stoppedByUser)
+        if (actionData_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stoppedByUser)
         {
             somethingStoppedTmp = true;
         }
-        if (actionData_ite_ptr->actionDataExecutionResult_ptr_f()->state_f() == actionExecutionState_ec::killedByUser)
+        if (actionData_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::killedByUser)
         {
             somethingKilledTmp = true;
         }
     }
-    while (allFinishedTmp)
+    while (true)
     {
-        MACRO_ADDACTONQTSOLOG("All actions finished executing", logItem_c::type_ec::info);
-        if (stoppingActionsExecution_pri)
+        if (allFinishedTmp)
         {
-            stoppingActionsExecution_pri = false;
-            MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", logItem_c::type_ec::info);
-            if (somethingStoppedTmp)
+            MACRO_ADDACTONQTSOLOG("All actions finished executing", logItem_c::type_ec::info);
+            if (stoppingActionsExecution_pri)
             {
-                MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were stopped", logItem_c::type_ec::info);
-                actionsExecutionStopped_pri = true;
-                proxyQObj_pri->actionsExecutionStopped_signal();
+                stoppingActionsExecution_pri = false;
+                MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", logItem_c::type_ec::info);
+                if (somethingStoppedTmp)
+                {
+                    MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were stopped", logItem_c::type_ec::info);
+                    actionsExecutionStopped_pri = true;
+                    proxyQObj_pri->actionsExecutionStopped_signal();
+                }
+            }
+
+            if (killingActionsExecution_pri)
+            {
+                MACRO_ADDACTONQTSOLOG("Execution finished, after killing", logItem_c::type_ec::info);
+                killingActionsExecution_pri = false;
+                if (somethingKilledTmp)
+                {
+                    MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were killed", logItem_c::type_ec::info);
+                    actionsExecutionKilled_pri = true;
+                    proxyQObj_pri->actionsExecutionKilled_signal();
+                }
+            }
+
+            executingActions_pri = false;
+            actionsExecutionFinished_pri = true;
+            proxyQObj_pri->actionsExecutionFinished_signal(actionsToRun_pri);
+
+            if (not actionsExecutionKilled_pri and not actionsExecutionStopped_pri)
+            {
+                //niche case, if the last action "errors", all actions have finished and they can't be stopped,
+                //but if executionOptions_pri.stopExecutingOnError_f() is true, loopExecution can't happen either
+                if (executionOptions_pri.stopExecutingOnError_f() and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
+                {
+                    stopOnThisLoopEnd_pri = true;
+                }
+                if (executionOptions_pri.loopExecution_f() and not stopOnThisLoopEnd_pri)
+                {
+                    MACRO_ADDACTONQTSOLOG("Execution finished, looping execution", logItem_c::type_ec::info);
+                    executeActions_f(true);
+                }
+                stopOnThisLoopEnd_pri = false;
             }
         }
-
-        if (killingActionsExecution_pri)
+        else
         {
-            MACRO_ADDACTONQTSOLOG("Execution finished, after killing", logItem_c::type_ec::info);
-            killingActionsExecution_pri = false;
-            if (somethingKilledTmp)
+            if (executionOptions_pri.stopExecutingOnError_f() and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
             {
-                MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were killed", logItem_c::type_ec::info);
-                actionsExecutionKilled_pri = true;
-                proxyQObj_pri->actionsExecutionKilled_signal();
-            }
-        }
-
-        executingActions_pri = false;
-        actionsExecutionFinished_pri = true;
-        proxyQObj_pri->actionsExecutionFinished_signal(actionsToRun_pri);
-
-        if (not actionsExecutionKilled_pri and not actionsExecutionStopped_pri)
-        {
-            if (executionOptions_pri.loopExecution_f())
-            {
-                MACRO_ADDACTONQTSOLOG("Execution finished, looping execution", logItem_c::type_ec::info);
-                executeActions_f(true);
+                tryStopExecutingActions_f();
             }
         }
         break;
@@ -320,6 +350,11 @@ void actonDataHub_c::tryStopExecutingActions_f(const bool killAfterTimeout_par_c
     }
 }
 
+void actonDataHub_c::stopWhenLoopFinished_f()
+{
+    stopOnThisLoopEnd_pri = true;
+}
+
 void actonDataHub_c::tryResumeActionsExecution_f()
 {
     MACRO_ADDACTONQTSOLOG("Try resume actions execution", logItem_c::type_ec::debug);
@@ -330,7 +365,7 @@ void actonDataHub_c::tryResumeActionsExecution_f()
         bool stateSetTmp(false);
         for (actionData_c* actionData_ite_ptr : actionsToRun_pri)
         {
-            if (actionData_ite_ptr->actionDataExecutionResult_ptr_f() not_eq nullptr and actionData_ite_ptr->actionDataExecutionResult_ptr_f()->state_f() == actionExecutionState_ec::stoppedByUser)
+            if (actionData_ite_ptr->actionDataExecutionResult_ptr_f() not_eq nullptr and actionData_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stoppedByUser)
             {
                 actionData_ite_ptr->tryExecute_f();
                 if (not stateSetTmp)

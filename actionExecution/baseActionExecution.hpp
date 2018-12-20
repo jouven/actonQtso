@@ -5,31 +5,44 @@
 
 #include <QObject>
 
+class actionDataExecutionResult_c;
+
 class baseActionExecution_c : public QObject
 {
     Q_OBJECT
 
+private Q_SLOTS:
+    virtual void derivedExecute_f() = 0;
+    //end nicely, if possible
+    virtual void derivedStop_f() = 0;
+    //forced end, will end regardless of how things are left
+    virtual void derivedKill_f() = 0;
+protected:
+    actionDataExecutionResult_c* const actionExecutionResultObj_pri = nullptr;
+
+    baseActionExecution_c(actionDataExecutionResult_c* actionExecutionResultObj_par_con);
 public:
-    baseActionExecution_c();
+    void execute_f();
 
-    virtual void execute_f() = 0;
+    void stop_f();
 
+    void kill_f();
     //stop should always be called before kill (kill should happen after a timeout from calling stop)
     //stop or kill might not be implemented on some actions, i.e. createDirectory
     //stop should leave the action in a known state, resumable or not
-    //kill should finish the action whatever the state/outcome (an action shouldn't be able to stuck this "library-program")
+    //kill should finish the action whatever the state/outcome (an action shouldn't be able to stuck the "program-library")
 
-    //end nicely, if possible
-    virtual void stop_f() = 0;
-    //forced end, will end regardless of how things are left
-    virtual void kill_f() = 0;
+    //signals are used because the execution object is always in a different thread than
+    //the results object, because if the main thread, which is where the result obj is,
+    //were to access the result values mid-update, using regular functions instead of signals,
+    //it could get "half-updated" values
 Q_SIGNALS:
     void executionStateChange_signal(const actionExecutionState_ec actionExecutionState_par_con);
     //this action output
     void addOutput_signal(const QString& output_par_con);
     //this action errors
     void addError_signal(const QString& error_par_con);
-    //when the process "finishes" in any way, error, user stopped, successful
+    //when the process "finishes" in any way, error, user stopped/killed, successful
     void anyFinish_signal();
 };
 

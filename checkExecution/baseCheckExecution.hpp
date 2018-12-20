@@ -5,27 +5,28 @@
 
 #include <QObject>
 
+class checkDataExecutionResult_c;
+
 class baseCheckExecution_c : public QObject
 {
     Q_OBJECT
+private:
+    virtual void derivedExecute_f() = 0;
+    virtual void derivedStop_f() = 0;
+protected:
+    checkDataExecutionResult_c* const checkExecutionResultObj_pri = nullptr;
 
-    bool stopping_pri = false;
+    baseCheckExecution_c(checkDataExecutionResult_c* checkExecutionResultObj_par_con);
 public:
-    baseCheckExecution_c();
 
-    bool stopping_f() const;
     void stop_f();
 
-    virtual void execute_f() = 0;
+    void execute_f();
 
 Q_SIGNALS:
     void executionStateChange_signal(const checkExecutionState_ec& checkExecutionState_par_con);
     //this check errors
     void addError_signal(const QString& error_par_con);
-
-    void anyCheckResult_signal(const bool checkResult_par_con);
-    //used internally, this will trigger the object deletion
-    void anyCheckFinish_signal();
 };
 
 
