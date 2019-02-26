@@ -37,7 +37,6 @@ public:
             , const int_fast32_t timeoutMilliseconds_par_con = 0
     );
 
-
 Q_SIGNALS:
     //for the called process stdout
     void addProcessOutput_signal(const QString& processOutput_par_con);

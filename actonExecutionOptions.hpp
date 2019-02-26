@@ -9,8 +9,8 @@ class EXPIMP_ACTONQTSO executionOptions_c
 {
     //loop execution after everything has finished executing --> anyfinish is true for all the actions
     bool loopExecution_pri = false;
-    //finish already executing actions but don't run anything else
-    bool stopExecutingOnError_pri = true;
+//    //when an error happens stop executing actions and don't run anything else
+//    bool stopExecutingOnError_pri = true;
 
     //when executing actions how many threads to use
     //must be >0, default is 1, max is int32 max value
@@ -26,7 +26,7 @@ public:
     executionOptions_c() = default;
     //ctor to serialize
     executionOptions_c(const bool loopExecution_par_con
-            , const bool stopExecutingOnError_par_con
+            //, const bool stopExecutingOnError_par_con
             , const int_fast32_t extraThreads_par_con
             , const int_fast32_t killTimeoutMilliseconds_par_con
     );
@@ -34,13 +34,13 @@ public:
    void read_f(const QJsonObject &json);
 
    bool loopExecution_f() const;
-   bool stopExecutingOnError_f() const;
+   //bool stopExecutingOnError_f() const;
    int_fast32_t extraThreads_f() const;
    int_fast32_t killTimeoutMilliseconds_f() const;
 
    //moving the data is on the actonBase class
    void setLoopExecution_f(const bool loopExecution_par_con);
-   void setStopExecutingOnError_f(const bool stopExecutingOnError_par_con);
+   //void setStopExecutingOnError_f(const bool stopExecutingOnError_par_con);
    void setExtraThreads_f(const int_fast32_t extraThreads_par_con);
    void setKillTimeoutMilliseconds_f(const int_fast32_t killTimeoutMilliseconds_par_con);
 };

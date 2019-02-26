@@ -6,6 +6,7 @@
 #include <QString>
 #include <QJsonObject>
 
+//FUTURE buffersize setting
 class EXPIMP_ACTONQTSO sameFileCheck_c
 {
     //these can be absolute or relative

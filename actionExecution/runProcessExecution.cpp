@@ -103,8 +103,14 @@ void runProcessActionExecution_c::derivedExecute_f()
         {
             //nothing to do
         }
-
+#ifdef DEBUGJOUVEN
+        qDebug() << "workingDirectory_f() " << workingDirectory_f() << endl;
+        qDebug() << "actionProcess_pri.workingDirectory() before set: " << actionProcess_pri.workingDirectory() << endl;
+#endif
         actionProcess_pri.setWorkingDirectory(workingDirectory_f());
+#ifdef DEBUGJOUVEN
+        qDebug() << "actionProcess_pri.workingDirectory() after set: " << actionProcess_pri.workingDirectory() << endl;
+#endif
 #ifdef Q_OS_WIN
         //(WINDOWS) use a console to run a process, otherwise it's impossible to stop them nicely
         //and the only option is "hard" kill
@@ -214,9 +220,8 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
     Q_EMIT addError_signal(errorStrTmp);
     if (calleeErrorTmp)
     {
-        //adderror does both
-        //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-        //Q_EMIT anyFinish_signal();
+        //the execution never started and setFinished(in this class) won't be called
+        Q_EMIT anyFinish_signal();
     }
     else
     {
@@ -244,23 +249,24 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
     MACRO_ADDACTONQTSOLOG("Exit code " + QString::number(exitCode_par), logItem_c::type_ec::debug);
     if (exitStatus_par == QProcess::ExitStatus::CrashExit)
     {
-        MACRO_ADDACTONQTSOLOG("Crash exit, shoudn't? enter here", logItem_c::type_ec::debug);
+        //MACRO_ADDACTONQTSOLOG("Crash exit, shoudn't? enter here", logItem_c::type_ec::debug);
         //theoretically readError_f takes care of this already
         //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
         Q_EMIT addError_signal("Crash exit");
     }
     else
     {
+        //FUTURE might need an extra setting of what return code is error/success
         //return code != 0, doesn't always mean it's an error
-        if (exitCode_par == 0)
-        {
+//        if (exitCode_par == 0)
+//        {
 
-        }
-        else
-        {
-            Q_EMIT addOutput_signal("Exit/return code: " + QString::number(exitCode_par));
-        }
-        Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+//        }
+//        else
+//        {
+
+//        }
+        Q_EMIT addOutput_signal("Exit/return code: " + QString::number(exitCode_par));
     }
     Q_EMIT anyFinish_signal();
 }

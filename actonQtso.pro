@@ -51,7 +51,10 @@ HEADERS += \
     actonDataHub.hpp \
     checksBaseSerialization.hpp \
     checksDataHub.hpp \
-    crossPlatformMacros.hpp
+    crossPlatformMacros.hpp \
+    actions/copyFile.hpp \
+    actionExecution/copyFileExecution.hpp \
+    reused/sameFileAlgo.hpp
 
 SOURCES += \
     actionData.cpp \
@@ -76,7 +79,10 @@ SOURCES += \
     checksDataHub.cpp \
     checksBaseSerialization.cpp \
     checkExecution/baseCheckExecution.cpp \
-    actionExecution/baseActionExecution.cpp
+    actionExecution/baseActionExecution.cpp \
+    actions/copyFile.cpp \
+    actionExecution/copyFileExecution.cpp \
+    reused/sameFileAlgo.cpp
 
 !win32:MYPATH = "/"
 win32:MYPATH = "H:/veryuseddata/portable/msys64/"
@@ -120,7 +126,7 @@ CONFIG(debug, debug|release){
 
 }
 
-LIBS += -lthreadedFunctionQtso -llogsinJSONQtso  -lessentialQtso
+LIBS += -lbaseClassQtso -lthreadedFunctionQtso -llogsinJSONQtso -lessentialQtso -lfilterDirectoryQtso
 
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3

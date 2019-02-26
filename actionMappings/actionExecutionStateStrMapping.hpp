@@ -13,6 +13,6 @@
 
 //extern const QHash<QString, actionExecutionState_ec> strToActionExecutionStateUMap_glo_sta_con;
 //only output for now
-extern EXPIMP_ACTONQTSO const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_glo_sta_con;
+extern EXPIMP_ACTONQTSO const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_ext_con;
 
 #endif // ACTONQTSO_ACTIONEXECUTIONSTATESTRMAPPING_H_

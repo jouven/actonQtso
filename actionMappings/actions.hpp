@@ -14,6 +14,7 @@ enum class actionType_ec
     , closeActon = 5
     , findFilesDirectories = 6
     , modifyEnvironment = 7
+    , copyFile = 8
 };
 
 #endif // ACTONQTSO_ACTIONS_HPP

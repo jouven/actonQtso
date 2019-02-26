@@ -6,6 +6,7 @@
 #include "actionMappings/actionStrMapping.hpp"
 #include "actionExecution/runProcessExecution.hpp"
 #include "actionExecution/createDirectoryExecution.hpp"
+#include "actionExecution/copyFileExecution.hpp"
 
 #include "checkDataExecutionResult.hpp"
 #include "checksBaseSerialization.hpp"
@@ -346,7 +347,7 @@ void actionData_c::execute_f()
             {
                 runProcessAction_c runProcessActionTmp;
                 runProcessActionTmp.read_f(actionDataJSON_f());
-                runProcessActionExecution_c* runProcessActionExecutionTmp = new runProcessActionExecution_c(actionDataExecutionResult_ptr_pri, runProcessActionTmp);
+                runProcessActionExecution_c* runProcessActionExecutionTmp(new runProcessActionExecution_c(actionDataExecutionResult_ptr_pri, runProcessActionTmp));
 
                 actionDataExecution_ptr_pri = runProcessActionExecutionTmp;
             }
@@ -356,8 +357,17 @@ void actionData_c::execute_f()
                 createDirectoryAction_c createDirectoryActionTmp;
                 createDirectoryActionTmp.read_f(actionDataJSON_f());
 
-                createDirectoryActionExecution_c* createDirectoryActionExecutionTmp = new createDirectoryActionExecution_c(actionDataExecutionResult_ptr_pri, createDirectoryActionTmp);
+                createDirectoryActionExecution_c* createDirectoryActionExecutionTmp(new createDirectoryActionExecution_c(actionDataExecutionResult_ptr_pri, createDirectoryActionTmp));
                 actionDataExecution_ptr_pri = createDirectoryActionExecutionTmp;
+            }
+                break;
+            case actionType_ec::copyFile:
+            {
+                copyFileAction_c copyFileActionTmp;
+                copyFileActionTmp.read_f(actionDataJSON_f());
+
+                copyFileActionExecution_c* copyFileActionExecutionTmp(new copyFileActionExecution_c(actionDataExecutionResult_ptr_pri, copyFileActionTmp));
+                actionDataExecution_ptr_pri = copyFileActionExecutionTmp;
             }
                 break;
             default:
@@ -365,6 +375,7 @@ void actionData_c::execute_f()
                 //theoretically it shouldn't enter here ever
             }
         }
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\", action ctored/read from JSON and execution object ctored", logItem_c::type_ec::debug);
 
         QObject::connect(actionDataExecution_ptr_pri, &baseActionExecution_c::destroyed, [this]() { actionDataExecution_ptr_pri = nullptr; });
 
@@ -590,6 +601,23 @@ void actionData_c::setEnabled_f(const bool enabled_par_con)
     }
 }
 
+bool actionData_c::stopExecutionOnError_f() const
+{
+    return stopAllExecutionOnError_pri;
+}
+
+void actionData_c::setStopExecutionOnError_f(const bool stopExecutionOnError_par_con)
+{
+    if (isExecuting_f())
+    {
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+    }
+    else
+    {
+        stopAllExecutionOnError_pri = stopExecutionOnError_par_con;
+    }
+}
+
 void actionData_c::deleteActionDataExecutionObject_f()
 {
     if (actionDataExecution_ptr_pri == nullptr)
@@ -778,7 +806,7 @@ actionData_c::~actionData_c()
 
 void actionData_c::write_f(QJsonObject& json_ref_par) const
 {
-    json_ref_par["type"] = actionTypeToStrUMap_glo_sta_con.at(type_pri);
+    json_ref_par["type"] = actionTypeToStrUMap_ext_con.at(type_pri);
     json_ref_par["stringId"] = stringId_pri;
     json_ref_par["description"] = description_pri;
     json_ref_par["actionDataJSON"] = actionDataJSON_pri;
@@ -786,16 +814,16 @@ void actionData_c::write_f(QJsonObject& json_ref_par) const
     json_ref_par["runAllChecksAnyway"] = runAllChecksAnyway_pri;
     json_ref_par["checksEnabled"] = checksEnabled_pri;
     json_ref_par["enabled"] = enabled_pri;
+    json_ref_par["stopAllExecutionOnError"] = stopAllExecutionOnError_pri;
 
     copyFromChecksDataHubAndSerialize_f(checkDataHub_pri, json_ref_par);
-    //this might need to be changed to id
     MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" serialized", logItem_c::type_ec::debug);
 }
 
 void actionData_c::read_f(const QJsonObject& json_par_con)
 {
     //no need to check if it's running since the read_f it's, right now, only used after creating an actionData_c object
-    type_pri = strToActionTypeMap_glo_sta_con.value(json_par_con["type"].toString().toLower());
+    type_pri = strToActionTypeMap_ext_con.value(json_par_con["type"].toString().toLower());
     stringId_pri = json_par_con["stringId"].toString();
     description_pri = json_par_con["description"].toString();
     actionDataJSON_pri = json_par_con["actionDataJSON"].toObject();
@@ -809,6 +837,7 @@ void actionData_c::read_f(const QJsonObject& json_par_con)
     runAllChecksAnyway_pri = json_par_con["runAllChecksAnyway"].toBool();
     checksEnabled_pri = json_par_con["checksEnabled"].toBool();
     enabled_pri = json_par_con["enabled"].toBool();
+    stopAllExecutionOnError_pri = json_par_con["stopAllExecutionOnError"].toBool();
     MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" deserialized", logItem_c::type_ec::debug);
 }
 

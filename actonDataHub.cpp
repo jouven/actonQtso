@@ -294,8 +294,8 @@ void actonDataHub_c::verifyExecutionFinished_f(actionData_c* actionDataPtr_par)
             if (not actionsExecutionKilled_pri and not actionsExecutionStopped_pri)
             {
                 //niche case, if the last action "errors", all actions have finished and they can't be stopped,
-                //but if executionOptions_pri.stopExecutingOnError_f() is true, loopExecution can't happen either
-                if (executionOptions_pri.stopExecutingOnError_f() and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
+                //but if that action stopExecutionOnError_f is true, loopExecution can't happen either
+                if (actionDataPtr_par->stopExecutionOnError_f() and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
                 {
                     stopOnThisLoopEnd_pri = true;
                 }
@@ -309,7 +309,8 @@ void actonDataHub_c::verifyExecutionFinished_f(actionData_c* actionDataPtr_par)
         }
         else
         {
-            if (executionOptions_pri.stopExecutingOnError_f() and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
+            if (actionDataPtr_par->stopExecutionOnError_f()
+                and not actionDataPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
             {
                 tryStopExecutingActions_f();
             }

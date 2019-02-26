@@ -103,7 +103,9 @@ Q_SIGNALS:
     void resultsCleared_signal(actionData_c* actionData_ptr_par_con);
     //the slots should only be used by the action/execution object
 public Q_SLOTS:
-    //some of the actionExecutionState are final, like finished, after the object can't be modified anymore
+    //some of the actionExecutionState are final, like success, after they been set the object can't be modified anymore
+    //final states: success, killed, stopped and error, except error the others can't be set,
+    //they'll be set when trySetFinished_f is called
     bool trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con);
 
     void appendOutput_f(const QString& output_par_con);

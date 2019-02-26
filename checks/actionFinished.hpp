@@ -16,7 +16,7 @@ class EXPIMP_ACTONQTSO actionFinishedCheck_c
 
     //option to make this check fail if the finished action is not successful
     //otherwise this check passes regardless how the action finished
-    bool failCheckOnNotSuccessfulActionFinish_pri = false;
+    bool failCheckOnNotSuccessfulActionFinish_pri = true;
 
 public:
     actionFinishedCheck_c() = default;

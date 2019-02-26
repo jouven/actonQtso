@@ -1,0 +1,204 @@
+#ifndef ACTONQTSO_COPYFILE_HPP
+#define ACTONQTSO_COPYFILE_HPP
+
+#include "../crossPlatformMacros.hpp"
+
+#include "filterDirectoryQtso/filterDirectory.hpp"
+
+#include <QString>
+#include <QStringList>
+#include <QJsonObject>
+#include <QMap>
+#include <QMutexLocker>
+
+#include <vector>
+#include <unordered_map>
+
+class EXPIMP_ACTONQTSO copyFileAction_c
+{
+    //this can be absolute or relative, file or directory
+    QString sourcePath_pri;
+    //this can be absolute or relative, file or directory
+    //must be compatible with the source:
+    //can't copy a folder over a file
+    QString destinationPath_pri;
+public:
+    enum class transferType_ec
+    {
+        //all the transfers are done by block read/write to be able to cancel/resume easily
+        empty = 0
+        , copy = 1
+        //regular move that every OS uses, aka copy and if success delete the source
+        , move = 2
+        //TODO a way to mark which file transfers have been left midway, this might signal the need for a greater thing called
+        //"storing execution state (controlled)interruption-proof"
+        //FUTURE add an option to truncate while the read is in RAM still (which can be dangerous,
+        //but will make this transfer technique use 0 extra space)
+
+        //move by "blocks" starting from the source "end" to its begining,
+        //truncating the source on each block moved, in this order, aka first it writes then it truncates (it's safe)
+        //it's slow in the destination because it needs to shift the data of all the previous transfered
+        //blocks forward for every data block writing, so every block moved does a rewriting all the previous blocks
+        //uses WAY less extra space than the regular move, which temporarily requires 2x"of the moved file size" (during the move)
+        //use only when low on space or really fast transfers
+        //good for moving big file/s in a SSD low on space?
+        //it WILL, when I implement that FUTURE comment above, be possible to fast-"abused"?
+        //if storage space is low but ram size is big enough to contain all the data, of a file, in one/few reads
+        //this can be done by changing the buffer size
+        //"""resumes""" by default basically it will keep shifting w/e was left midway to the point that if destination already exists
+        //it will prepend the source to it
+        //unlike the destinatioTreatment resume options if the interruption is hard, like power outage or a sigkill, resuming might go wrong
+        //becase it can happen before the source is truncated, so the destination gets the "interruped block" appended twice
+        , trueMove = 3
+    };
+    static EXPIMP_ACTONQTSO const QMap<QString, transferType_ec> strToTransferTypeMap_sta_con;
+    static EXPIMP_ACTONQTSO const std::unordered_map<transferType_ec, QString> transferTypeToStrUMap_sta_con;
+
+    enum class destinationTreatment_ec
+    {
+        empty = 0
+        //error on any overwrite
+        , overwriteIsError = 1
+        //checks first if the destination is the same as the source, if not "error" else "ignore-success"
+        , overwriteIsErrorOnlyIfDifferent = 2
+        //checks first if the source and the destination are the same file to avoid a writing
+        //this is 2 x reads at best and 2 x reads + 1 x write at worst, regular overwrite is 1 read 1 write always
+        , overwriteOnlyIfDifferent = 3
+        //overwrite always
+        , overwrite = 4
+        //no overwrite always, ignore existing files
+        , noOverwrite = 5
+        //like overwrite but only if the destination is smaller and writing at the end of the destination,
+        //if destination is bigger it will be ignored and outputed and the transfer will cotinue
+        //this can have some adverse consequences if
+        //source or destination changed after the initial interrupted transfer
+        //will only check if the source@size > destination@size,
+        //and use the destination size as the starting index for the source
+        //to resume the transfer
+        //should be able to resume successfully if source/destination haven't changed since the transfer interruption
+        //use only? to copy large amounts of data that won't change in either side but can be interrupted
+        //fastest resume method if nothing goes wrong (no changes in the source or destination)
+        , tryStupidResume = 6
+        //like the above but compares source and destination and only overwrites
+        //when a difference is detected (the first one), i.e. destination already exists so a comparison is done
+        //between source and destination, in blocks, and as long as they are equal no writing will happen
+        //once a difference is found overwriting happens and no more comparison for that file is done
+        //in the rare case where the destination file is the same but larger, it will be truncated from the end
+        , lazyResume = 7
+        //FUTURE, same as above, but detect the blocks that are different, comparing blockwise (making it per byte would? be overkill)
+        //so it only overwrites the blocks that are different and not when the first different block is found
+        //, smartResume = 8
+    };
+
+    static EXPIMP_ACTONQTSO const QMap<QString, destinationTreatment_ec> strToDestinationTreatmentMap_sta_con;
+    static EXPIMP_ACTONQTSO const std::unordered_map<destinationTreatment_ec, QString> destinationTreatmentToStrUMap_sta_con;
+private:
+    transferType_ec transferType_pri = transferType_ec::empty;
+    destinationTreatment_ec destinationTreatment_pri = destinationTreatment_ec::empty;
+
+    //applies to files and directories
+    bool copyHidden_pri = true;
+
+    //only files
+    //applied to the filenames,
+    //several regexs apply "or" wise
+    QStringList sourceFilenameRegexFilters_pri;
+    QStringList sourceFilenameFullExtensions_pri;
+
+    //only for directories
+    bool navigateSubdirectories_pri = true;
+    bool navigateHidden_pri = true;
+    bool copyEmptyDirectories_pri = true;
+    //FUTURE directories with no files option?, because copyEmptyDirectories_pri will copy directories with empty directories in them
+
+    //like in create directory
+    bool createDestinationAndParents_pri = false;
+
+    //only affects dir sources, if a file copy errors, save the error
+    //but wait till the end to report it, because by default errors immediately
+    //stop running the action
+    bool stopAllCopyOnFileCopyError_pri = true;
+    bool noFilesCopiedIsError_pri = false;
+
+    int_fast64_t bufferSize_pri = 1024 * 1024;
+    //above stuff is json save-load-able
+
+    directoryFilter_c* directoryFilterPtr_pri = nullptr;
+    QMutex directoryFilterPtrMutex_pri;
+    //FUTURE sort options? tho it can be "done" using several copy actions and actionFinished check
+public:
+    copyFileAction_c() = default;
+    copyFileAction_c(
+            const QString& sourcePath_par_con
+            , const QString& destinationPath_par_con
+            , const transferType_ec transferType_par_con
+            , const destinationTreatment_ec destinationTreatment_par_con
+            , const bool copyHidden_par_con = true
+            , const QStringList& sourceRegexFilters_par_con = QStringList()
+            , const QStringList& filenameFullExtensions_par_con = QStringList()
+            , const bool nagivateSubdirectories_par_con = true
+            , const bool navigateHidden_par_con = true
+            , const bool copyEmptyDirectories_par_con = true
+            , const bool createDestinationParent_par_con = false
+            , const bool noFilesCopiedIsError_par_con = false
+            , const bool stopAllCopyOnFileCopyError_par_con = true
+            , const int_fast64_t bufferSize_par_con = 1024 * 1024
+    );
+
+    //copies everything except the mutex and pointers
+    copyFileAction_c(const copyFileAction_c& from_par_con);
+    //required to copy from a pointer dereference, does the same the above
+    copyFileAction_c(copyFileAction_c& from_par);
+    //std::moves everything and nulls pointers
+    copyFileAction_c(copyFileAction_c&& from_par) noexcept;
+
+    //copies everything except mutex and pointers
+    copyFileAction_c& operator=(const copyFileAction_c& from_par_con);
+    //same as above
+    copyFileAction_c& operator=(copyFileAction_c& from_par);
+    //same as move ctor
+    copyFileAction_c& operator=(copyFileAction_c&& from_par) noexcept;
+
+    void write_f(QJsonObject& json_par_ref) const;
+    void read_f(const QJsonObject& json_par_con);
+
+    //because when initializing using the default ctor + json reading
+    //there might be some unset properties use this to check
+    bool isValid_f(QString* errorStrPtr_par = nullptr) const;
+
+    QString sourcePath_f() const;
+    void setSourcePath_f(const QString& sourcePath_par_con);
+    QString destinationPath_f() const;
+    void setDestinationPath_f(const QString& destinationPath_par_con);
+    transferType_ec transferType_f() const;
+    void setTransferType_f(const transferType_ec transferType_par_con);
+    destinationTreatment_ec destinationTreatment_f() const;
+    void setDestinationTreatment_f(const destinationTreatment_ec& destinationTreatment_par_con);
+    bool copyHidden_f() const;
+    void setCopyHidden_f(const bool copyHidden_par_con);
+    QStringList sourceFilenameFullExtensions_f() const;
+    void setSourceFilenameFullExtensions_f(const QStringList& filenameFullExtensions_par_con);
+    bool navigateSubdirectories_f() const;
+    void setNavigateSubdirectories_f(const bool includeSubdirectories_par_con);
+    bool navigateHidden_f() const;
+    void setNavigateHidden_f(const bool navigateHidden_par_con);
+    bool copyEmptyDirectories_f() const;
+    void setCopyEmptyDirectories_f(const bool copyEmptyDirectories_par_con);
+    QStringList sourceFilenameRegexFilters_f() const;
+    void setSourceFilenameRegexFilters_f(const QStringList& sourceFilenameRegexFilters_par_con);
+    bool createDestinationAndParents_f() const;
+    void setCreateDestinationAndParents_f(const bool createDestinationParent_par_con);
+    bool stopAllCopyOnFileCopyError_f() const;
+    void setStopAllCopyOnFileCopyError_f(const bool stopAllCopyOnFileCopyError_par_con);
+    bool noFilesCopiedIsError_f() const;
+    void setNoFilesCopiedIsError_f(const bool noFilesCopiedIsError_par_con);
+    int_fast64_t bufferSize_f() const;
+    void setBufferSize_f(const int_fast64_t& bufferSize_par_con);
+
+    //tries to generate the file list that will be copied
+    std::vector<QString> testSourceFileList_f(QString* error_ptr = nullptr);
+    //to stop from outside
+    void stopDirectoryFiltering_f();
+};
+
+#endif // ACTONQTSO_CREATEDIRECTORY_HPP

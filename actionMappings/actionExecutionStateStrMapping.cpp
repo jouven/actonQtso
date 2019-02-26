@@ -10,7 +10,7 @@
 //    , {	"Time out", actionExecutionState_ec::timeOut}
 //});
 
-const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_glo_sta_con(
+const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_ext_con(
 {
     {	actionExecutionState_ec::initial, "Initial" }
     , {	actionExecutionState_ec::preparing, "Preparing" }

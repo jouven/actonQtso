@@ -62,7 +62,6 @@ void runProcessAction_c::write_f(QJsonObject& json_par) const
     }
     if (not environmentToAdd_pri.isEmpty())
     {
-
         QJsonArray environmentPairArray;
         QHash<QString, environmentPair_c>::const_iterator iteratorTmp = environmentToAdd_pri.constBegin();
         while (iteratorTmp != environmentToAdd_pri.constEnd())

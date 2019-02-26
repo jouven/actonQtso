@@ -26,7 +26,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
         else
         {
             Q_EMIT addOutput_signal("Already exists");
-            Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+            //Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
         }
     }
     else
@@ -39,8 +39,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             bool parentExistsTmp(pathToCreateTmp.cdUp());
             if (not parentExistsTmp and not createParents_f())
             {
-                Q_EMIT addOutput_signal("Can't create directory because parent directory doesn't exists");
-                Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
+                Q_EMIT addError_signal("Can't create directory because parent directory doesn't exists");
                 break;
             }
             else
@@ -58,7 +57,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
 
             if (resultTmp)
             {
-                Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
+                //nothing to set since if no error/stop/kill happened success will be the end state
             }
             else
             {

@@ -60,6 +60,14 @@ class EXPIMP_ACTONQTSO actionData_c //: public eines::baseClassQt_c
     //will ignore execution operations (execute, stop, execution objects, from this obj, will return Q_NULLPTR)
     bool enabled_pri = true;
 
+    //20190121 removed the global option and added this one
+    //to allow more granular control.
+    //Stops all the execution when any actions with this option "true" has an error,
+    //otherwise actions with this option "false" won't stop the global execution.
+    //Actions with check type "finishedExecution" might need extra care
+    //because of the option "failCheckOnNotSuccessfulActionFinish"
+    bool stopAllExecutionOnError_pri = true;
+
     //bellow is not "jsoned"
     QJsonObject actionDataJSON_pri;
 
@@ -84,8 +92,7 @@ class EXPIMP_ACTONQTSO actionData_c //: public eines::baseClassQt_c
     bool isKillingExecutionAfterTimeout_pri = false;
 
     void stopExecutingChecks_f();
-    //FUTURE will tryStop first, if false, it will will try to leave the action half done, if that's possible within the action, else will kill the thread
-    //each action must be modified to allow a half done state
+    //must be called after tryStopExecution_f
     void kill_f();
 
     bool isEditable_f() const;
@@ -134,6 +141,8 @@ public:
     //QJsonObject& actionDataJSON_ref_f();
     bool checksEnabled_f() const;
     bool enabled_f() const;
+    //stops all execution if this action has an error
+    bool stopExecutionOnError_f() const;
 
     checksDataHub_c* checkDataHub_ptr_f();
     const checksDataHub_c& checkDataHub_f() const;
@@ -149,6 +158,7 @@ public:
     void setActionDataJSON_f(const QJsonObject& actionDataJSON_par_con);
     void setChecksEnabled_f(const bool checksEnabled_par_con);
     void setEnabled_f(const bool enabled_par_con);
+    void setStopExecutionOnError_f(const bool stopExecutionOnError_par_con);
 
     //WARNING actionDataHub_c (datahub_f) has an execute function too, executeActionDataRows_f
     //Use that call if the Action is in the datahub, only call this if the action is in the vacuum

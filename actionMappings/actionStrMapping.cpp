@@ -1,15 +1,16 @@
 #include "actionStrMapping.hpp"
 
-const QMap<QString, actionType_ec> strToActionTypeMap_glo_sta_con(
+const QMap<QString, actionType_ec> strToActionTypeMap_ext_con(
 {
 //Keys are lower case because this way when reading from json we can "lower" w/e is
 //there and compare, allowing to ignore case
     {	"runprocess", actionType_ec::runProcess}
     , {	"createdirectory", actionType_ec::createDirectory}
+    , {	"copyfile", actionType_ec::copyFile}
 
 });
 
-const std::unordered_map<actionType_ec, QString> actionTypeToStrUMap_glo_sta_con(
+const std::unordered_map<actionType_ec, QString> actionTypeToStrUMap_ext_con(
 {
 //these ones can be in camelcase or w/e
     {	actionType_ec::runProcess, "runProcess" }
@@ -19,4 +20,5 @@ const std::unordered_map<actionType_ec, QString> actionTypeToStrUMap_glo_sta_con
     , {	actionType_ec::closeActon, "closeActon" }
     , {	actionType_ec::findFilesDirectories, "findFilesDirectories" }
     , {	actionType_ec::modifyEnvironment, "modifyEnvironment" }
+    , {	actionType_ec::copyFile, "copyFile" }
 });

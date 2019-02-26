@@ -4,12 +4,13 @@
 #include "baseCheckExecution.hpp"
 
 #include "../checks/sameFile.hpp"
+#include "../reused/sameFileAlgo.hpp"
 
 class sameFileCheckExecution_c : public baseCheckExecution_c, public sameFileCheck_c
 {
     Q_OBJECT
 
-    bool stopping_pri = false;
+    checkSameFile_c checkSameFile_pri;
 protected:
     void derivedExecute_f() override;
     void derivedStop_f() override;

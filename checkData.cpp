@@ -137,10 +137,28 @@ void checkData_c::prepareToRun_f()
     MACRO_ADDACTONQTSOLOG("Check, id: " + QString::number(this->id_pri) + " preparing to run", logItem_c::type_ec::debug);
     checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::preparing);
 
-    threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&checkData_c::execute_f, this), true);
-    QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &QObject::deleteLater);
-    QObject::connect(checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::finished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
-    threadedFunction_ptr->start();
+    //IMPORTANT some check types don't use resources and their execution
+    //depends on something "external" happening,
+    //they will just wait for something to happen
+    //i.e. finishedAction waits for an action to finish
+    //the point here is that if these types of checks use threads, which are "finite",
+    //they will block other action/threads which their execution depends on themselves and
+    //use resources (CPU, memory, storage...)
+    //the execution of these types should not block the main thread, finishedAction connects
+    //a signal to slot and nothing else
+    //FUTURE when I implement, datetime "Alarm" or "Timer" checks, those will go here too
+    //datetime "Alarm" or "Timer" checks will use timers which are async
+    if (equalOnce_ft(type_pri, checkType_ec::actionFinished , checkType_ec::alarmTimerDatetime))
+    {
+        checkData_c::execute_f();
+    }
+    else
+    {
+        threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&checkData_c::execute_f, this), true);
+        QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &QObject::deleteLater);
+        QObject::connect(checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::finished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
+        threadedFunction_ptr->start();
+    }
 }
 
 void checkData_c::execute_f()
