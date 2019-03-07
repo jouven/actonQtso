@@ -117,12 +117,16 @@ void runProcessActionExecution_c::derivedExecute_f()
         actionProcess_pri.setCreateProcessArgumentsModifier([] (QProcess::CreateProcessArguments *args)
         {
             args->flags |= CREATE_NEW_CONSOLE;
+            args->inheritHandles = true;
             //args->startupInfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
             //args->startupInfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
             //args->startupInfo->dwFlags &= ~STARTF_USESTDHANDLES;
         });
 #endif
         //TODO issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
+        //IMPORTANT ignore above, the issue is that to find the process location path what is used is the actonQtg environment,
+        //qprocess::setProcessEnvironment set variables of the QProcess which won't help,
+        //so actonQtg environment must be modified, use relative paths or use absolute path
         actionProcess_pri.start(processPath_f(), argumentsTmp);
     }
 }
