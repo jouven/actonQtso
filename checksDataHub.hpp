@@ -125,6 +125,11 @@ public:
     //returns the number of updated checks which did match with the oldStringId
     int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+
+    int_fast32_t updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    //although the return value is a vector, it will only contain unique strings
+    std::vector<QString> stringTriggersInUseByChecks_f() const;
 };
 
 #endif // ACTONQTSO_CHECKSDATAHUB_HPP

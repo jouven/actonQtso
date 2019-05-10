@@ -25,6 +25,7 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString directoryPath_f() const;
+    QString directoryPathParsed_f() const;
     void setDirectoryPath_f(const QString& directoryPath_par_con);
     bool createParents_f() const;
     void setCreateParents_f(const bool createParents_par_con);

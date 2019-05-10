@@ -68,10 +68,10 @@ class EXPIMP_ACTONQTSO actionData_c //: public eines::baseClassQt_c
     //because of the option "failCheckOnNotSuccessfulActionFinish"
     bool stopAllExecutionOnError_pri = true;
 
+    checksDataHub_c checkDataHub_pri;
+
     //bellow is not "jsoned"
     QJsonObject actionDataJSON_pri;
-
-    checksDataHub_c checkDataHub_pri;
 
     //it's a baseActionExecution_c (base class) because every execution object
     //has a different class but all have baseActionExecution_c as base and using the action type
@@ -179,6 +179,12 @@ public:
     //returns the number of updated checks/action properties which did match with the oldStringId
     int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+
+    //below 3 functions, only used in actionFinished checks for now
+    int_fast32_t updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    bool hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con) const;
+    //although the return value is a vector, it will only contain unique strings
+    std::vector<QString> stringTriggersInUse_f() const;
 };
 
 #endif // ACTONQTSO_ACTIONDATA_HPP

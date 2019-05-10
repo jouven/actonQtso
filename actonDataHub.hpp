@@ -19,6 +19,23 @@
 //don't use in actonDataHub_c ctors
 #define MACRO_ADDACTONQTSOLOG(MESSAGE, TYPE) actonDataHub_ptr_ext->addLogMessage_f(MESSAGE, TYPE, MACRO_FILENAME, __func__, __LINE__)
 
+#define COPYPARSERETURNVAR(X) QString copyStrTmp(X); \
+if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
+{ \
+    actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(copyStrTmp)); \
+} \
+return copyStrTmp;
+
+#define COPYPARSERETURNSTRINGLIST(X) QStringList copyStrListTmp(X); \
+if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
+{ \
+    for (QString& str_ite : copyStrListTmp) \
+    { \
+        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(str_ite)); \
+    } \
+} \
+return copyStrListTmp;
+
 //FUTURE (FAR?) action result's to file, actions can use this files as a source
 //make result clases de/serializable
 //i.e. create directory can grab, runprocess "ls" result and try to create folders (I know it doesn't make too much sense)
@@ -48,7 +65,7 @@ Q_SIGNALS:
 };
 
 
-class logDataHub_c;
+
 
 //main hub of data
 class EXPIMP_ACTONQTSO actonDataHub_c
@@ -75,6 +92,7 @@ class EXPIMP_ACTONQTSO actonDataHub_c
     std::vector<actionData_c*> actionsToRun_pri;
 
     logDataHub_c* logDataHub_pri = nullptr;
+
 
     bool executingActions_pri = false;
     bool actionsExecutionFinished_pri = false;
@@ -131,9 +149,8 @@ public:
     //used in the lastActionFinishedCheck combo (actonQtg)
     QStringList actionStringIdList_f(const bool sorted_par_con = true) const;
 
-    //no reference function "option" because this class needs to know when it's modified, this way it knows
-    void setExecutionOptions(const executionOptions_c& executionOptions_par_con);
     executionOptions_c executionOptions_f() const;
+    executionOptions_c& executionOptions_f();
 
     //actions
 
@@ -183,6 +200,11 @@ public:
     //returns the number of updated checks/action properties which did match with the oldStringId
     int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+    //below 3 functions, only used in actionFinished checks for now
+    int_fast32_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    //although the return value is a vector, it will only contain unique strings
+    std::vector<QString> stringTriggersInUseByActionsOrChecks_f() const;
 
     bool killingActionsExecution_f() const;
     bool actionsExecutionKilled_f() const;
@@ -198,6 +220,7 @@ public:
             , const QString& sourceFunction_par_con
             , const int_fast32_t line_par_con
     );
+
 };
 
 extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;

@@ -127,12 +127,13 @@ void copyFileActionExecution_c::blockMove_f(
                 //get the READ seek position back 1 buffer from the OLD end
                 int_fast64_t seekReadTmp(destinationFileSizeTmp - destinationBufferSizeTmp);
                 //I should  comment this because I lost a full evening on this
-                //and it's a obvious after the fact but it won't be after weeks/months/years
-                //so when shifting the file to make space for the new data that I'll come from the source
-                //the file is resized to it's current size + the block size and all the data from the previous size
-                //index it's read in blocks, from the end of the file to the begining of the file
+                //and it's a obvious after the fact but it won't be after weeks/months/years.
+                //When shifting the file to make space for the new data that I'll come from the source
+                //the file is resized to it's current size + the block size and all the data from the previous
+                //size-index it's read in blocks, from the end of the file to the begining of the file
                 //but where is written? (this is what took me "some time") it's written one block size before
-                //the new-current end in the same way as the reads, from end to begining plus no worries about going negative index wise
+                //the new-current end, in the same way as the reads,
+                //from end to begining plus no worries about going negative index wise
                 //since the write index is one buffer ahead and the read index will go negative first
                 int_fast64_t seekWriteTmp(destinationFileTmp.size() - destinationBufferSizeTmp);
                 while (true)
@@ -594,7 +595,7 @@ void copyFileActionExecution_c::prepareCopyFile_f(
             }
             else
             {
-                APPENDSTRPTR(errorStrPtr_par, "After successful move could not remove source file: " + sourcePath_f())
+                APPENDSTRPTR(errorStrPtr_par, "After successful move could not remove source file: " + sourcePathParsed_f())
                 break;
             }
         }
@@ -608,7 +609,7 @@ void copyFileActionExecution_c::derivedExecute_f()
     QString errorStrTmp;
     while (isValid_f(std::addressof(errorStrTmp)))
     {
-        QFileInfo sourceFileInfoTmp(sourcePath_f());
+        QFileInfo sourceFileInfoTmp(sourcePathParsed_f());
         if (sourceFileInfoTmp.exists())
         {
             //good
@@ -638,7 +639,7 @@ void copyFileActionExecution_c::derivedExecute_f()
             }
         }
 
-        QFileInfo destinationFileInfoTmp(destinationPath_f());
+        QFileInfo destinationFileInfoTmp(destinationPathParsed_f());
         bool destinationIsFileTmp(false);
         bool destinationIsDirTmp(false);
         const bool destinationExistsTmp(destinationFileInfoTmp.exists());
@@ -652,7 +653,7 @@ void copyFileActionExecution_c::derivedExecute_f()
             //case non existing destination
             //let's assume if source is file destination is file and if source is dir destination is dir
             //except if destination path string ends with "/"
-            if (destinationPath_f().endsWith("/"))
+            if (destinationPathParsed_f().endsWith("/"))
             {
                 destinationIsDirTmp = true;
                 destinationIsFileTmp = false;

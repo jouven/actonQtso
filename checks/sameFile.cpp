@@ -1,9 +1,18 @@
 #include "sameFile.hpp"
 
+#include "../actonDataHub.hpp"
+
+#include "stringParserMapQtso/stringParserMap.hpp"
+
 
 QString sameFileCheck_c::fileAPath_f() const
 {
     return fileAPath_pri;
+}
+
+QString sameFileCheck_c::fileAPathParsed_f() const
+{
+    COPYPARSERETURNVAR(fileAPath_pri);
 }
 
 void sameFileCheck_c::setFileAPath_f(const QString& fileAPath_par_con)
@@ -14,6 +23,11 @@ void sameFileCheck_c::setFileAPath_f(const QString& fileAPath_par_con)
 QString sameFileCheck_c::fileBPath_f() const
 {
     return fileBPath_pri;
+}
+
+QString sameFileCheck_c::fileBPathParsed_f() const
+{
+    COPYPARSERETURNVAR(fileBPath_pri);
 }
 
 void sameFileCheck_c::setFileBPath_f(const QString& fileBPath_par_con)

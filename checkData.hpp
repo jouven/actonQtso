@@ -9,6 +9,8 @@
 #include <QString>
 #include <QJsonObject>
 
+#include <vector>
+
 class baseCheckExecution_c;
 class checkDataExecutionResult_c;
 class actionData_c;
@@ -132,6 +134,12 @@ public:
     //returns true if a field was updated (did match with the oldStringId)
     bool updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+
+    //in the checkdatahub it's an int but here it's a bool because it can only be one dependency
+    bool updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    //although the return value is a vector, it will only contain unique strings
+    std::vector<QString> stringTriggersInUse_f() const;
 };
 
 #endif // ACTONQTSO_CHECKDATA_HPP

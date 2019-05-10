@@ -14,18 +14,18 @@ createDirectoryActionExecution_c::createDirectoryActionExecution_c(
 
 void createDirectoryActionExecution_c::derivedExecute_f()
 {
-    QDir pathToCreateTmp(directoryPath_f());
+    QDir pathToCreateTmp(directoryPathParsed_f());
     if (pathToCreateTmp.exists())
     {
         if (errorIfExists_f())
         {
             //addError already change the state
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-            Q_EMIT addError_signal("Already exists");
+            Q_EMIT addError_signal(pathToCreateTmp.path() + " already exists");
         }
         else
         {
-            Q_EMIT addOutput_signal("Already exists");
+            Q_EMIT addOutput_signal(pathToCreateTmp.path() + " already exists");
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
         }
     }
@@ -39,7 +39,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             bool parentExistsTmp(pathToCreateTmp.cdUp());
             if (not parentExistsTmp and not createParents_f())
             {
-                Q_EMIT addError_signal("Can't create directory because parent directory doesn't exists");
+                Q_EMIT addError_signal("Can't create directory " + pathToCreateTmp.path() + ", parent directory doesn't exists");
                 break;
             }
             else
@@ -62,7 +62,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             else
             {
                 //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-                Q_EMIT addError_signal("Couldn't create the directory, no permissions?");
+                Q_EMIT addError_signal("Couldn't create the directory" + pathToCreateTmp.path() + ", no permissions?");
             }
             break;
         }

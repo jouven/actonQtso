@@ -30,6 +30,7 @@ public:
         , copy = 1
         //regular move that every OS uses, aka copy and if success delete the source
         , move = 2
+
         //TODO a way to mark which file transfers have been left midway, this might signal the need for a greater thing called
         //"storing execution state (controlled)interruption-proof"
         //FUTURE add an option to truncate while the read is in RAM still (which can be dangerous,
@@ -38,7 +39,7 @@ public:
         //move by "blocks" starting from the source "end" to its begining,
         //truncating the source on each block moved, in this order, aka first it writes then it truncates (it's safe)
         //it's slow in the destination because it needs to shift the data of all the previous transfered
-        //blocks forward for every data block writing, so every block moved does a rewriting all the previous blocks
+        //blocks forward for every data block writing, so every block moved does a rewriting of all the previous blocks
         //uses WAY less extra space than the regular move, which temporarily requires 2x"of the moved file size" (during the move)
         //use only when low on space or really fast transfers
         //good for moving big file/s in a SSD low on space?
@@ -123,6 +124,9 @@ private:
     int_fast64_t bufferSize_pri = 1024 * 1024;
     //above stuff is json save-load-able
 
+    //ptr to allow other code outside to stop the filtering using stopDirectoryFiltering_f
+    //the mutex bellow is to prevent stopping and regular filtering end to
+    //conflict
     directoryFilter_c* directoryFilterPtr_pri = nullptr;
     QMutex directoryFilterPtrMutex_pri;
     //FUTURE sort options? tho it can be "done" using several copy actions and actionFinished check
@@ -167,8 +171,10 @@ public:
     bool isValid_f(QString* errorStrPtr_par = nullptr) const;
 
     QString sourcePath_f() const;
+    QString sourcePathParsed_f() const;
     void setSourcePath_f(const QString& sourcePath_par_con);
     QString destinationPath_f() const;
+    QString destinationPathParsed_f() const;
     void setDestinationPath_f(const QString& destinationPath_par_con);
     transferType_ec transferType_f() const;
     void setTransferType_f(const transferType_ec transferType_par_con);
@@ -177,6 +183,7 @@ public:
     bool copyHidden_f() const;
     void setCopyHidden_f(const bool copyHidden_par_con);
     QStringList sourceFilenameFullExtensions_f() const;
+    QStringList sourceFilenameFullExtensionsParsed_f() const;
     void setSourceFilenameFullExtensions_f(const QStringList& filenameFullExtensions_par_con);
     bool navigateSubdirectories_f() const;
     void setNavigateSubdirectories_f(const bool includeSubdirectories_par_con);
@@ -185,6 +192,7 @@ public:
     bool copyEmptyDirectories_f() const;
     void setCopyEmptyDirectories_f(const bool copyEmptyDirectories_par_con);
     QStringList sourceFilenameRegexFilters_f() const;
+    QStringList sourceFilenameRegexFiltersParsed_f() const;
     void setSourceFilenameRegexFilters_f(const QStringList& sourceFilenameRegexFilters_par_con);
     bool createDestinationAndParents_f() const;
     void setCreateDestinationAndParents_f(const bool createDestinationParent_par_con);

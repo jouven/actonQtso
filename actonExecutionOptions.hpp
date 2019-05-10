@@ -3,7 +3,10 @@
 
 #include "crossPlatformMacros.hpp"
 
-#include <QJsonObject>
+class QJsonObject;
+
+class stringParserMap_c;
+
 
 class EXPIMP_ACTONQTSO executionOptions_c
 {
@@ -21,6 +24,8 @@ class EXPIMP_ACTONQTSO executionOptions_c
     int_fast32_t extraThreads_pri = 1;
     //10 seconds
     int_fast32_t killTimeoutMilliseconds_pri = 10000;
+
+    stringParserMap_c* stringParserMap_pri = nullptr;
 public:
     //ctor to deserialize
     executionOptions_c() = default;
@@ -30,8 +35,8 @@ public:
             , const int_fast32_t extraThreads_par_con
             , const int_fast32_t killTimeoutMilliseconds_par_con
     );
-   void write_f(QJsonObject &json) const;
-   void read_f(const QJsonObject &json);
+   void write_f(QJsonObject &json_par) const;
+   void read_f(const QJsonObject &json_par_con);
 
    bool loopExecution_f() const;
    //bool stopExecutingOnError_f() const;
@@ -43,6 +48,9 @@ public:
    //void setStopExecutingOnError_f(const bool stopExecutingOnError_par_con);
    void setExtraThreads_f(const int_fast32_t extraThreads_par_con);
    void setKillTimeoutMilliseconds_f(const int_fast32_t killTimeoutMilliseconds_par_con);
+
+   stringParserMap_c* stringParserMap_f() const;
+   void setStringParserMap_f(stringParserMap_c* stringParserMap_par);
 };
 
 #endif // ACTONQTSO_ACTIONEXECUTIONOPTIONS_HPP

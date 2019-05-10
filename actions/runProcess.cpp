@@ -1,5 +1,8 @@
 #include "runProcess.hpp"
 
+#include "stringParserMapQtso/stringParserMap.hpp"
+#include "../actonDataHub.hpp"
+
 #include <QProcess>
 #include <QJsonArray>
 
@@ -8,17 +11,37 @@ QString runProcessAction_c::workingDirectory_f() const
     return workingDirectory_pri;
 }
 
+QString runProcessAction_c::workingDirectoryParsed_f() const
+{
+    COPYPARSERETURNVAR(workingDirectory_pri);
+}
+
 void runProcessAction_c::setWorkingDirectory_f(const QString& workingDirectory_par_con)
 {
     workingDirectory_pri = workingDirectory_par_con;
 }
 
-QHash<QString, environmentPair_c> runProcessAction_c::environmentToAdd_f() const
+QHash<QString, environmentPairConfig_c> runProcessAction_c::environmentToAdd_f() const
 {
     return environmentToAdd_pri;
 }
 
-void runProcessAction_c::setEnvironmentToAdd_f(const QHash<QString, environmentPair_c>& environmentToAdd_par_con)
+QHash<QString, environmentPairConfig_c> runProcessAction_c::environmentToAddParsed_f() const
+{
+    QHash<QString, environmentPairConfig_c> environmentToAddParsedTmp;
+    environmentToAddParsedTmp.reserve(environmentToAdd_pri.size());
+    QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAdd_pri.constBegin());
+    while (iteratorTmp not_eq environmentToAdd_pri.constEnd())
+    {
+        QString environmentKeyParsedTmp(iteratorTmp.key());
+        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(environmentKeyParsedTmp));
+        environmentToAddParsedTmp.insert(environmentKeyParsedTmp, iteratorTmp.value());
+        ++iteratorTmp;
+    }
+    return environmentToAddParsedTmp;
+}
+
+void runProcessAction_c::setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
 {
     environmentToAdd_pri = environmentToAdd_par_con;
 }
@@ -38,7 +61,7 @@ runProcessAction_c::runProcessAction_c(
         , const std::vector<argument_c>& arguments_par_con
         , const QString& workingDirectory_par_con
         , const bool useProcessEnvironment_par_con
-        , const QHash<QString, environmentPair_c>& environmentToAdd_par_con)
+        , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
     : processPath_pri(processPath_par_con)
     , arguments_pri(arguments_par_con)
     , workingDirectory_pri(workingDirectory_par_con)
@@ -63,12 +86,12 @@ void runProcessAction_c::write_f(QJsonObject& json_par) const
     if (not environmentToAdd_pri.isEmpty())
     {
         QJsonArray environmentPairArray;
-        QHash<QString, environmentPair_c>::const_iterator iteratorTmp = environmentToAdd_pri.constBegin();
+        QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp = environmentToAdd_pri.constBegin();
         while (iteratorTmp != environmentToAdd_pri.constEnd())
         {
             QJsonObject pairTmp;
             pairTmp["key"] = iteratorTmp.key();
-            pairTmp["value"] = iteratorTmp.value().value_f();
+            pairTmp["value"] = iteratorTmp.value().environmentValue();
             pairTmp["enabled"] = iteratorTmp.value().enabled_f();
             environmentPairArray.append(pairTmp);
             ++iteratorTmp;
@@ -105,7 +128,7 @@ void runProcessAction_c::read_f(const QJsonObject& json_par_con)
             for (const QJsonValueRef& jsonArrayItem_ite_con : pairsTmp)
             {
                 QJsonObject jsonObjectTmp(jsonArrayItem_ite_con.toObject());
-                environmentPair_c environmentPairTmp(jsonObjectTmp["value"].toString(), jsonObjectTmp["enabled"].toBool());
+                environmentPairConfig_c environmentPairTmp(jsonObjectTmp["value"].toString(), jsonObjectTmp["enabled"].toBool());
                 environmentToAdd_pri.insert(jsonObjectTmp["key"].toString(), environmentPairTmp);
             }
         }
@@ -117,6 +140,11 @@ void runProcessAction_c::read_f(const QJsonObject& json_par_con)
 QString runProcessAction_c::processPath_f() const
 {
     return processPath_pri;
+}
+
+QString runProcessAction_c::processPathParsed_f() const
+{
+    COPYPARSERETURNVAR(processPath_pri);
 }
 
 void runProcessAction_c::setProcessPath_f(const QString& processPath_par_con)
@@ -144,10 +172,9 @@ void argument_c::setEnabled_f(const bool enabled_par_con)
     enabled_pri = enabled_par_con;
 }
 
-argument_c::argument_c(
-        const QString& value_par_con
+argument_c::argument_c(const QString& argument_par_con
         , const bool enabled_par_con)
-    : value_pri(value_par_con)
+    : argument_pri(argument_par_con)
     , enabled_pri(enabled_par_con)
 {
 
@@ -155,61 +182,71 @@ argument_c::argument_c(
 
 void argument_c::write_f(QJsonObject& json_par) const
 {
-    json_par["value"] = value_pri;
+    json_par["value"] = argument_pri;
     json_par["enabled"] = enabled_pri;
 }
 
 void argument_c::read_f(const QJsonObject& json_par_con)
 {
-    value_pri = json_par_con["value"].toString();
+    argument_pri = json_par_con["value"].toString();
     enabled_pri = json_par_con["enabled"].toBool();
 }
 
 QString argument_c::argument_f() const
 {
-    return value_pri;
+    return argument_pri;
+}
+
+QString argument_c::argumentParsed_f() const
+{
+    COPYPARSERETURNVAR(argument_pri);
 }
 
 void argument_c::setArgument_f(const QString& value_par_con)
 {
-    value_pri = value_par_con;
+    argument_pri = value_par_con;
 }
 
-environmentPair_c::environmentPair_c(
-        const QString& value_par_con
+environmentPairConfig_c::environmentPairConfig_c(
+        const QString& environmentValue_par_con
         , const bool enabled_par_con)
-    : value_pri(value_par_con)
+    : environmentValue_pri(environmentValue_par_con)
     , enabled_pri(enabled_par_con)
 {}
 
-void environmentPair_c::write_f(QJsonObject& json_par) const
+void environmentPairConfig_c::write_f(QJsonObject& json_par) const
 {
-    json_par["value"] = value_pri;
+    json_par["value"] = environmentValue_pri;
     json_par["enabled"] = enabled_pri;
 }
 
-void environmentPair_c::read_f(const QJsonObject& json_par_con)
+void environmentPairConfig_c::read_f(const QJsonObject& json_par_con)
 {
-    value_pri = json_par_con["value"].toString();
+    environmentValue_pri = json_par_con["value"].toString();
     enabled_pri = json_par_con["enabled"].toBool();
 }
 
-QString environmentPair_c::value_f() const
+QString environmentPairConfig_c::environmentValue() const
 {
-    return value_pri;
+    return environmentValue_pri;
 }
 
-void environmentPair_c::setValue_f(const QString& value_par_con)
+QString environmentPairConfig_c::environmentValueParsed() const
 {
-    value_pri = value_par_con;
+    COPYPARSERETURNVAR(environmentValue_pri);
 }
 
-bool environmentPair_c::enabled_f() const
+void environmentPairConfig_c::setEnvironmentValue_f(const QString& environmentValue_par_con)
+{
+    environmentValue_pri = environmentValue_par_con;
+}
+
+bool environmentPairConfig_c::enabled_f() const
 {
     return enabled_pri;
 }
 
-void environmentPair_c::setEnabled_f(const bool enabled_par_con)
+void environmentPairConfig_c::setEnabled_f(const bool enabled_par_con)
 {
     enabled_pri = enabled_par_con;
 }

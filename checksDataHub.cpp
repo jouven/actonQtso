@@ -311,6 +311,44 @@ bool checksDataHub_c::hasStringIdAnyDependency_f(const QString& stringId_par_con
     return resultTmp;
 }
 
+int_fast32_t checksDataHub_c::updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+{
+    MACRO_ADDACTONQTSOLOG("checksDataHub update string trigger parser dependencies, old: " + oldStringTrigger_par_con + " new: " + newStringTrigger_par_con, logItem_c::type_ec::debug);
+    int_fast32_t updateCountTmp(0);
+    for (std::pair<const int_fast64_t, checkData_c>& pair_ite : checkDataIdToCheckDataUMap_pri)
+    {
+        if (pair_ite.second.updateStringTriggerDependecies_f(newStringTrigger_par_con, oldStringTrigger_par_con))
+        {
+            updateCountTmp = updateCountTmp + 1;
+        }
+    }
+    return updateCountTmp;
+}
+
+bool checksDataHub_c::hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const
+{
+    bool resultTmp(false);
+    for (const std::pair<const int_fast64_t, checkData_c>& pair_ite_con : checkDataIdToCheckDataUMap_pri)
+    {
+        if (pair_ite_con.second.hasStringTriggerAnyDependency_f(stringTrigger_par_con))
+        {
+            resultTmp = true;
+            break;
+        }
+    }
+    return resultTmp;
+}
+
+std::vector<QString> checksDataHub_c::stringTriggersInUseByChecks_f() const
+{
+    std::vector<QString> resultTmp;
+    for (const std::pair<const int_fast64_t, checkData_c>& pair_ite_con : checkDataIdToCheckDataUMap_pri)
+    {
+        resultTmp.insert(resultTmp.end(), pair_ite_con.second.stringTriggersInUse_f().begin(), pair_ite_con.second.stringTriggersInUse_f().end());
+    }
+    return resultTmp;
+}
+
 void checksDataHub_c::executeChecks_f()
 {
     MACRO_ADDACTONQTSOLOG("Execute checks, checksToRun_pri.empty()? " +  QSTRINGBOOL(checksToRun_pri.empty()), logItem_c::type_ec::debug);
@@ -493,7 +531,7 @@ int checksDataHub_c::checkDataIdToRow_f(const int_fast64_t checkDataId_par_con) 
 {
     int resultTmp(-1);
     auto findResult(checkDataIdToRow_pri.find(checkDataId_par_con));
-    if (findResult != checkDataIdToRow_pri.end())
+    if (findResult not_eq checkDataIdToRow_pri.end())
     {
         resultTmp = findResult->second;
     }
@@ -504,7 +542,7 @@ int_fast64_t checksDataHub_c::rowToCheckDataId_f(const int row_par_con) const
 {
     int_fast64_t resultTmp(-1);
     auto findResult(rowToCheckDataId_pri.find(row_par_con));
-    if (findResult != rowToCheckDataId_pri.end())
+    if (findResult not_eq rowToCheckDataId_pri.end())
     {
         resultTmp = findResult->second;
     }
@@ -520,7 +558,7 @@ checkData_c* checksDataHub_c::checkData_ptr_f(const int_fast64_t checkDataId_par
 {
     checkData_c* checkDataPtrTmp(Q_NULLPTR);
     auto findResult(checkDataIdToCheckDataUMap_pri.find(checkDataId_par_con));
-    if (findResult != checkDataIdToCheckDataUMap_pri.end())
+    if (findResult not_eq checkDataIdToCheckDataUMap_pri.end())
     {
         checkDataPtrTmp = std::addressof(findResult->second);
     }
@@ -533,7 +571,7 @@ checkData_c checksDataHub_c::checkData_f(
 ) const
 {
     auto findResult(checkDataIdToCheckDataUMap_pri.find(checkDataId_par_con));
-    bool foundTmp(findResult != checkDataIdToCheckDataUMap_pri.cend());
+    bool foundTmp(findResult not_eq checkDataIdToCheckDataUMap_pri.cend());
     if (found_ptr not_eq nullptr)
     {
         *found_ptr = foundTmp;
@@ -633,7 +671,7 @@ bool checksDataHub_c::removeCheckDataUsingId_f(const int_fast64_t checkDataId_pa
 {
     bool resultTmp(false);
     auto rowFindResult(checkDataIdToRow_f(checkDataId_par_con));
-    if (rowFindResult != -1)
+    if (rowFindResult not_eq -1)
     {
         resultTmp = removeCheckDataUsingRow_f(rowFindResult);
     }

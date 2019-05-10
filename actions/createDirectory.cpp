@@ -1,8 +1,17 @@
 #include "createDirectory.hpp"
 
+#include "../actonDataHub.hpp"
+
+#include "stringParserMapQtso/stringParserMap.hpp"
+
 QString createDirectoryAction_c::directoryPath_f() const
 {
     return directoryPath_pri;
+}
+
+QString createDirectoryAction_c::directoryPathParsed_f() const
+{
+    COPYPARSERETURNVAR(directoryPath_pri);
 }
 
 void createDirectoryAction_c::setDirectoryPath_f(const QString& directoryPath_par_con)

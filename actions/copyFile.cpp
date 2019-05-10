@@ -1,5 +1,8 @@
 #include "copyFile.hpp"
 
+#include "../actonDataHub.hpp"
+
+#include "stringParserMapQtso/stringParserMap.hpp"
 #include "essentialQtso/macros.hpp"
 #include "comuso/practicalTemplates.hpp"
 
@@ -54,6 +57,11 @@ QString copyFileAction_c::sourcePath_f() const
     return sourcePath_pri;
 }
 
+QString copyFileAction_c::sourcePathParsed_f() const
+{
+    COPYPARSERETURNVAR(sourcePath_pri);
+}
+
 void copyFileAction_c::setSourcePath_f(const QString& sourcePath_par_con)
 {
     sourcePath_pri = sourcePath_par_con;
@@ -62,6 +70,11 @@ void copyFileAction_c::setSourcePath_f(const QString& sourcePath_par_con)
 QString copyFileAction_c::destinationPath_f() const
 {
     return destinationPath_pri;
+}
+
+QString copyFileAction_c::destinationPathParsed_f() const
+{
+    COPYPARSERETURNVAR(destinationPath_pri);
 }
 
 void copyFileAction_c::setDestinationPath_f(const QString& destinationPath_par_con)
@@ -82,6 +95,11 @@ void copyFileAction_c::setNavigateSubdirectories_f(const bool includeSubdirector
 QStringList copyFileAction_c::sourceFilenameRegexFilters_f() const
 {
     return sourceFilenameRegexFilters_pri;
+}
+
+QStringList copyFileAction_c::sourceFilenameRegexFiltersParsed_f() const
+{
+    COPYPARSERETURNSTRINGLIST(sourceFilenameRegexFilters_pri);
 }
 
 void copyFileAction_c::setSourceFilenameRegexFilters_f(const QStringList& sourceFilenameRegexFilters_par_con)
@@ -105,7 +123,8 @@ std::vector<QString> copyFileAction_c::testSourceFileList_f(QString* error_ptr)
     while (isValid_f(error_ptr))
     {
         //ignore destination options
-        if (QFileInfo::exists(sourcePath_pri))
+        const QString sourcePathTmp_con(sourcePathParsed_f());
+        if (QFileInfo::exists(sourcePathTmp_con))
         {
             //good
         }
@@ -118,7 +137,7 @@ std::vector<QString> copyFileAction_c::testSourceFileList_f(QString* error_ptr)
             break;
         }
 
-        QFileInfo sourceFileInfoTmp(sourcePath_pri);
+        QFileInfo sourceFileInfoTmp(sourcePathTmp_con);
         if (sourceFileInfoTmp.isDir())
         {
             filterOptions_s filterOptionsTmp;
@@ -128,11 +147,13 @@ std::vector<QString> copyFileAction_c::testSourceFileList_f(QString* error_ptr)
             filterOptionsTmp.listHidden_pub = copyHidden_pri;
             filterOptionsTmp.navigateHiddenDirectories_pub = copyHidden_pri;
             filterOptionsTmp.listDirectories_pub = false;
-            filterOptionsTmp.filenameRegexFilters_pub = sourceFilenameRegexFilters_pri;
+            filterOptionsTmp.filenameRegexFilters_pub = sourceFilenameRegexFiltersParsed_f();
             filterOptionsTmp.listEmptyDirectories_pub = copyEmptyDirectories_pri;
-            filterOptionsTmp.filenameFullExtensions_pub = sourceFilenameFullExtensions_pri;
+            filterOptionsTmp.filenameFullExtensions_pub = sourceFilenameFullExtensionsParsed_f();
 
-            directoryFilter_c directoryFilterTmp(sourcePath_pri, filterOptionsTmp);
+            directoryFilter_c directoryFilterTmp(sourcePathTmp_con, filterOptionsTmp);
+            //the mutex here is to prevent the stop function to conflict
+            //with the filtering normal ending process
             {
                 QMutexLocker mutexLockerTmp(std::addressof(directoryFilterPtrMutex_pri));
                 directoryFilterPtr_pri = std::addressof(directoryFilterTmp);
@@ -152,7 +173,7 @@ std::vector<QString> copyFileAction_c::testSourceFileList_f(QString* error_ptr)
 
         if (sourceFileInfoTmp.isFile())
         {
-            resultTmp.emplace_back(sourcePath_pri);
+            resultTmp.emplace_back(sourcePathTmp_con);
             break;
         }
         break;
@@ -182,6 +203,11 @@ void copyFileAction_c::setCopyHidden_f(const bool copyHidden_par_con)
 QStringList copyFileAction_c::sourceFilenameFullExtensions_f() const
 {
     return sourceFilenameFullExtensions_pri;
+}
+
+QStringList copyFileAction_c::sourceFilenameFullExtensionsParsed_f() const
+{
+    COPYPARSERETURNSTRINGLIST(sourceFilenameFullExtensions_pri);
 }
 
 void copyFileAction_c::setSourceFilenameFullExtensions_f(const QStringList& sourceFilenameFullExtensions_par_con)

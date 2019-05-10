@@ -8,7 +8,7 @@
 
 #include <vector>
 
-class checkSameFile_c : public QObject, public eines::baseClassQt_c
+class checkSameFile_c : public QObject, public baseClassQt_c
 {
     Q_OBJECT
 public:

@@ -126,7 +126,8 @@ CONFIG(debug, debug|release){
 
 }
 
-LIBS += -lbaseClassQtso -lthreadedFunctionQtso -llogsinJSONQtso -lessentialQtso -lfilterDirectoryQtso
+LIBS += -lbaseClassQtso -lthreadedFunctionQtso -llogsinJSONQtso \
+	-lessentialQtso -lfilterDirectoryQtso -lstringParserMapQtso
 
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3

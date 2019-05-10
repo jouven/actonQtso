@@ -46,18 +46,17 @@ void runProcessActionExecution_c::derivedExecute_f()
 #ifdef DEBUGJOUVEN
     qDebug() << "runProcessActionExecution_c::execute_f()" << endl;
 #endif
-    while (not startedOnce_pri)
+    while (true)
     {
-        startedOnce_pri = true;
         QStringList argumentsTmp;
         for (const argument_c& argument_ite_con : arguments_f())
         {
             if (argument_ite_con.enabled_f())
             {
-                argumentsTmp.append(argument_ite_con.argument_f());
+                argumentsTmp.append(argument_ite_con.argumentParsed_f());
             }
         }
-        QDir workingDirectoryTmp(workingDirectory_f());
+        QDir workingDirectoryTmp(workingDirectoryParsed_f());
         if (not workingDirectoryTmp.exists())
         {
             Q_EMIT addError_signal("Working directory doesn't exists");
@@ -78,25 +77,27 @@ void runProcessActionExecution_c::derivedExecute_f()
                 qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
 #endif
             }
+
             if (not environmentToAdd_f().isEmpty())
             {
-                QHash<QString, environmentPair_c>::const_iterator iteratorTmp = environmentToAdd_f().constBegin();
-                while (iteratorTmp != environmentToAdd_f().constEnd())
+                const QHash<QString, environmentPairConfig_c> environmentToAddTmp_con(environmentToAdd_f());
+                QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAddTmp_con.constBegin());
+                while (iteratorTmp not_eq environmentToAddTmp_con.constEnd())
                 {
                     if (iteratorTmp.value().enabled_f())
                     {
 #ifdef DEBUGJOUVEN
-                qDebug() << "iteratorTmp.key() " << iteratorTmp.key() << "iteratorTmp.value_f() " << iteratorTmp.value().value_f()  << endl;
+                        qDebug() << "iteratorTmp.key() " << iteratorTmp.key() << "iteratorTmp.value_f() " << iteratorTmp.value().environmentValue()  << endl;
 #endif
-                        processEnvironmentTmp.insert(iteratorTmp.key(), iteratorTmp.value().value_f());
+                        processEnvironmentTmp.insert(iteratorTmp.key(), iteratorTmp.value().environmentValue());
                     }
                     ++iteratorTmp;
                 }
             }
             actionProcess_pri.setProcessEnvironment(processEnvironmentTmp);
 #ifdef DEBUGJOUVEN
-                qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
-                qDebug() << "actionProcess_pri.processEnvironment().value(\"PATH\") " << actionProcess_pri.processEnvironment().value("PATH") << endl;
+            qDebug() << "actionProcess_pri.environment().isEmpty() " << actionProcess_pri.processEnvironment().isEmpty() << endl;
+            qDebug() << "actionProcess_pri.processEnvironment().value(\"PATH\") " << actionProcess_pri.processEnvironment().value("PATH") << endl;
 #endif
         }
         else
@@ -104,10 +105,10 @@ void runProcessActionExecution_c::derivedExecute_f()
             //nothing to do
         }
 #ifdef DEBUGJOUVEN
-        qDebug() << "workingDirectory_f() " << workingDirectory_f() << endl;
+        qDebug() << "workingDirectoryParsed_f() " << workingDirectoryParsed_f() << endl;
         qDebug() << "actionProcess_pri.workingDirectory() before set: " << actionProcess_pri.workingDirectory() << endl;
 #endif
-        actionProcess_pri.setWorkingDirectory(workingDirectory_f());
+        actionProcess_pri.setWorkingDirectory(workingDirectoryParsed_f());
 #ifdef DEBUGJOUVEN
         qDebug() << "actionProcess_pri.workingDirectory() after set: " << actionProcess_pri.workingDirectory() << endl;
 #endif
@@ -123,11 +124,12 @@ void runProcessActionExecution_c::derivedExecute_f()
             //args->startupInfo->dwFlags &= ~STARTF_USESTDHANDLES;
         });
 #endif
-        //TODO issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
+        //TODO? issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
         //IMPORTANT ignore above, the issue is that to find the process location path what is used is the actonQtg environment,
         //qprocess::setProcessEnvironment set variables of the QProcess which won't help,
         //so actonQtg environment must be modified, use relative paths or use absolute path
-        actionProcess_pri.start(processPath_f(), argumentsTmp);
+        actionProcess_pri.start(processPathParsed_f(), argumentsTmp);
+        break;
     }
 }
 

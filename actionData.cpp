@@ -517,6 +517,23 @@ bool actionData_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) c
     return checkDataHub_pri.hasStringIdAnyDependency_f(stringId_par_con);
 }
 
+int_fast32_t actionData_c::updateStringTriggerParserDependencies_f(
+        const QString& newStringTrigger_par_con
+        , const QString& oldStringTrigger_par_con)
+{
+    return checkDataHub_pri.updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
+}
+
+bool actionData_c::hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con) const
+{
+    return checkDataHub_pri.hasStringTriggerAnyDependency_f(stringTrigger_par_con);
+}
+
+std::vector<QString> actionData_c::stringTriggersInUse_f() const
+{
+    return checkDataHub_pri.stringTriggersInUseByChecks_f();
+}
+
 QString actionData_c::stringId_f() const
 {
     return stringId_pri;
@@ -669,8 +686,8 @@ actionData_c::actionData_c(
     , runAllChecksAnyway_pri(runAllChecksAnyway_par_con)
     , checksEnabled_pri(checksEnabled_par_con)
     , enabled_pri(enabled_par_con)
-    , actionDataJSON_pri(actionDataJson_par_con)
     , checkDataHub_pri(this)
+    , actionDataJSON_pri(actionDataJson_par_con)
 {
     MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" constructed, enabled: " + QSTRINGBOOL(enabled_pri), logItem_c::type_ec::debug);
 }
@@ -684,9 +701,8 @@ actionData_c::actionData_c(const actionData_c& from_par_con)
     , runAllChecksAnyway_pri(from_par_con.runAllChecksAnyway_pri)
     , checksEnabled_pri(from_par_con.checksEnabled_pri)
     , enabled_pri(from_par_con.enabled_pri)
-    , actionDataJSON_pri(from_par_con.actionDataJSON_pri)
     , checkDataHub_pri(from_par_con.checkDataHub_pri)
-
+    , actionDataJSON_pri(from_par_con.actionDataJSON_pri)
 {
     checkDataHub_pri.setParentAction_f(this);
     MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" copied (const)", logItem_c::type_ec::debug);
@@ -701,9 +717,8 @@ actionData_c::actionData_c(actionData_c& from_par)
     , runAllChecksAnyway_pri(from_par.runAllChecksAnyway_pri)
     , checksEnabled_pri(from_par.checksEnabled_pri)
     , enabled_pri(from_par.enabled_pri)
-    , actionDataJSON_pri(from_par.actionDataJSON_pri)
     , checkDataHub_pri(from_par.checkDataHub_pri)
-
+    , actionDataJSON_pri(from_par.actionDataJSON_pri)
 {
     checkDataHub_pri.setParentAction_f(this);
     MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" copied (no const)", logItem_c::type_ec::debug);
@@ -777,8 +792,8 @@ actionData_c::actionData_c(actionData_c&& from_par) noexcept
     , runAllChecksAnyway_pri(from_par.runAllChecksAnyway_pri)
     , checksEnabled_pri(from_par.checksEnabled_pri)
     , enabled_pri(from_par.enabled_pri)
-    , actionDataJSON_pri(std::move(from_par.actionDataJSON_pri))
     , checkDataHub_pri(std::move(from_par.checkDataHub_pri))
+    , actionDataJSON_pri(std::move(from_par.actionDataJSON_pri))
     , actionDataExecution_ptr_pri(from_par.actionDataExecution_ptr_pri)
     , actionDataExecutionResult_ptr_pri(from_par.actionDataExecutionResult_ptr_pri)
 {

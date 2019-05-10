@@ -24,8 +24,10 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString fileAPath_f() const;
+    QString fileAPathParsed_f() const;
     void setFileAPath_f(const QString& fileAPath_par_con);
     QString fileBPath_f() const;
+    QString fileBPathParsed_f() const;
     void setFileBPath_f(const QString& fileBPath_par_con);
 };
 

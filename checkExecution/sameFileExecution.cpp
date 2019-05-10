@@ -12,7 +12,7 @@ sameFileCheckExecution_c::sameFileCheckExecution_c(
         , const sameFileCheck_c& samefileCheck_par_con)
     : baseCheckExecution_c(checkExecutionResultObj_par_con)
     , sameFileCheck_c(samefileCheck_par_con)
-    , checkSameFile_pri(samefileCheck_par_con.fileAPath_f(), samefileCheck_par_con.fileBPath_f())
+    , checkSameFile_pri(samefileCheck_par_con.fileAPathParsed_f(), samefileCheck_par_con.fileBPathParsed_f())
 {
     QObject::connect(std::addressof(checkSameFile_pri), &checkSameFile_c::error_signal, this, &sameFileCheckExecution_c::addError_signal);
 }

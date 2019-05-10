@@ -426,6 +426,79 @@ bool checkData_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) co
     return resultTmp;
 }
 
+bool checkData_c::updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+{
+    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+    int_fast32_t updateCountTmp(0);
+    if (
+        (parentAction_pri not_eq nullptr and parentAction_pri->isExecuting_f())
+        or isExecuting_f()
+        )
+    {
+        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+    }
+    else
+    {
+        if (type_pri == checkType_ec::actionFinished)
+        {
+            actionFinishedCheck_c actionFinishedTmp;
+            actionFinishedTmp.read_f(checkDataJSON_pri);
+
+            std::unordered_map<actionFinishedCheck_c::actionExecutionResultFields_ec, QString> actionExecutionResultFieldToStrTmp(actionFinishedTmp.actionExecutionResultFieldToStringTrigger_f());
+            bool somethingChangedTmp(false);
+            for (std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionExecutionResultFieldToStrTmp)
+            {
+                if (pair_ite_con.second == oldStringTrigger_par_con)
+                {
+                    pair_ite_con.second = newStringTrigger_par_con;
+                    somethingChangedTmp = true;
+                    updateCountTmp = updateCountTmp + 1;
+                }
+            }
+            if (somethingChangedTmp)
+            {
+                actionFinishedTmp.setActionExecutionResultFieldToStringTrigger_f(actionExecutionResultFieldToStrTmp);
+                actionFinishedTmp.write_f(checkDataJSON_pri);
+            }
+        }
+    }
+    return updateCountTmp;
+}
+
+bool checkData_c::hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const
+{
+    bool resultTmp(false);
+    if (type_pri == checkType_ec::actionFinished)
+    {
+        actionFinishedCheck_c actionFinishedTmp;
+        actionFinishedTmp.read_f(checkDataJSON_pri);
+        for (const std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionFinishedTmp.actionExecutionResultFieldToStringTrigger_f())
+        {
+            if (pair_ite_con.second == stringTrigger_par_con)
+            {
+                resultTmp = true;
+                break;
+            }
+        }
+    }
+    return resultTmp;
+}
+
+std::vector<QString> checkData_c::stringTriggersInUse_f() const
+{
+    std::vector<QString> keyStringsTmp;
+    if (type_pri == checkType_ec::actionFinished)
+    {
+        actionFinishedCheck_c actionFinishedTmp;
+        actionFinishedTmp.read_f(checkDataJSON_pri);
+        for (const std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionFinishedTmp.actionExecutionResultFieldToStringTrigger_f())
+        {
+            keyStringsTmp.emplace_back(pair_ite_con.second);
+        }
+    }
+    return keyStringsTmp;
+}
+
 void checkData_c::deleteCheckDataExecutionObject_f()
 {
     if (checkDataExecution_ptr_pri == nullptr)

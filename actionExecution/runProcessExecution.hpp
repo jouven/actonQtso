@@ -11,8 +11,6 @@ class runProcessActionExecution_c : public baseActionExecution_c, public runProc
 {
     Q_OBJECT
 
-    //to prevent reruns
-    bool startedOnce_pri = false;
     //the function "setFinished_f"
     bool setFinishedCalled_pri = false;
 

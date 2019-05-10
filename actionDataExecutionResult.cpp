@@ -358,7 +358,7 @@ void actionDataExecutionResult_c::trySetFinished_f()
     )
     {
         finished_pri = true;
-        //in some cases the action can't end before "properly" starting
+        //in some cases the action can end before "properly" starting
         if (startTime_pri not_eq 0)
         {
             finishedTime_pri = QDateTime::currentMSecsSinceEpoch();

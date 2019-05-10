@@ -1,6 +1,8 @@
 #include "actonExecutionOptions.hpp"
 
-#include "actonDataHub.hpp"
+#include "stringParserMapQtso/stringParserMap.hpp"
+
+#include <QJsonObject>
 
 bool executionOptions_c::loopExecution_f() const
 {
@@ -42,6 +44,16 @@ void executionOptions_c::setKillTimeoutMilliseconds_f(const int_fast32_t killTim
     killTimeoutMilliseconds_pri = killTimeoutMilliseconds_par_con;
 }
 
+stringParserMap_c* executionOptions_c::stringParserMap_f() const
+{
+    return stringParserMap_pri;
+}
+
+void executionOptions_c::setStringParserMap_f(stringParserMap_c* stringParserMap_par)
+{
+    stringParserMap_pri = stringParserMap_par;
+}
+
 executionOptions_c::executionOptions_c(
         const bool loopExecution_par_con
         //, const bool stopExecutingOnError_par_con
@@ -54,20 +66,35 @@ executionOptions_c::executionOptions_c(
     , killTimeoutMilliseconds_pri(killTimeoutMilliseconds_par_con)
 {}
 
-void executionOptions_c::write_f(QJsonObject& json) const
+void executionOptions_c::write_f(QJsonObject& json_par) const
 {
-    json["loopExecution"] = loopExecution_pri;
+    json_par["loopExecution"] = loopExecution_pri;
     //json["stopExecutionOnError"] = stopExecutingOnError_pri;
     //json number limits... save string
-    json["extraThreads"] = QString::number(extraThreads_pri);
-    json["killTimeoutMilliseconds"] = QString::number(killTimeoutMilliseconds_pri);
+    json_par["extraThreads"] = QString::number(extraThreads_pri);
+    json_par["killTimeoutMilliseconds"] = QString::number(killTimeoutMilliseconds_pri);
+    if (stringParserMap_pri not_eq nullptr)
+    {
+        QJsonObject stringParserJSONObjectTmp;
+        stringParserMap_pri->write_f(stringParserJSONObjectTmp);
+        json_par["stringParserMap"] = stringParserJSONObjectTmp;
+    }
 }
 
-void executionOptions_c::read_f(const QJsonObject& json)
+void executionOptions_c::read_f(const QJsonObject& json_par_con)
 {
-    loopExecution_pri = json["loopExecution"].toBool(false);
+    loopExecution_pri = json_par_con["loopExecution"].toBool(false);
     //stopExecutingOnError_pri = json["stopExecutionOnError"].toBool(true);
     //json number limits... load from string
-    extraThreads_pri = json["extraThreads"].toString("1").toLongLong();
-    extraThreads_pri = json["killTimeoutMilliseconds"].toString("10000").toLongLong();
+    extraThreads_pri = json_par_con["extraThreads"].toString("1").toLongLong();
+    killTimeoutMilliseconds_pri = json_par_con["killTimeoutMilliseconds"].toString("10000").toLongLong();
+    if (json_par_con["stringParserMap"].isUndefined())
+    {
+
+    }
+    else
+    {
+        stringParserMap_pri = new stringParserMap_c;
+        stringParserMap_pri->read_f(json_par_con["stringParserMap"].toObject());
+    }
 }
