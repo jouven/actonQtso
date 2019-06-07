@@ -1,27 +1,35 @@
 #ifndef ACTONQTSO_COPYFILE_HPP
 #define ACTONQTSO_COPYFILE_HPP
 
+#include "../actionData.hpp"
+
 #include "../crossPlatformMacros.hpp"
 
 #include "filterDirectoryQtso/filterDirectory.hpp"
 
 #include <QString>
 #include <QStringList>
-#include <QJsonObject>
+
 #include <QMap>
-#include <QMutexLocker>
 
 #include <vector>
 #include <unordered_map>
 
-class EXPIMP_ACTONQTSO copyFileAction_c
+class QJsonObject;
+class QMutex;
+
+//the class is split in two,
+//to allow copying and not being forced to use "new",
+//this makes working with copyFile classes less cumbersome
+class EXPIMP_ACTONQTSO copyFileData_c
 {
+protected:
     //this can be absolute or relative, file or directory
-    QString sourcePath_pri;
+    QString sourcePath_pro;
     //this can be absolute or relative, file or directory
     //must be compatible with the source:
     //can't copy a folder over a file
-    QString destinationPath_pri;
+    QString destinationPath_pro;
 public:
     enum class transferType_ec
     {
@@ -93,53 +101,51 @@ public:
 
     static EXPIMP_ACTONQTSO const QMap<QString, destinationTreatment_ec> strToDestinationTreatmentMap_sta_con;
     static EXPIMP_ACTONQTSO const std::unordered_map<destinationTreatment_ec, QString> destinationTreatmentToStrUMap_sta_con;
-private:
-    transferType_ec transferType_pri = transferType_ec::empty;
-    destinationTreatment_ec destinationTreatment_pri = destinationTreatment_ec::empty;
+
+protected:
+    transferType_ec transferType_pro = transferType_ec::empty;
+    destinationTreatment_ec destinationTreatment_pro = destinationTreatment_ec::empty;
 
     //applies to files and directories
-    bool copyHidden_pri = true;
+    bool copyHidden_pro = true;
 
     //only files
     //applied to the filenames,
     //several regexs apply "or" wise
-    QStringList sourceFilenameRegexFilters_pri;
-    QStringList sourceFilenameFullExtensions_pri;
+    QStringList sourceFilenameRegexFilters_pro;
+    QStringList sourceFilenameFullExtensions_pro;
 
     //only for directories
-    bool navigateSubdirectories_pri = true;
-    bool navigateHidden_pri = true;
-    bool copyEmptyDirectories_pri = true;
+    bool navigateSubdirectories_pro = true;
+    bool navigateHidden_pro = true;
+    bool copyEmptyDirectories_pro = true;
     //FUTURE directories with no files option?, because copyEmptyDirectories_pri will copy directories with empty directories in them
 
     //like in create directory
-    bool createDestinationAndParents_pri = false;
+    bool createDestinationAndParents_pro = false;
 
     //only affects dir sources, if a file copy errors, save the error
     //but wait till the end to report it, because by default errors immediately
     //stop running the action
-    bool stopAllCopyOnFileCopyError_pri = true;
-    bool noFilesCopiedIsError_pri = false;
+    bool stopAllCopyOnFileCopyError_pro = true;
+    bool noFilesCopiedIsError_pro = false;
 
-    int_fast64_t bufferSize_pri = 1024 * 1024;
+    int_fast64_t bufferSize_pro = 1024 * 1024;
     //above stuff is json save-load-able
 
-    //ptr to allow other code outside to stop the filtering using stopDirectoryFiltering_f
-    //the mutex bellow is to prevent stopping and regular filtering end to
-    //conflict
-    directoryFilter_c* directoryFilterPtr_pri = nullptr;
-    QMutex directoryFilterPtrMutex_pri;
+
+    directoryFilter_c* directoryFilterPtr_pro = nullptr;
     //FUTURE sort options? tho it can be "done" using several copy actions and actionFinished check
 public:
-    copyFileAction_c() = default;
-    copyFileAction_c(
+    copyFileData_c() = default;
+    copyFileData_c(
             const QString& sourcePath_par_con
             , const QString& destinationPath_par_con
             , const transferType_ec transferType_par_con
             , const destinationTreatment_ec destinationTreatment_par_con
             , const bool copyHidden_par_con = true
-            , const QStringList& sourceRegexFilters_par_con = QStringList()
-            , const QStringList& filenameFullExtensions_par_con = QStringList()
+            , const QStringList& sourceFilenameRegexFilters_par_con = QStringList()
+            , const QStringList& sourceFilenameFullExtensions_par_con = QStringList()
             , const bool nagivateSubdirectories_par_con = true
             , const bool navigateHidden_par_con = true
             , const bool copyEmptyDirectories_par_con = true
@@ -149,22 +155,19 @@ public:
             , const int_fast64_t bufferSize_par_con = 1024 * 1024
     );
 
-    //copies everything except the mutex and pointers
-    copyFileAction_c(const copyFileAction_c& from_par_con);
-    //required to copy from a pointer dereference, does the same the above
-    copyFileAction_c(copyFileAction_c& from_par);
-    //std::moves everything and nulls pointers
-    copyFileAction_c(copyFileAction_c&& from_par) noexcept;
+//    //copies everything except the mutex and pointers
+//    copyFileAction_c(const copyFileAction_c& from_par_con);
+//    //required to copy from a pointer dereference, does the same the above
+//    copyFileAction_c(copyFileAction_c& from_par);
+//    //std::moves everything and nulls pointers
+//    copyFileAction_c(copyFileAction_c&& from_par) noexcept;
 
-    //copies everything except mutex and pointers
-    copyFileAction_c& operator=(const copyFileAction_c& from_par_con);
-    //same as above
-    copyFileAction_c& operator=(copyFileAction_c& from_par);
-    //same as move ctor
-    copyFileAction_c& operator=(copyFileAction_c&& from_par) noexcept;
-
-    void write_f(QJsonObject& json_par_ref) const;
-    void read_f(const QJsonObject& json_par_con);
+//    //copies everything except mutex and pointers
+//    copyFileAction_c& operator=(const copyFileAction_c& from_par_con);
+//    //same as above
+//    copyFileAction_c& operator=(copyFileAction_c& from_par);
+//    //same as move ctor
+//    copyFileAction_c& operator=(copyFileAction_c&& from_par) noexcept;
 
     //because when initializing using the default ctor + json reading
     //there might be some unset properties use this to check
@@ -203,10 +206,31 @@ public:
     int_fast64_t bufferSize_f() const;
     void setBufferSize_f(const int_fast64_t& bufferSize_par_con);
 
+    //for the below 2 functions
+    //pass a mutex if stopping the directory filtering is required (from another thread)
+    //The mutex is "mandatory" to prevent the stopDirectoryFiltering_f function and the testSourceFileList_f function to
+    //conflict, because stopDirectoryFiltering_f might try to access directoryFilterPtr_pri,
+    //the object that does the filtering, when it's getting created or deleted
+
     //tries to generate the file list that will be copied
-    std::vector<QString> testSourceFileList_f(QString* error_ptr = nullptr);
+    std::vector<QString> testSourceFileList_f(QString* error_ptr = nullptr, QMutex* directoryFilterPtrMutexPtr_par = nullptr);
     //to stop from outside
-    void stopDirectoryFiltering_f();
+    void stopDirectoryFiltering_f(QMutex* directoryFilterPtrMutexPtr_par = nullptr);
+};
+
+class EXPIMP_ACTONQTSO copyFileAction_c : public action_c, public copyFileData_c
+{
+    void derivedWrite_f(QJsonObject &json_par) const override;
+    void derivedRead_f(const QJsonObject &json_par_con) override;
+
+    action_c* derivedClone_f() const override;
+
+    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    actionType_ec type_f() const override;
+    QString typeStr_f() const override;
+public:
+    copyFileAction_c() = default;
+    copyFileAction_c(const actionData_c& actionData_par_con, const copyFileData_c& copyFile_par_con);
 };
 
 #endif // ACTONQTSO_CREATEDIRECTORY_HPP

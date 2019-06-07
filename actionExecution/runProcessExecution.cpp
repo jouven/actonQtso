@@ -1,10 +1,10 @@
 #include "runProcessExecution.hpp"
 
 #include "../actionDataExecutionResult.hpp"
+#include "../actions/runProcess.hpp"
 #include "../actonDataHub.hpp"
 
 #include "essentialQtso/macros.hpp"
-
 
 //#include <QThread>
 //#include <QCoreApplication>
@@ -18,12 +18,12 @@
 
 runProcessActionExecution_c::runProcessActionExecution_c(
         actionDataExecutionResult_c* actionExecutionResultObj_par_con
-        , const runProcessAction_c& processAction_par_con
+        , runProcessAction_c* runProcessActionPtr_par
         //FUTURE implement the other arguments
         , const bool mergeOutErr_par_con
         , const int_fast32_t timeoutMilliseconds_par_con)
     : baseActionExecution_c(actionExecutionResultObj_par_con)
-    , runProcessAction_c(processAction_par_con)
+    , runProcessActionPtr_pri(runProcessActionPtr_par)
 {
     QObject::connect(this, &runProcessActionExecution_c::addProcessError_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendExternalError_f);
     QObject::connect(this, &runProcessActionExecution_c::addProcessOutput_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendExternalOutput_f);
@@ -49,14 +49,14 @@ void runProcessActionExecution_c::derivedExecute_f()
     while (true)
     {
         QStringList argumentsTmp;
-        for (const argument_c& argument_ite_con : arguments_f())
+        for (const argument_c& argument_ite_con : runProcessActionPtr_pri->arguments_f())
         {
             if (argument_ite_con.enabled_f())
             {
                 argumentsTmp.append(argument_ite_con.argumentParsed_f());
             }
         }
-        QDir workingDirectoryTmp(workingDirectoryParsed_f());
+        QDir workingDirectoryTmp(runProcessActionPtr_pri->workingDirectoryParsed_f());
         if (not workingDirectoryTmp.exists())
         {
             Q_EMIT addError_signal("Working directory doesn't exists");
@@ -65,11 +65,11 @@ void runProcessActionExecution_c::derivedExecute_f()
 
         //if a "clear" environment must be used OR there is something to append to the environment
         //THEN modify the environment
-        const bool envModified(not useActonEnvironment_f() or not environmentToAdd_f().isEmpty());
+        const bool envModified(not runProcessActionPtr_pri->useActonEnvironment_f() or not runProcessActionPtr_pri->environmentToAdd_f().isEmpty());
         if (envModified)
         {
             QProcessEnvironment processEnvironmentTmp(QProcessEnvironment::systemEnvironment());
-            if (not useActonEnvironment_f())
+            if (not runProcessActionPtr_pri->useActonEnvironment_f())
             {
                 processEnvironmentTmp.clear();
 #ifdef DEBUGJOUVEN
@@ -78,9 +78,9 @@ void runProcessActionExecution_c::derivedExecute_f()
 #endif
             }
 
-            if (not environmentToAdd_f().isEmpty())
+            if (not runProcessActionPtr_pri->environmentToAdd_f().isEmpty())
             {
-                const QHash<QString, environmentPairConfig_c> environmentToAddTmp_con(environmentToAdd_f());
+                const QHash<QString, environmentPairConfig_c> environmentToAddTmp_con(runProcessActionPtr_pri->environmentToAdd_f());
                 QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAddTmp_con.constBegin());
                 while (iteratorTmp not_eq environmentToAddTmp_con.constEnd())
                 {
@@ -105,10 +105,10 @@ void runProcessActionExecution_c::derivedExecute_f()
             //nothing to do
         }
 #ifdef DEBUGJOUVEN
-        qDebug() << "workingDirectoryParsed_f() " << workingDirectoryParsed_f() << endl;
+        qDebug() << "workingDirectoryParsed_f() " << runProcessActionPtr_pri->workingDirectoryParsed_f() << endl;
         qDebug() << "actionProcess_pri.workingDirectory() before set: " << actionProcess_pri.workingDirectory() << endl;
 #endif
-        actionProcess_pri.setWorkingDirectory(workingDirectoryParsed_f());
+        actionProcess_pri.setWorkingDirectory(runProcessActionPtr_pri->workingDirectoryParsed_f());
 #ifdef DEBUGJOUVEN
         qDebug() << "actionProcess_pri.workingDirectory() after set: " << actionProcess_pri.workingDirectory() << endl;
 #endif
@@ -128,7 +128,7 @@ void runProcessActionExecution_c::derivedExecute_f()
         //IMPORTANT ignore above, the issue is that to find the process location path what is used is the actonQtg environment,
         //qprocess::setProcessEnvironment set variables of the QProcess which won't help,
         //so actonQtg environment must be modified, use relative paths or use absolute path
-        actionProcess_pri.start(processPathParsed_f(), argumentsTmp);
+        actionProcess_pri.start(runProcessActionPtr_pri->processPathParsed_f(), argumentsTmp);
         break;
     }
 }

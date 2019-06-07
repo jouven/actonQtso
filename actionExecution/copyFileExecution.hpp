@@ -3,16 +3,21 @@
 
 #include "baseActionExecution.hpp"
 
-#include "../actions/copyFile.hpp"
-
 #include <QMutexLocker>
-#include <QFileInfo>
 
 class checkSameFile_c;
+class copyFileAction_c;
+class QFileInfo;
 
-class copyFileActionExecution_c : public baseActionExecution_c, public copyFileAction_c
+class copyFileActionExecution_c : public baseActionExecution_c
 {
     Q_OBJECT
+
+    //this case is not full const
+    //because it has some interaction with the class,
+    //when doing the filelist it can be interruped and there
+    //is some state management happening
+    copyFileAction_c* const copyFileActionPtr_pri = nullptr;
 
     QMutex checkSameFileMutex_pri;
     checkSameFile_c* checkSameFile_ptr = nullptr;
@@ -47,7 +52,7 @@ public:
     copyFileActionExecution_c() = delete;
     explicit copyFileActionExecution_c(
             actionDataExecutionResult_c* actionExecutionResultObj_par_con
-            , const copyFileAction_c& copyFileAction_par_con
+            , copyFileAction_c* copyFileActionPtr_par
     );
 };
 

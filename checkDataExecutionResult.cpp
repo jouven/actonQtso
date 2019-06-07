@@ -21,7 +21,7 @@ checkExecutionState_ec checkDataExecutionResult_c::lastState_f() const
     return executionStateVector_pri.back();
 }
 
-checkData_c* checkDataExecutionResult_c::parent_ptr_f() const
+check_c* checkDataExecutionResult_c::parent_ptr_f() const
 {
     return parent_ptr_pri;
 }
@@ -82,9 +82,9 @@ bool checkDataExecutionResult_c::stoppedByUser_f() const
 }
 
 checkDataExecutionResult_c::checkDataExecutionResult_c(
-        checkData_c* const parentActionData_par_ptr_con
+        check_c* const parentCheck_par_ptr_con
         )
-    : parent_ptr_pri(parentActionData_par_ptr_con)
+    : parent_ptr_pri(parentCheck_par_ptr_con)
 {}
 
 void checkDataExecutionResult_c::appendError_f(const QString& error_par_con)
@@ -96,15 +96,13 @@ void checkDataExecutionResult_c::appendError_f(const QString& error_par_con)
 bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionState_ec checkExecutionState_par_con)
 {
     bool resultTmp(false);
-    bool finishItTmp(false);
     bool emitPreparingTmp(false);
     bool emitExecutingTmp(false);
     bool emitStoppingTmp(false);
-    bool emitErrorTmp(false);
     //verify if is on a "final" state
     while (not finished_pri and (lastState_f() not_eq checkExecutionState_par_con))
     {
-        //actions that can't be set outside of this class
+        //states that can't be set outside of this class
         if (equalOnce_ft(checkExecutionState_par_con
                          , checkExecutionState_ec::initial
                          , checkExecutionState_ec::stoppedByUser)
@@ -113,7 +111,7 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
             break;
         }
 
-        //from initial it can only go to preparing, executing checks
+        //from initial it can only go to preparing
         if (lastState_f() == checkExecutionState_ec::initial
             and equalOnce_ft(checkExecutionState_par_con
                               , checkExecutionState_ec::preparing)
@@ -127,7 +125,7 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
             }
         }
 
-        //from preparing it can only go to executing, stopping
+        //from preparing it can only go to error, executing, stopping
         if (lastState_f() == checkExecutionState_ec::preparing
             and equalOnce_ft(checkExecutionState_par_con
                              , checkExecutionState_ec::error
@@ -136,12 +134,6 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
             )
         {
             resultTmp = true;
-            if (checkExecutionState_par_con == checkExecutionState_ec::error)
-            {
-                emitErrorTmp = true;
-                finishItTmp = true;
-                break;
-            }
             if (checkExecutionState_par_con == checkExecutionState_ec::executing)
             {
                 emitExecutingTmp = true;
@@ -160,52 +152,27 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
             and equalOnce_ft(checkExecutionState_par_con
                              , checkExecutionState_ec::error
                              , checkExecutionState_ec::stoppingByUser
-                             , checkExecutionState_ec::finishedFalse
-                             , checkExecutionState_ec::finishedTrue)
+                             , checkExecutionState_ec::success)
         )
         {
             resultTmp = true;
-            if (checkExecutionState_par_con == checkExecutionState_ec::error)
-            {
-                emitErrorTmp = true;
-                finishItTmp = true;
-                break;
-            }
             if (checkExecutionState_par_con == checkExecutionState_ec::stoppingByUser)
             {
                 emitStoppingTmp = true;
                 break;
             }
-            if (equalOnce_ft(checkExecutionState_par_con
-                             , checkExecutionState_ec::finishedFalse
-                             , checkExecutionState_ec::finishedTrue))
-            {
-                finishItTmp = true;
-                break;
-            }
             break;
         }
 
-        //from stopping it can only go to error, success
+        //from stopping it can only go to error
         if (lastState_f() == checkExecutionState_ec::stoppingByUser
             and equalOnce_ft(checkExecutionState_par_con
-                             , checkExecutionState_ec::error
-                             , checkExecutionState_ec::finishedFalse
-                             , checkExecutionState_ec::finishedTrue)
+                             , checkExecutionState_ec::error)
         )
         {
             resultTmp = true;
             if (checkExecutionState_par_con == checkExecutionState_ec::error)
             {
-                emitErrorTmp = true;
-                finishItTmp = true;
-                break;
-            }
-            if (equalOnce_ft(checkExecutionState_par_con
-                             , checkExecutionState_ec::finishedFalse
-                             , checkExecutionState_ec::finishedTrue))
-            {
-                finishItTmp = true;
                 break;
             }
             break;
@@ -215,12 +182,13 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
     while (resultTmp)
     {
         executionStateVector_pri.emplace_back(checkExecutionState_par_con);
-        if (finishItTmp)
-        {
-            trySetFinished_f();
-        }
+        //setFinished removed from here because a check might emit a finishing state like error
+        //but still need to end its functions calls. The finished signal is connected
+        //to deletion of the action execution but then again the check execution object is in another
+        //thread so the deletion should wait until the thread is back to its execution loop.
+        //Still more stuff that can be signaled from the execution object might happen, more errors or info,
+        //and finishing prevents any modification of the results
         Q_EMIT executionStateUpdated_signal(parent_ptr_pri);
-
         if (emitPreparingTmp)
         {
             Q_EMIT preparing_signal(parent_ptr_pri);
@@ -235,11 +203,6 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
         if (emitStoppingTmp)
         {
             Q_EMIT stopping_signal(parent_ptr_pri);
-            break;
-        }
-        if (emitErrorTmp)
-        {
-            Q_EMIT error_signal(parent_ptr_pri);
             break;
         }
         break;
@@ -258,12 +221,11 @@ void checkDataExecutionResult_c::setStarted_f()
     }
 }
 
-void checkDataExecutionResult_c::trySetFinished_f()
+void checkDataExecutionResult_c::trySetFinished_f(const bool resultTmp_par_con)
 {
     if (not finished_pri
         and equalOnce_ft(lastState_f()
-                         , checkExecutionState_ec::finishedTrue
-                         , checkExecutionState_ec::finishedFalse
+                         , checkExecutionState_ec::executing
                          , checkExecutionState_ec::error
                          , checkExecutionState_ec::stoppingByUser
                          )
@@ -274,13 +236,31 @@ void checkDataExecutionResult_c::trySetFinished_f()
         {
             finishedTime_pri = QDateTime::currentMSecsSinceEpoch();
         }
-        result_pri = lastState_f() == checkExecutionState_ec::finishedTrue;
 
-        if (lastState_f() == checkExecutionState_ec::stoppingByUser)
+        if (equalOnce_ft(lastState_f()
+                         , checkExecutionState_ec::executing
+                         , checkExecutionState_ec::stoppingByUser
+                         ))
         {
-            stoppedByUser_pri = true;
-            executionStateVector_pri.emplace_back(checkExecutionState_ec::stoppedByUser);
-            Q_EMIT stopped_signal(parent_ptr_pri);
+            if (lastState_f() == checkExecutionState_ec::executing)
+            {
+                executionStateVector_pri.emplace_back(checkExecutionState_ec::success);
+                result_pri = resultTmp_par_con;
+            }
+            if (lastState_f() == checkExecutionState_ec::stoppingByUser)
+            {
+                stoppedByUser_pri = true;
+                executionStateVector_pri.emplace_back(checkExecutionState_ec::stoppedByUser);
+            }
+            Q_EMIT executionStateUpdated_signal(parent_ptr_pri);
+            if (lastState_f() == checkExecutionState_ec::success)
+            {
+                //finished is always at the end
+            }
+            if (lastState_f() == checkExecutionState_ec::stoppedByUser)
+            {
+                Q_EMIT stopped_signal(parent_ptr_pri);
+            }
         }
 
         Q_EMIT finished_signal(parent_ptr_pri);

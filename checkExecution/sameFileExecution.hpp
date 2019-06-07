@@ -3,13 +3,15 @@
 
 #include "baseCheckExecution.hpp"
 
-#include "../checks/sameFile.hpp"
 #include "../reused/sameFileAlgo.hpp"
 
-class sameFileCheckExecution_c : public baseCheckExecution_c, public sameFileCheck_c
+class sameFileCheck_c;
+
+class sameFileCheckExecution_c : public baseCheckExecution_c
 {
     Q_OBJECT
 
+    const sameFileCheck_c* const sameFileCheckPtr_pri = nullptr;
     checkSameFile_c checkSameFile_pri;
 protected:
     void derivedExecute_f() override;
@@ -19,7 +21,7 @@ public:
     sameFileCheckExecution_c() = delete;
     explicit sameFileCheckExecution_c(
             checkDataExecutionResult_c* checkExecutionResultObj_par_con
-            , const sameFileCheck_c& samefileCheck_par_con
+            , sameFileCheck_c* samefileCheckPtr_par
     );
 
 };

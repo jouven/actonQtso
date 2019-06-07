@@ -22,7 +22,7 @@
 #define COPYPARSERETURNVAR(X) QString copyStrTmp(X); \
 if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
 { \
-    actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(copyStrTmp)); \
+    actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(copyStrTmp)); \
 } \
 return copyStrTmp;
 
@@ -31,7 +31,7 @@ if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptio
 { \
     for (QString& str_ite : copyStrListTmp) \
     { \
-        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(str_ite)); \
+        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(str_ite)); \
     } \
 } \
 return copyStrListTmp;
@@ -60,7 +60,7 @@ Q_SIGNALS:
     void actionsExecutionStopped_signal();
     void killingActionsExecution_signal();
     void actionsExecutionKilled_signal();
-    void actionsExecutionFinished_signal(std::vector<actionData_c*> lastRunActions_par);
+    void actionsExecutionFinished_signal(std::vector<action_c*> lastRunActions_par);
     void anyExecutingChecksStopped_signal();
 };
 
@@ -85,11 +85,11 @@ class EXPIMP_ACTONQTSO actonDataHub_c
     //key = actionData stringId, value = actionData Id
     QHash<QString, int_fast64_t> actionDataStringIdToActionDataId_pri;
     //key = actionData Id, value = actionData obj
-    std::unordered_map<int_fast64_t, actionData_c> actionDataIdToActionDataUMap_pri;
+    std::unordered_map<int_fast64_t, action_c*> actionDataIdToActionPtrUMap_pri;
 
     executionOptions_c executionOptions_pri;
     //bool executingActions_pri = false;
-    std::vector<actionData_c*> actionsToRun_pri;
+    std::vector<action_c*> actionsToRun_pri;
 
     logDataHub_c* logDataHub_pri = nullptr;
 
@@ -104,7 +104,7 @@ class EXPIMP_ACTONQTSO actonDataHub_c
     bool stopOnThisLoopEnd_pri = false;
 
     void executeActions_f(const bool loop_par_con = false);
-    void verifyExecutionFinished_f(actionData_c* actionDataPtr_par);
+    void verifyExecutionFinished_f(action_c* actionPtr_par);
     void killingStarted_f();
 public:
     explicit actonDataHub_c();
@@ -118,7 +118,7 @@ public:
     //cascading any row after to row+1
     //returns true if an insert happened, might not happen if the row value is invalid (negative or greater than the container size)
     //or the actionString Id is already in use or empty
-    bool insertActionData_f(const actionData_c& obj_par_con, const int row_par_con);
+    bool insertActionData_f(action_c* const actionPtr_par, const int row_par_con);
     //remove the object from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
     //returns true if a removal happened
     bool removeActionDataUsingId_f(const int_fast64_t actionDataId_par_con);
@@ -138,7 +138,7 @@ public:
 
     int_fast32_t size_f() const;
 
-    actionData_c* actionData_ptr_f(const int_fast64_t actionDataId_par_con);
+    action_c* action_ptr_f(const int_fast64_t actionDataId_par_con);
     //actionData_c actionData_f(const int_fast64_t actionDataId_par_con, bool* found_ptr = nullptr) const;
 
     void clearAllActionData_f();
@@ -202,7 +202,9 @@ public:
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
     //below 3 functions, only used in actionFinished checks for now
     int_fast32_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    //objectToIgnore_par can be nullptr, this argument is to ignore the current
+    //object being edited when checking for string trigger dependencies
+    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
     //although the return value is a vector, it will only contain unique strings
     std::vector<QString> stringTriggersInUseByActionsOrChecks_f() const;
 

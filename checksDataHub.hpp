@@ -1,8 +1,6 @@
 #ifndef ACTONQTSO_CHECKSDATAHUB_HPP
 #define ACTONQTSO_CHECKSDATAHUB_HPP
 
-#include "checkData.hpp"
-
 #include "crossPlatformMacros.hpp"
 
 #include <QObject>
@@ -12,7 +10,8 @@
 #include <deque>
 //#include <memory>
 
-class actionData_c;
+class action_c;
+class check_c;
 
 class EXPIMP_ACTONQTSO checksDataHubProxyQObj_c : public QObject
 {
@@ -22,7 +21,7 @@ Q_SIGNALS:
     void checksExecutionStarted_signal();
     void stoppingChecksExecution_signal();
     void checksExecutionStopped_signal();
-    void checksExecutionFinished_signal(std::vector<checkData_c*> lastRunChecks_par);
+    void checksExecutionFinished_signal(std::vector<check_c*> lastRunChecks_par);
 };
 
 class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
@@ -41,15 +40,15 @@ class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
     std::unordered_map<int, int_fast64_t> rowToCheckDataId_pri;
 
     //key = checkData Id, value = checkData obj
-    std::unordered_map<int_fast64_t, checkData_c> checkDataIdToCheckDataUMap_pri;
+    std::unordered_map<int_fast64_t, check_c*> checkDataIdToCheckUMap_pri;
 
-    actionData_c* parentAction_pri = nullptr;
+    action_c* parentAction_pri = nullptr;
 
     checksDataHubProxyQObj_c* proxyQObj_pri = nullptr;
 
-    std::vector<checkData_c*> checksToRun_pri;
+    std::vector<check_c*> checksToRun_pri;
     //checks to run sequentially
-    std::deque<checkData_c*> checksToRunSeq_pri;
+    std::deque<check_c*> checksToRunSeq_pri;
 
     bool executingChecks_pri = false;
     bool checksExecutionFinished_pri = false;
@@ -60,7 +59,7 @@ class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
     void verifyExecutionFinished_f();
     void executeNextSeqCheck_f();
 public:
-    explicit checksDataHub_c(actionData_c* parentAction_par);
+    explicit checksDataHub_c(action_c* parentAction_par);
 
     //copies everything except proxy pointer
     checksDataHub_c(const checksDataHub_c& from_par_con);
@@ -76,8 +75,7 @@ public:
     //same as move ctor
     checksDataHub_c& operator=(checksDataHub_c&& from_par) noexcept;
 
-    //when copying/asign/move an action, the "new" action calls this
-    void setParentAction_f(actionData_c* parentAction_par);
+    void setParentAction_f(action_c* parentAction_par);
 
     ~checksDataHub_c();
 
@@ -88,14 +86,14 @@ public:
     //cascading any row after to row+1
     //returns true if an insert happened, might not happen if the row value is invalid (negative or greater than the container size)
     //or the actionString Id is already on use or empty
-    bool insertCheckData_f(const checkData_c& obj_par, const int row_par_con);
+    bool insertCheck_f(check_c* obj_par, const int row_par_con);
     //remove the object from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
     //returns true if a removal happened
-    bool removeCheckDataUsingId_f(const int_fast64_t checkDataId_par_con);
+    bool removeCheckUsingId_f(const int_fast64_t checkDataId_par_con);
     //same but with row, optional pass actionDataId if it's known
-    bool removeCheckDataUsingRow_f(const int row_par_con, const int_fast64_t checkDataId_par_con = 0);
+    bool removeCheckUsingRow_f(const int row_par_con, const int_fast64_t checkDataId_par_con = 0);
 
-    bool moveRowCheckData_f(const int sourceRow_par_con, const int destinationRow_par_con);
+    bool moveCheckRow_f(const int sourceRow_par_con, const int destinationRow_par_con);
 
     //-1 if not found, >-1 otherwise
     int checkDataIdToRow_f(const int_fast64_t checkDataId_par_con) const;
@@ -103,8 +101,9 @@ public:
 
     int_fast32_t size_f() const;
 
-    checkData_c* checkData_ptr_f(const int_fast64_t checkDataId_par_con);
-    checkData_c checkData_f(const int_fast64_t checkDataId_par_con, bool* found_ptr = nullptr) const;
+    check_c* check_ptr_f(const int_fast64_t checkDataId_par_con);
+    check_c* check_ptr_f(const int_fast64_t checkDataId_par_con) const;
+    //checkData_c checkData_f(const int_fast64_t checkDataId_par_con, bool* found_ptr = nullptr) const;
 
     //not in use
     //void clearAllCheckData_f();
@@ -120,14 +119,14 @@ public:
     bool checksExecutionFinished_f() const;
 
     void stopExecutingChecks_f();
-    actionData_c* parentAction_f() const;
+    action_c* parentAction_f() const;
     //update all the checks setting that depend on an actionStringId
     //returns the number of updated checks which did match with the oldStringId
     int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
 
     int_fast32_t updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
     //although the return value is a vector, it will only contain unique strings
     std::vector<QString> stringTriggersInUseByChecks_f() const;
 };

@@ -3,13 +3,15 @@
 
 #include "baseActionExecution.hpp"
 
-#include "../actions/runProcess.hpp"
-
 #include <QProcess>
 
-class runProcessActionExecution_c : public baseActionExecution_c, public runProcessAction_c
+class runProcessAction_c;
+
+class runProcessActionExecution_c : public baseActionExecution_c
 {
     Q_OBJECT
+
+    const runProcessAction_c* const runProcessActionPtr_pri = nullptr;
 
     //the function "setFinished_f"
     bool setFinishedCalled_pri = false;
@@ -29,8 +31,8 @@ protected:
 public:
     runProcessActionExecution_c() = delete;
     explicit runProcessActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con,
-            const runProcessAction_c& processAction_par_con
+            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            , runProcessAction_c* runProcessActionPtr_par
             , const bool mergeOutErr_par_con = false
             , const int_fast32_t timeoutMilliseconds_par_con = 0
     );

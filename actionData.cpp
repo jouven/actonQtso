@@ -1,15 +1,15 @@
 #include "actionData.hpp"
 
 #include "actonDataHub.hpp"
+#include "checkData.hpp"
 
 #include "actionDataExecutionResult.hpp"
-#include "actionMappings/actionStrMapping.hpp"
-#include "actionExecution/runProcessExecution.hpp"
-#include "actionExecution/createDirectoryExecution.hpp"
-#include "actionExecution/copyFileExecution.hpp"
+#include "actionMappings/actionMapping.hpp"
+#include "actionExecution/baseActionExecution.hpp"
 
 #include "checkDataExecutionResult.hpp"
 #include "checksBaseSerialization.hpp"
+#include "actonBaseSerialization.hpp"
 
 #include "threadedFunctionQtso/threadedFunctionQt.hpp"
 #include "essentialQtso/macros.hpp"
@@ -37,38 +37,40 @@ int_fast64_t nextActionDataId_f()
     return rootId;
 }
 
+//TODO remove lambdas and use signal slot, now that this is a qobject
+//some can't be removed since actonDatahub_c and checkDataHub_c aren't QObjects
 
 //////////////////
 //actionData_c
 //////////////////
 
 
-int_fast64_t actionData_c::id_f() const
+int_fast64_t action_c::id_f() const
 {
-    return id_pri;
+    return id_pro;
 }
 
-actionType_ec actionData_c::type_f() const
+//actionType_ec actionData_c::type_f() const
+//{
+//    return type_pri;
+//}
+
+QString action_c::description_f() const
 {
-    return type_pri;
+    return description_pro;
 }
 
-QString actionData_c::description_f() const
-{
-    return description_pri;
-}
-
-QJsonObject actionData_c::actionDataJSON_f() const
-{
-    return actionDataJSON_pri;
-}
+//QJsonObject actionData_c::actionDataJSON_f() const
+//{
+//    return actionDataJSON_pri;
+//}
 
 //QJsonObject& actionData_c::actionDataJSON_ref_f()
 //{
 //    return actionDataJSON_pri;
 //}
 
-bool actionData_c::isExecuting_f() const
+bool action_c::isExecuting_f() const
 {
     //if the result object exists
     //and result state is one of the "executing" ones
@@ -82,13 +84,13 @@ bool actionData_c::isExecuting_f() const
             and not actionDataExecutionResult_ptr_pri->finished_f();
 }
 
-bool actionData_c::isEditable_f() const
+bool action_c::isEditable_f() const
 {
     return not isExecuting_f() or actionDataExecutionResult_ptr_pri == nullptr or actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::initial;
 }
 
 //use only on sets
-bool actionData_c::tryClearResultsOnEdit_f()
+bool action_c::tryClearResultsOnEdit_f()
 {
     bool resultTmp(true);
     if (not isEditable_f())
@@ -98,47 +100,47 @@ bool actionData_c::tryClearResultsOnEdit_f()
     return resultTmp;
 }
 
-void actionData_c::setType_f(const actionType_ec type_par_con)
+//void actionData_c::setType_f(const actionType_ec type_par_con)
+//{
+//    if (isExecuting_f())
+//    {
+//        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//    }
+//    else
+//    {
+//        if (tryClearResultsOnEdit_f())
+//        {
+//            type_pri = type_par_con;
+//        }
+//    }
+//}
+
+void action_c::setDescription_f(const QString& description_par_con)
 {
-    if (isExecuting_f())
-    {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
-    }
-    else
-    {
-        if (tryClearResultsOnEdit_f())
-        {
-            type_pri = type_par_con;
-        }
-    }
+    description_pro = description_par_con;
 }
 
-void actionData_c::setDescription_f(const QString& description_par_con)
-{
-    description_pri = description_par_con;
-}
+//void actionData_c::setActionDataJSON_f(const QJsonObject& actionDataJSON_par_con)
+//{
+//    if (isExecuting_f())
+//    {
+//        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//    }
+//    else
+//    {
+//        if (tryClearResultsOnEdit_f())
+//        {
+//            actionDataJSON_pri = actionDataJSON_par_con;
+//        }
+//    }
+//}
 
-void actionData_c::setActionDataJSON_f(const QJsonObject& actionDataJSON_par_con)
+void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
 {
-    if (isExecuting_f())
-    {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
-    }
-    else
-    {
-        if (tryClearResultsOnEdit_f())
-        {
-            actionDataJSON_pri = actionDataJSON_par_con;
-        }
-    }
-}
-
-void actionData_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
-{
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" try stop execution", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" try stop execution", logItem_c::type_ec::debug);
     while (true)
     {
-        if (not enabled_pri)
+        if (not enabled_pro)
         {
             break;
         }
@@ -147,15 +149,16 @@ void actionData_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
             and actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::preparing)
         {
             actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::stoppingByUser);
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" stopped while preparing", logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" stopped while preparing", logItem_c::type_ec::info);
             break;
         }
 
-        if (checkDataHub_pri.executingChecks_f())
+        if (checkDataHub_pro.executingChecks_f())
         {
+            actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::stoppingByUser);
             //this should be enough since it will "return" to preparing
-            checkDataHub_pri.stopExecutingChecks_f();
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" stopping while executing cheks", logItem_c::type_ec::info);
+            checkDataHub_pro.stopExecutingChecks_f();
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" stopping while executing checks", logItem_c::type_ec::info);
             break;
         }
 
@@ -163,7 +166,7 @@ void actionData_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
         {
             if (isKillingExecutionAfterTimeout_pri)
             {
-                MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" force killing execution" , logItem_c::type_ec::info);
+                MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" force killing execution" , logItem_c::type_ec::info);
                 kill_f();
                 break;
             }
@@ -181,7 +184,7 @@ void actionData_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
 //                }
 //                else
 //                {
-                    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" stopping execution", logItem_c::type_ec::info);
+                    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" stopping execution", logItem_c::type_ec::info);
                     actionDataExecution_ptr_pri->stop_f();
 //                }
             }
@@ -189,22 +192,22 @@ void actionData_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
             if (killAfterTimeout_par_con)
             {
                 MACRO_ADDACTONQTSOLOG(
-                            "Action, stringId: \"" + this->stringId_pri + "\" killing execution in " + QString::number(actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f()) + "ms"
+                            "Action, stringId: \"" + this->stringId_pro + "\" killing execution in " + QString::number(actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f()) + "ms"
                             , logItem_c::type_ec::info
                 );
                 isKillingExecutionAfterTimeout_pri = true;
-                QTimer::singleShot(actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f(), std::bind(&actionData_c::kill_f, this));
+                QTimer::singleShot(actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f(), std::bind(&action_c::kill_f, this));
             }
         }
         break;
     }
 }
 
-void actionData_c::kill_f()
+void action_c::kill_f()
 {
     while (true)
     {
-        if (not enabled_pri)
+        if (not enabled_pro)
         {
             break;
         }
@@ -221,7 +224,7 @@ void actionData_c::kill_f()
             and (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::stoppingByUser)
             )
         {
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" killing execution", logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" killing execution", logItem_c::type_ec::info);
             actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::killingByUser);
             actionDataExecution_ptr_pri->kill_f();
         }
@@ -230,9 +233,9 @@ void actionData_c::kill_f()
     isKillingExecutionAfterTimeout_pri = false;
 }
 
-void actionData_c::examineCheckResults_f(std::vector<checkData_c*> checksRun_par)
+void action_c::examineCheckResults_f(std::vector<check_c*> checksRun_par)
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\"examining checks results", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\"examining checks results", logItem_c::type_ec::debug);
     if (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::stoppingByUser
         or actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::killingByUser)
     {
@@ -244,17 +247,17 @@ void actionData_c::examineCheckResults_f(std::vector<checkData_c*> checksRun_par
         //to help the "and" logic
         bool resultTmp(true);
         bool resultSetTmp(false);
-        for (checkData_c* check_ite_ptr : checksRun_par)
+        for (check_c* check_ite_ptr : checksRun_par)
         {
             checkDataExecutionResult_c* checkDataExecutionResult_ptr_Ref(check_ite_ptr->checkDataExecutionResult_ptr_f());
 
             if (checkDataExecutionResult_ptr_Ref->finished_f())
             {
                 resultSetCount = resultSetCount + 1;
-                if (checkResultLogicAnd_pri)
+                if (checkResultLogicAnd_pro)
                 {
                     resultTmp = resultTmp and checkDataExecutionResult_ptr_Ref->result_f();
-                    if (resultSetCount == checkDataHub_pri.size_f())
+                    if (resultSetCount == checkDataHub_pro.size_f())
                     {
                         resultSetTmp = true;
                     }
@@ -271,7 +274,7 @@ void actionData_c::examineCheckResults_f(std::vector<checkData_c*> checksRun_par
             }
             else
             {
-                if (checkResultLogicAnd_pri)
+                if (checkResultLogicAnd_pro)
                 {
                     break;
                 }
@@ -280,15 +283,15 @@ void actionData_c::examineCheckResults_f(std::vector<checkData_c*> checksRun_par
         }
         if (resultSetTmp and resultTmp)
         {
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" preparing to run Action", logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" preparing to run Action", logItem_c::type_ec::info);
             prepareToRunAction_f();
         }
     }
 }
 
-void actionData_c::prepareToRunAction_f()
+void action_c::prepareToRunAction_f()
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" preparing to run", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" preparing to run", logItem_c::type_ec::debug);
     if (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::stoppingByUser
         or actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::killingByUser)
     {
@@ -296,40 +299,40 @@ void actionData_c::prepareToRunAction_f()
     }
     else
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" preparing to run", logItem_c::type_ec::info);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" preparing to run", logItem_c::type_ec::info);
         actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::preparing);
-        threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&actionData_c::execute_f, this), true);
+        threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&action_c::execute_f, this), true);
         QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &threadedFunction_c::deleteLater);
         QObject::connect(actionDataExecutionResult_ptr_pri, &actionDataExecutionResult_c::finished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
         threadedFunction_ptr->start();
     }
 }
 
-bool actionData_c::killingExecutionAfterTimeout_f() const
+bool action_c::killingExecutionAfterTimeout_f() const
 {
     return isKillingExecutionAfterTimeout_pri;
 }
 
-void actionData_c::stopExecutingChecks_f()
+void action_c::stopExecutingChecks_f()
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" stop executing checks", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" stop executing checks", logItem_c::type_ec::debug);
     while (true)
     {
-        if (not enabled_pri)
+        if (not enabled_pro)
         {
             break;
         }
-        for (int_fast32_t index_ite = 0, l = checkDataHub_pri.size_f(); index_ite < l; ++index_ite)
+        for (int_fast32_t index_ite = 0, l = checkDataHub_pro.size_f(); index_ite < l; ++index_ite)
         {
-            int_fast32_t checkDataIdTmp(checkDataHub_pri.rowToCheckDataId_f(index_ite));
-            checkData_c* checkDataTmp_ptr(checkDataHub_pri.checkData_ptr_f(checkDataIdTmp));
-            checkDataTmp_ptr->stopExecution_f();
+            int_fast32_t checkDataIdTmp(checkDataHub_pro.rowToCheckDataId_f(index_ite));
+            check_c* checkTmp_ptr(checkDataHub_pro.check_ptr_f(checkDataIdTmp));
+            checkTmp_ptr->stopExecution_f();
         }
         break;
     }
 }
 
-void actionData_c::execute_f()
+void action_c::execute_f()
 {
     while (true)
     {
@@ -337,67 +340,37 @@ void actionData_c::execute_f()
             or actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::killingByUser)
         {
             actionDataExecutionResult_ptr_pri->trySetFinished_f();
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" finished (stopped or \"killed\") before execute", logItem_c::type_ec::debug);
             break;
         }
 
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" execute", logItem_c::type_ec::debug);
-        switch (type_pri)
-        {
-            case actionType_ec::runProcess:
-            {
-                runProcessAction_c runProcessActionTmp;
-                runProcessActionTmp.read_f(actionDataJSON_f());
-                runProcessActionExecution_c* runProcessActionExecutionTmp(new runProcessActionExecution_c(actionDataExecutionResult_ptr_pri, runProcessActionTmp));
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" execute", logItem_c::type_ec::debug);
 
-                actionDataExecution_ptr_pri = runProcessActionExecutionTmp;
-            }
-                break;
-            case actionType_ec::createDirectory:
-            {
-                createDirectoryAction_c createDirectoryActionTmp;
-                createDirectoryActionTmp.read_f(actionDataJSON_f());
+        actionDataExecution_ptr_pri = createExecutionObj_f(actionDataExecutionResult_ptr_pri);
 
-                createDirectoryActionExecution_c* createDirectoryActionExecutionTmp(new createDirectoryActionExecution_c(actionDataExecutionResult_ptr_pri, createDirectoryActionTmp));
-                actionDataExecution_ptr_pri = createDirectoryActionExecutionTmp;
-            }
-                break;
-            case actionType_ec::copyFile:
-            {
-                copyFileAction_c copyFileActionTmp;
-                copyFileActionTmp.read_f(actionDataJSON_f());
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\", action ctored/read from JSON and execution object ctored", logItem_c::type_ec::debug);
 
-                copyFileActionExecution_c* copyFileActionExecutionTmp(new copyFileActionExecution_c(actionDataExecutionResult_ptr_pri, copyFileActionTmp));
-                actionDataExecution_ptr_pri = copyFileActionExecutionTmp;
-            }
-                break;
-            default:
-            {
-                //theoretically it shouldn't enter here ever
-            }
-        }
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\", action ctored/read from JSON and execution object ctored", logItem_c::type_ec::debug);
-
-        QObject::connect(actionDataExecution_ptr_pri, &baseActionExecution_c::destroyed, [this]() { actionDataExecution_ptr_pri = nullptr; });
+        QObject::connect(actionDataExecution_ptr_pri, &baseActionExecution_c::destroyed, this, [this]() { actionDataExecution_ptr_pri = nullptr; });
 
         actionDataExecution_ptr_pri->execute_f();
         break;
     }
 }
 
-void actionData_c::tryExecute_f()
+void action_c::tryExecute_f()
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" try execute", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" try execute", logItem_c::type_ec::debug);
     while (true)
     {
-        if (not enabled_pri)
+        if (not enabled_pro)
         {
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" can't run a not enabled Action", logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" can't run a not enabled Action", logItem_c::type_ec::info);
             break;
         }
         //if it's executing already
         if (isExecuting_f())
         {
-            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" already executing", logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" already executing", logItem_c::type_ec::info);
             break;
         }
         else
@@ -433,7 +406,7 @@ void actionData_c::tryExecute_f()
             deleteActionDataExecutionObject_f();
         }
 
-        if (checkDataHub_pri.size_f() == 0 or not checksEnabled_pri)
+        if (checkDataHub_pro.size_f() == 0 or not checksEnabled_pro)
         {
             //no checks path
             prepareToRunAction_f();
@@ -441,35 +414,34 @@ void actionData_c::tryExecute_f()
         else
         {
             QObject::connect(
-                        checkDataHub_pri.proxyQObj_f()
+                        checkDataHub_pro.proxyQObj_f()
                         , &checksDataHubProxyQObj_c::checksExecutionStarted_signal
                         , actionDataExecutionResult_ptr_pri
             , [this]()
             {
-                QObject::disconnect(checkDataHub_pri.proxyQObj_f(), &checksDataHubProxyQObj_c::checksExecutionStarted_signal, actionDataExecutionResult_ptr_pri, nullptr);
+                QObject::disconnect(checkDataHub_pro.proxyQObj_f(), &checksDataHubProxyQObj_c::checksExecutionStarted_signal, actionDataExecutionResult_ptr_pri, nullptr);
                 actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::executingChecks);
             }
             );
             QObject::connect(
-                        checkDataHub_pri.proxyQObj_f()
+                        checkDataHub_pro.proxyQObj_f()
                         , &checksDataHubProxyQObj_c::checksExecutionFinished_signal
                         , actionDataExecutionResult_ptr_pri
-            , [this](std::vector<checkData_c*> checksRun_par)
+            , [this](std::vector<check_c*> checksRun_par)
             {
-                QObject::disconnect(checkDataHub_pri.proxyQObj_f(), &checksDataHubProxyQObj_c::checksExecutionFinished_signal, actionDataExecutionResult_ptr_pri, nullptr);
+                QObject::disconnect(checkDataHub_pro.proxyQObj_f(), &checksDataHubProxyQObj_c::checksExecutionFinished_signal, actionDataExecutionResult_ptr_pri, nullptr);
                 examineCheckResults_f(checksRun_par);
             }
             );
 
-            checkDataHub_pri.executeCheckDataRows_f();
-
+            checkDataHub_pro.executeCheckDataRows_f();
         }
         break;
     }
 }
 
 
-actionDataExecutionResult_c* actionData_c::createGetActionDataExecutionResult_ptr_f()
+actionDataExecutionResult_c* action_c::createGetActionDataExecutionResult_ptr_f()
 {
 //#ifdef DEBUGJOUVEN
 //        qDebug() << "createGetActionDataExecutionResult_ptr_f" << endl;
@@ -479,7 +451,7 @@ actionDataExecutionResult_c* actionData_c::createGetActionDataExecutionResult_pt
 //#ifdef DEBUGJOUVEN
 //        qDebug() << "createGetActionDataExecutionResult_ptr_f enabled_pri " << enabled_pri << endl;
 //#endif
-        if (not enabled_pri)
+        if (not enabled_pro)
         {
             break;
         }
@@ -501,57 +473,79 @@ actionDataExecutionResult_c* actionData_c::createGetActionDataExecutionResult_pt
     return actionDataExecutionResult_ptr_pri;
 }
 
-actionDataExecutionResult_c* actionData_c::actionDataExecutionResult_ptr_f() const
+actionDataExecutionResult_c* action_c::actionDataExecutionResult_ptr_f() const
 {
     return actionDataExecutionResult_ptr_pri;
 }
 
 //the following two functions are "simple" now but if an action type starts using other actionIds they will become more complex
-int_fast32_t actionData_c::updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
+int_fast32_t action_c::updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
 {
-    return checkDataHub_pri.updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
+    return checkDataHub_pro.updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
 }
 
-bool actionData_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
+bool action_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
 {
-    return checkDataHub_pri.hasStringIdAnyDependency_f(stringId_par_con);
+    return checkDataHub_pro.hasStringIdAnyDependency_f(stringId_par_con);
 }
 
-int_fast32_t actionData_c::updateStringTriggerParserDependencies_f(
+int_fast32_t action_c::updateStringTriggerParserDependencies_f(
         const QString& newStringTrigger_par_con
         , const QString& oldStringTrigger_par_con)
 {
-    return checkDataHub_pri.updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
+    return checkDataHub_pro.updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
 }
 
-bool actionData_c::hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con) const
+bool action_c::hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
 {
-    return checkDataHub_pri.hasStringTriggerAnyDependency_f(stringTrigger_par_con);
+    return checkDataHub_pro.hasStringTriggerAnyDependency_f(stringTrigger_par_con, objectToIgnore_par);
 }
 
-std::vector<QString> actionData_c::stringTriggersInUse_f() const
+std::vector<QString> action_c::stringTriggersInUse_f() const
 {
-    return checkDataHub_pri.stringTriggersInUseByChecks_f();
+    return checkDataHub_pro.stringTriggersInUseByChecks_f();
 }
 
-QString actionData_c::stringId_f() const
+action_c* action_c::readCreateDerived_f(const actionType_ec actionType_par_con)
 {
-    return stringId_pri;
+    action_c* resultTmp(nullptr);
+    auto findResultTmp(actionTypeToActionCreationFunctionMap_ext_con.find(actionType_par_con));
+    if (findResultTmp not_eq actionTypeToActionCreationFunctionMap_ext_con.cend())
+    {
+        resultTmp = findResultTmp->second();
+    }
+    else
+    {
+        //nullptr is the default value
+    }
+    return resultTmp;
 }
 
-int_fast32_t actionData_c::setStringId_f(const QString& newStringId_par_con, const bool updateFieldsThatUsedOldValue_par_con)
+action_c* action_c::clone_f() const
+{
+    action_c* cloneTmp(derivedClone_f());
+    cloneTmp->checkDataHub_pro.setParentAction_f(cloneTmp);
+    return cloneTmp;
+}
+
+QString action_c::stringId_f() const
+{
+    return stringId_pro;
+}
+
+int_fast32_t action_c::setStringId_f(const QString& newStringId_par_con, const bool updateFieldsThatUsedOldValue_par_con)
 {
     int_fast32_t updateCountTmp(0);
     if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
     }
     else
     {
         if (tryClearResultsOnEdit_f())
         {
-            QString oldStringIdTmp(stringId_pri);
-            stringId_pri = newStringId_par_con;
+            QString oldStringIdTmp(stringId_pro);
+            stringId_pro = newStringId_par_con;
             if (updateFieldsThatUsedOldValue_par_con)
             {
                 updateCountTmp = updateCountTmp + actonDataHub_ptr_ext->updateStringIdDependencies_f(newStringId_par_con, oldStringIdTmp);
@@ -561,55 +555,55 @@ int_fast32_t actionData_c::setStringId_f(const QString& newStringId_par_con, con
     return updateCountTmp;
 }
 
-bool actionData_c::checksEnabled_f() const
+bool action_c::checksEnabled_f() const
 {
-    return checksEnabled_pri;
+    return checksEnabled_pro;
 }
 
-void actionData_c::setChecksEnabled_f(const bool checksEnabled_par_con)
+void action_c::setChecksEnabled_f(const bool checksEnabled_par_con)
 {
     if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
     }
     else
     {
         if (tryClearResultsOnEdit_f())
         {
-            checksEnabled_pri = checksEnabled_par_con;
+            checksEnabled_pro = checksEnabled_par_con;
         }
     }
 }
 
 
-checksDataHub_c* actionData_c::checkDataHub_ptr_f()
+checksDataHub_c* action_c::checkDataHub_ptr_f()
 {
-    return std::addressof(checkDataHub_pri);
+    return std::addressof(checkDataHub_pro);
 }
 
-const checksDataHub_c& actionData_c::checkDataHub_f() const
+const checksDataHub_c& action_c::checkDataHub_f() const
 {
-    return checkDataHub_pri;
+    return checkDataHub_pro;
 }
 
-bool actionData_c::enabled_f() const
+bool action_c::enabled_f() const
 {
-    return enabled_pri;
+    return enabled_pro;
 }
 
-void actionData_c::setEnabled_f(const bool enabled_par_con)
+void action_c::setEnabled_f(const bool enabled_par_con)
 {
     if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
     }
     else
     {
         if (tryClearResultsOnEdit_f())
         {
-            enabled_pri = enabled_par_con;
+            enabled_pro = enabled_par_con;
             //on disable delete the execution objects
-            if (not enabled_pri)
+            if (not enabled_pro)
             {
                 deleteActionDataExecutionObject_f();
                 deleteActionDataExecutionResultObject_f();
@@ -618,24 +612,24 @@ void actionData_c::setEnabled_f(const bool enabled_par_con)
     }
 }
 
-bool actionData_c::stopExecutionOnError_f() const
+bool action_c::stopExecutionOnError_f() const
 {
-    return stopAllExecutionOnError_pri;
+    return stopAllExecutionOnError_pro;
 }
 
-void actionData_c::setStopExecutionOnError_f(const bool stopExecutionOnError_par_con)
+void action_c::setStopExecutionOnError_f(const bool stopExecutionOnError_par_con)
 {
     if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
     }
     else
     {
-        stopAllExecutionOnError_pri = stopExecutionOnError_par_con;
+        stopAllExecutionOnError_pro = stopExecutionOnError_par_con;
     }
 }
 
-void actionData_c::deleteActionDataExecutionObject_f()
+void action_c::deleteActionDataExecutionObject_f()
 {
     if (actionDataExecution_ptr_pri == nullptr)
     {
@@ -648,7 +642,7 @@ void actionData_c::deleteActionDataExecutionObject_f()
     }
 }
 
-void actionData_c::deleteActionDataExecutionResultObject_f()
+void action_c::deleteActionDataExecutionResultObject_f()
 {
     if (actionDataExecutionResult_ptr_pri == nullptr)
     {
@@ -656,203 +650,103 @@ void actionData_c::deleteActionDataExecutionResultObject_f()
     }
     else
     {
-        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" actionDataExecutionResult_ptr_pri: " + QSTRINGBOOL((actionDataExecutionResult_ptr_pri == nullptr)), logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" actionDataExecutionResult_ptr_pri: " + QSTRINGBOOL((actionDataExecutionResult_ptr_pri == nullptr)), logItem_c::type_ec::debug);
         actionDataExecutionResult_ptr_pri->deleteLater();
         actionDataExecutionResult_ptr_pri = nullptr;
     }
 }
 
-void actionData_c::deleteUsedPtrs_f()
+action_c::action_c(
+        const actionData_c& actionData_par_con
+)
+    : actionData_c(this, actionData_par_con)
 {
-    deleteActionDataExecutionObject_f();
-    deleteActionDataExecutionResultObject_f();
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" constructed, enabled: " + QSTRINGBOOL(enabled_pro), logItem_c::type_ec::debug);
 }
 
-actionData_c::actionData_c(
-        const actionType_ec type_par_con
-        , const QString& stringId_par_con
-        , const QString& description_par_con
-        , const bool checkResultLogicAnd_par_con
-        , const bool runAllChecksAnyway_par_con
-        , const bool checksEnabled_par_con
-        , const bool enabled_par_con
-        , const QJsonObject& actionDataJson_par_con
-        )
-    : id_pri(nextActionDataId_f())
-    , type_pri(type_par_con)
-    , stringId_pri(stringId_par_con)
-    , description_pri(description_par_con)
-    , checkResultLogicAnd_pri(checkResultLogicAnd_par_con)
-    , runAllChecksAnyway_pri(runAllChecksAnyway_par_con)
-    , checksEnabled_pri(checksEnabled_par_con)
-    , enabled_pri(enabled_par_con)
-    , checkDataHub_pri(this)
-    , actionDataJSON_pri(actionDataJson_par_con)
+action_c::action_c()
+    :  actionData_c(this)
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" constructed, enabled: " + QSTRINGBOOL(enabled_pri), logItem_c::type_ec::debug);
-}
-
-actionData_c::actionData_c(const actionData_c& from_par_con)
-    : id_pri(from_par_con.id_pri)
-    , type_pri(from_par_con.type_pri)
-    , stringId_pri(from_par_con.stringId_pri)
-    , description_pri(from_par_con.description_pri)
-    , checkResultLogicAnd_pri(from_par_con.checkResultLogicAnd_pri)
-    , runAllChecksAnyway_pri(from_par_con.runAllChecksAnyway_pri)
-    , checksEnabled_pri(from_par_con.checksEnabled_pri)
-    , enabled_pri(from_par_con.enabled_pri)
-    , checkDataHub_pri(from_par_con.checkDataHub_pri)
-    , actionDataJSON_pri(from_par_con.actionDataJSON_pri)
-{
-    checkDataHub_pri.setParentAction_f(this);
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" copied (const)", logItem_c::type_ec::debug);
-}
-
-actionData_c::actionData_c(actionData_c& from_par)
-    : id_pri(from_par.id_pri)
-    , type_pri(from_par.type_pri)
-    , stringId_pri(from_par.stringId_pri)
-    , description_pri(from_par.description_pri)
-    , checkResultLogicAnd_pri(from_par.checkResultLogicAnd_pri)
-    , runAllChecksAnyway_pri(from_par.runAllChecksAnyway_pri)
-    , checksEnabled_pri(from_par.checksEnabled_pri)
-    , enabled_pri(from_par.enabled_pri)
-    , checkDataHub_pri(from_par.checkDataHub_pri)
-    , actionDataJSON_pri(from_par.actionDataJSON_pri)
-{
-    checkDataHub_pri.setParentAction_f(this);
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" copied (no const)", logItem_c::type_ec::debug);
-}
-
-actionData_c& actionData_c::operator=(const actionData_c& from_par_con)
-{
-    type_pri = from_par_con.type_pri;
-    stringId_pri = from_par_con.stringId_pri;
-    description_pri = from_par_con.description_pri;
-    checkResultLogicAnd_pri = from_par_con.checkResultLogicAnd_pri;
-    runAllChecksAnyway_pri = from_par_con.runAllChecksAnyway_pri;
-    checksEnabled_pri = from_par_con.checksEnabled_pri;
-    enabled_pri = from_par_con.enabled_pri;
-    actionDataJSON_pri = from_par_con.actionDataJSON_pri;
-    checkDataHub_pri = from_par_con.checkDataHub_pri;
-    checkDataHub_pri.setParentAction_f(this);
-
-    deleteUsedPtrs_f();
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" assigned= (const)", logItem_c::type_ec::debug);
-    return *this;
-}
-
-actionData_c& actionData_c::operator=(actionData_c& from_par_con)
-{
-    type_pri = from_par_con.type_pri;
-    stringId_pri = from_par_con.stringId_pri;
-    description_pri = from_par_con.description_pri;
-    checkResultLogicAnd_pri = from_par_con.checkResultLogicAnd_pri;
-    runAllChecksAnyway_pri = from_par_con.runAllChecksAnyway_pri;
-    checksEnabled_pri = from_par_con.checksEnabled_pri;
-    enabled_pri = from_par_con.enabled_pri;
-    actionDataJSON_pri = from_par_con.actionDataJSON_pri;
-    checkDataHub_pri = from_par_con.checkDataHub_pri;
-    checkDataHub_pri.setParentAction_f(this);
-
-    deleteUsedPtrs_f();
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" assigned= (no const)", logItem_c::type_ec::debug);
-    return *this;
-}
-
-actionData_c& actionData_c::operator=(actionData_c&& from_par) noexcept
-{
-    //id_pri = std::move(from_par.id_pri);
-    type_pri = from_par.type_pri;
-    stringId_pri = std::move(from_par.stringId_pri);
-    description_pri = std::move(from_par.description_pri);
-    checkResultLogicAnd_pri = from_par.checkResultLogicAnd_pri;
-    runAllChecksAnyway_pri = from_par.runAllChecksAnyway_pri;
-    checksEnabled_pri = from_par.checksEnabled_pri;
-    enabled_pri = from_par.enabled_pri;
-    actionDataJSON_pri = std::move(from_par.actionDataJSON_pri);
-    checkDataHub_pri = std::move(from_par.checkDataHub_pri);
-    actionDataExecution_ptr_pri = from_par.actionDataExecution_ptr_pri;
-    actionDataExecutionResult_ptr_pri =from_par.actionDataExecutionResult_ptr_pri;
-
-    from_par.actionDataExecution_ptr_pri = nullptr;
-    from_par.actionDataExecutionResult_ptr_pri = nullptr;
-
-    checkDataHub_pri.setParentAction_f(this);
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" assigned-moved", logItem_c::type_ec::debug);
-    return *this;
-}
-
-actionData_c::actionData_c(actionData_c&& from_par) noexcept
-    : id_pri(from_par.id_pri)
-    , type_pri(from_par.type_pri)
-    , stringId_pri(std::move(from_par.stringId_pri))
-    , description_pri(std::move(from_par.description_pri))
-    , checkResultLogicAnd_pri(from_par.checkResultLogicAnd_pri)
-    , runAllChecksAnyway_pri(from_par.runAllChecksAnyway_pri)
-    , checksEnabled_pri(from_par.checksEnabled_pri)
-    , enabled_pri(from_par.enabled_pri)
-    , checkDataHub_pri(std::move(from_par.checkDataHub_pri))
-    , actionDataJSON_pri(std::move(from_par.actionDataJSON_pri))
-    , actionDataExecution_ptr_pri(from_par.actionDataExecution_ptr_pri)
-    , actionDataExecutionResult_ptr_pri(from_par.actionDataExecutionResult_ptr_pri)
-{
-    from_par.actionDataExecution_ptr_pri = nullptr;
-    from_par.actionDataExecutionResult_ptr_pri = nullptr;
-
-    checkDataHub_pri.setParentAction_f(this);
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" constructed-moved", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" constructed (empty constructor)", logItem_c::type_ec::debug);
 }
 
 
-actionData_c::actionData_c()
-    : id_pri(nextActionDataId_f())
-    , checkDataHub_pri(this)
+void action_c::write_f(QJsonObject& json_ref_par) const
 {
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" constructed (empty constructor)", logItem_c::type_ec::debug);
+    json_ref_par["type"] = typeStr_f();
+    json_ref_par["stringId"] = stringId_pro;
+    json_ref_par["description"] = description_pro;
+    QJsonObject derivedObjTmp;
+    derivedWrite_f(derivedObjTmp);
+    json_ref_par["actionTypeData"] = derivedObjTmp;
+    json_ref_par["checkResultLogicAnd"] = checkResultLogicAnd_pro;
+    json_ref_par["runAllChecksAnyway"] = runAllChecksAnyway_pro;
+    json_ref_par["checksEnabled"] = checksEnabled_pro;
+    json_ref_par["enabled"] = enabled_pro;
+    json_ref_par["stopAllExecutionOnError"] = stopAllExecutionOnError_pro;
+
+    copyFromChecksDataHubAndSerialize_f(checkDataHub_pro, json_ref_par);
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" serialized", logItem_c::type_ec::debug);
 }
 
-
-actionData_c::~actionData_c()
-{
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" destroyed", logItem_c::type_ec::debug);
-    deleteUsedPtrs_f();
-}
-
-void actionData_c::write_f(QJsonObject& json_ref_par) const
-{
-    json_ref_par["type"] = actionTypeToStrUMap_ext_con.at(type_pri);
-    json_ref_par["stringId"] = stringId_pri;
-    json_ref_par["description"] = description_pri;
-    json_ref_par["actionDataJSON"] = actionDataJSON_pri;
-    json_ref_par["checkResultLogicAnd"] = checkResultLogicAnd_pri;
-    json_ref_par["runAllChecksAnyway"] = runAllChecksAnyway_pri;
-    json_ref_par["checksEnabled"] = checksEnabled_pri;
-    json_ref_par["enabled"] = enabled_pri;
-    json_ref_par["stopAllExecutionOnError"] = stopAllExecutionOnError_pri;
-
-    copyFromChecksDataHubAndSerialize_f(checkDataHub_pri, json_ref_par);
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" serialized", logItem_c::type_ec::debug);
-}
-
-void actionData_c::read_f(const QJsonObject& json_par_con)
+void action_c::read_f(const QJsonObject& json_par_con)
 {
     //no need to check if it's running since the read_f it's, right now, only used after creating an actionData_c object
-    type_pri = strToActionTypeMap_ext_con.value(json_par_con["type"].toString().toLower());
-    stringId_pri = json_par_con["stringId"].toString();
-    description_pri = json_par_con["description"].toString();
-    actionDataJSON_pri = json_par_con["actionDataJSON"].toObject();
+    stringId_pro = json_par_con["stringId"].toString();
+    description_pro = json_par_con["description"].toString();
 
     if (not json_par_con["checks"].isUndefined())
     {
-        deserializeAndCopyToChecksDataHub_f(json_par_con, checkDataHub_pri);
+        deserializeAndCopyToChecksDataHub_f(json_par_con, checkDataHub_pro);
     }
 
-    checkResultLogicAnd_pri = json_par_con["checkResultLogicAnd"].toBool();
-    runAllChecksAnyway_pri = json_par_con["runAllChecksAnyway"].toBool();
-    checksEnabled_pri = json_par_con["checksEnabled"].toBool();
-    enabled_pri = json_par_con["enabled"].toBool();
-    stopAllExecutionOnError_pri = json_par_con["stopAllExecutionOnError"].toBool();
-    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pri + "\" deserialized", logItem_c::type_ec::debug);
+    checkResultLogicAnd_pro = json_par_con["checkResultLogicAnd"].toBool();
+    runAllChecksAnyway_pro = json_par_con["runAllChecksAnyway"].toBool();
+    checksEnabled_pro = json_par_con["checksEnabled"].toBool();
+    enabled_pro = json_par_con["enabled"].toBool();
+    stopAllExecutionOnError_pro = json_par_con["stopAllExecutionOnError"].toBool();
+    derivedRead_f(json_par_con["actionTypeData"].toObject());
+    MACRO_ADDACTONQTSOLOG("Action, stringId: \"" + this->stringId_pro + "\" deserialized", logItem_c::type_ec::debug);
 }
 
+actionData_c::actionData_c(
+        action_c* actionPtr_par
+        , const actionData_c& source_par_con
+)
+    : id_pro(nextActionDataId_f())
+    , stringId_pro(source_par_con.stringId_pro)
+    , description_pro(source_par_con.description_pro)
+    , checkResultLogicAnd_pro(source_par_con.checkResultLogicAnd_pro)
+    , runAllChecksAnyway_pro(source_par_con.runAllChecksAnyway_pro)
+    , enabled_pro(source_par_con.enabled_pro)
+    , checksEnabled_pro(source_par_con.checksEnabled_pro)
+    , stopAllExecutionOnError_pro(source_par_con.stopAllExecutionOnError_pro)
+    , checkDataHub_pro(actionPtr_par)
+{
+    MACRO_ADDACTONQTSOLOG("actionData_c, constructed (\"derived\" constructor)", logItem_c::type_ec::debug);
+}
+
+actionData_c::actionData_c()
+ : checkDataHub_pro(nullptr)
+{}
+
+actionData_c::actionData_c(
+        const QString& stringId_par_con
+        , const QString& description_par_con
+        , const bool checkResultLogicAnd_par_con
+        , const bool runAllChecksAnyway_par_con
+        , const bool enabled_par_con
+        , const bool checksEnabled_par_con
+        , const bool stopAllExecutionOnError_par_con)
+    : id_pro(nextActionDataId_f())
+    , stringId_pro(stringId_par_con)
+    , description_pro(description_par_con)
+    , checkResultLogicAnd_pro(checkResultLogicAnd_par_con)
+    , runAllChecksAnyway_pro(runAllChecksAnyway_par_con)
+    , enabled_pro(enabled_par_con)
+    , checksEnabled_pro(checksEnabled_par_con)
+    , stopAllExecutionOnError_pro(stopAllExecutionOnError_par_con)
+    , checkDataHub_pro(nullptr)
+{
+    MACRO_ADDACTONQTSOLOG("ActionData, constructed (regular constructor)", logItem_c::type_ec::debug);
+}

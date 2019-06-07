@@ -3,11 +3,13 @@
 
 #include "baseActionExecution.hpp"
 
-#include "../actions/createDirectory.hpp"
+class createDirectoryAction_c;
 
-class createDirectoryActionExecution_c : public baseActionExecution_c, public createDirectoryAction_c
+class createDirectoryActionExecution_c : public baseActionExecution_c
 {
     Q_OBJECT
+
+    const createDirectoryAction_c* const createDirectoryActionPtr_pri = nullptr;
 protected:
     void derivedExecute_f() override;
     //does nothing
@@ -18,7 +20,7 @@ public:
     createDirectoryActionExecution_c() = delete;
     explicit createDirectoryActionExecution_c(
             actionDataExecutionResult_c* actionExecutionResultObj_par_con
-            , const createDirectoryAction_c& createDirectoryAction_par_con
+            , createDirectoryAction_c* createDirectoryActionPtr_par
     );
 };
 

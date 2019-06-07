@@ -12,13 +12,13 @@ class baseActionExecution_c : public QObject
     Q_OBJECT
 
     bool executionError_pri = false;
-private Q_SLOTS:
+
     virtual void derivedExecute_f() = 0;
     //end nicely, if possible
     virtual void derivedStop_f() = 0;
     //forced end, will end regardless of how things are left
     virtual void derivedKill_f() = 0;
-
+private Q_SLOTS:
     void setExecutionError_f();
 protected:
     actionDataExecutionResult_c* const actionExecutionResultObj_pri = nullptr;

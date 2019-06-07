@@ -3,9 +3,8 @@
 
 #include "crossPlatformMacros.hpp"
 
-#include <QJsonObject>
-
 class checksDataHub_c;
+class QJsonObject;
 
 extern EXPIMP_ACTONQTSO void copyFromChecksDataHubAndSerialize_f(
         const checksDataHub_c& checkDataHub_par_con

@@ -3,7 +3,7 @@
 
 #include "crossPlatformMacros.hpp"
 
-#include <QJsonObject>
+class QJsonObject;
 
 //actonDataHub_c could be serialized/deserialized in many ways,
 //this is the one used for the save/load "acton" files

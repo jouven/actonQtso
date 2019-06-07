@@ -36,6 +36,8 @@ public:
             , const int_fast32_t killTimeoutMilliseconds_par_con
     );
    void write_f(QJsonObject &json_par) const;
+   //stringParserMap must be set for parsers json data to be read
+   //otherwise it's ignored
    void read_f(const QJsonObject &json_par_con);
 
    bool loopExecution_f() const;

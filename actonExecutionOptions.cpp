@@ -94,7 +94,9 @@ void executionOptions_c::read_f(const QJsonObject& json_par_con)
     }
     else
     {
-        stringParserMap_pri = new stringParserMap_c;
-        stringParserMap_pri->read_f(json_par_con["stringParserMap"].toObject());
+        if (stringParserMap_pri not_eq nullptr)
+        {
+            stringParserMap_pri->read_f(json_par_con["stringParserMap"].toObject());
+        }
     }
 }

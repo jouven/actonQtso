@@ -1,81 +1,84 @@
 #include "runProcess.hpp"
 
-#include "stringParserMapQtso/stringParserMap.hpp"
+#include "../actionExecution/runProcessExecution.hpp"
+#include "../actionMappings/actionStrMapping.hpp"
 #include "../actonDataHub.hpp"
+
+#include "stringParserMapQtso/stringParserMap.hpp"
 
 #include <QProcess>
 #include <QJsonArray>
 
-QString runProcessAction_c::workingDirectory_f() const
+QString runProcessData_c::workingDirectory_f() const
 {
-    return workingDirectory_pri;
+    return workingDirectory_pro;
 }
 
-QString runProcessAction_c::workingDirectoryParsed_f() const
+QString runProcessData_c::workingDirectoryParsed_f() const
 {
-    COPYPARSERETURNVAR(workingDirectory_pri);
+    COPYPARSERETURNVAR(workingDirectory_pro);
 }
 
-void runProcessAction_c::setWorkingDirectory_f(const QString& workingDirectory_par_con)
+void runProcessData_c::setWorkingDirectory_f(const QString& workingDirectory_par_con)
 {
-    workingDirectory_pri = workingDirectory_par_con;
+    workingDirectory_pro = workingDirectory_par_con;
 }
 
-QHash<QString, environmentPairConfig_c> runProcessAction_c::environmentToAdd_f() const
+QHash<QString, environmentPairConfig_c> runProcessData_c::environmentToAdd_f() const
 {
-    return environmentToAdd_pri;
+    return environmentToAdd_pro;
 }
 
-QHash<QString, environmentPairConfig_c> runProcessAction_c::environmentToAddParsed_f() const
+QHash<QString, environmentPairConfig_c> runProcessData_c::environmentToAddParsed_f() const
 {
     QHash<QString, environmentPairConfig_c> environmentToAddParsedTmp;
-    environmentToAddParsedTmp.reserve(environmentToAdd_pri.size());
-    QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAdd_pri.constBegin());
-    while (iteratorTmp not_eq environmentToAdd_pri.constEnd())
+    environmentToAddParsedTmp.reserve(environmentToAdd_pro.size());
+    QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAdd_pro.constBegin());
+    while (iteratorTmp not_eq environmentToAdd_pro.constEnd())
     {
         QString environmentKeyParsedTmp(iteratorTmp.key());
-        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString(std::addressof(environmentKeyParsedTmp));
+        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(environmentKeyParsedTmp));
         environmentToAddParsedTmp.insert(environmentKeyParsedTmp, iteratorTmp.value());
         ++iteratorTmp;
     }
     return environmentToAddParsedTmp;
 }
 
-void runProcessAction_c::setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
+void runProcessData_c::setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
 {
-    environmentToAdd_pri = environmentToAdd_par_con;
+    environmentToAdd_pro = environmentToAdd_par_con;
 }
 
-bool runProcessAction_c::useActonEnvironment_f() const
+bool runProcessData_c::useActonEnvironment_f() const
 {
-    return useActonEnvironment_pri;
+    return useActonEnvironment_pro;
 }
 
-void runProcessAction_c::setUseActonEnvironment_f(const bool useActonEnvironment_par_con)
+void runProcessData_c::setUseActonEnvironment_f(const bool useActonEnvironment_par_con)
 {
-    useActonEnvironment_pri = useActonEnvironment_par_con;
+    useActonEnvironment_pro = useActonEnvironment_par_con;
 }
 
-runProcessAction_c::runProcessAction_c(
+runProcessData_c::runProcessData_c(
         const QString& processPath_par_con
         , const std::vector<argument_c>& arguments_par_con
         , const QString& workingDirectory_par_con
         , const bool useProcessEnvironment_par_con
         , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
-    : processPath_pri(processPath_par_con)
-    , arguments_pri(arguments_par_con)
-    , workingDirectory_pri(workingDirectory_par_con)
-    , useActonEnvironment_pri(useProcessEnvironment_par_con)
-    , environmentToAdd_pri(environmentToAdd_par_con)
+    : processPath_pro(processPath_par_con)
+    , arguments_pro(arguments_par_con)
+    , workingDirectory_pro(workingDirectory_par_con)
+    , useActonEnvironment_pro(useProcessEnvironment_par_con)
+    , environmentToAdd_pro(environmentToAdd_par_con)
 {}
 
-void runProcessAction_c::write_f(QJsonObject& json_par) const
+void runProcessAction_c::derivedWrite_f(QJsonObject& json_par) const
 {
-    json_par["processPath"] = processPath_pri;
-    if (not arguments_pri.empty())
+    json_par["processPath"] = processPath_pro;
+    if (not arguments_pro.empty())
     {
         QJsonArray argumentArrayTmp;
-        for (const argument_c& argument_ite_con : arguments_pri)
+        for (const argument_c& argument_ite_con : arguments_pro)
         {
             QJsonObject tmp;
             argument_ite_con.write_f(tmp);
@@ -83,11 +86,11 @@ void runProcessAction_c::write_f(QJsonObject& json_par) const
         }
         json_par["arguments"] = argumentArrayTmp;
     }
-    if (not environmentToAdd_pri.isEmpty())
+    if (not environmentToAdd_pro.isEmpty())
     {
         QJsonArray environmentPairArray;
-        QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp = environmentToAdd_pri.constBegin();
-        while (iteratorTmp != environmentToAdd_pri.constEnd())
+        QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp = environmentToAdd_pro.constBegin();
+        while (iteratorTmp != environmentToAdd_pro.constEnd())
         {
             QJsonObject pairTmp;
             pairTmp["key"] = iteratorTmp.key();
@@ -98,25 +101,25 @@ void runProcessAction_c::write_f(QJsonObject& json_par) const
         }
         json_par["environmentToAdd"] = environmentPairArray;
     }
-    if (not workingDirectory_pri.isEmpty())
+    if (not workingDirectory_pro.isEmpty())
     {
-        json_par["workingDirectory"] = workingDirectory_pri;
+        json_par["workingDirectory"] = workingDirectory_pro;
     }
-    json_par["useActonEnvironment"] = useActonEnvironment_pri;
+    json_par["useActonEnvironment"] = useActonEnvironment_pro;
 }
 
-void runProcessAction_c::read_f(const QJsonObject& json_par_con)
+void runProcessAction_c::derivedRead_f(const QJsonObject& json_par_con)
 {
-    processPath_pri = json_par_con["processPath"].toString();
+    processPath_pro = json_par_con["processPath"].toString();
     QJsonArray jsonArrayArgumentsTmp(json_par_con["arguments"].toArray());
     if (not jsonArrayArgumentsTmp.isEmpty())
     {
-        arguments_pri.reserve(jsonArrayArgumentsTmp.size());
+        arguments_pro.reserve(jsonArrayArgumentsTmp.size());
         for (const QJsonValueRef& jsonArrayItem_ite_con : jsonArrayArgumentsTmp)
         {
             argument_c tmp;
             tmp.read_f(jsonArrayItem_ite_con.toObject());
-            arguments_pri.emplace_back(tmp);
+            arguments_pro.emplace_back(tmp);
         }
     }
     if (not json_par_con["environmentToAdd"].isUndefined())
@@ -124,42 +127,72 @@ void runProcessAction_c::read_f(const QJsonObject& json_par_con)
         QJsonArray pairsTmp(json_par_con["environmentToAdd"].toArray());
         if (not pairsTmp.isEmpty())
         {
-            environmentToAdd_pri.reserve(pairsTmp.size());
+            environmentToAdd_pro.reserve(pairsTmp.size());
             for (const QJsonValueRef& jsonArrayItem_ite_con : pairsTmp)
             {
                 QJsonObject jsonObjectTmp(jsonArrayItem_ite_con.toObject());
                 environmentPairConfig_c environmentPairTmp(jsonObjectTmp["value"].toString(), jsonObjectTmp["enabled"].toBool());
-                environmentToAdd_pri.insert(jsonObjectTmp["key"].toString(), environmentPairTmp);
+                environmentToAdd_pro.insert(jsonObjectTmp["key"].toString(), environmentPairTmp);
             }
         }
     }
-    workingDirectory_pri = json_par_con["workingDirectory"].toString();
-    useActonEnvironment_pri = json_par_con["useActonEnvironment"].toBool();
+    workingDirectory_pro = json_par_con["workingDirectory"].toString();
+    useActonEnvironment_pro = json_par_con["useActonEnvironment"].toBool();
 }
 
-QString runProcessAction_c::processPath_f() const
+
+action_c* runProcessAction_c::derivedClone_f() const
 {
-    return processPath_pri;
+    //slice and dice
+    runProcessData_c runProcessDataTmp(*this);
+    actionData_c actionDataTmp(*this);
+    return new runProcessAction_c(actionDataTmp, runProcessDataTmp);
 }
 
-QString runProcessAction_c::processPathParsed_f() const
+baseActionExecution_c* runProcessAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
-    COPYPARSERETURNVAR(processPath_pri);
+    return new runProcessActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
 
-void runProcessAction_c::setProcessPath_f(const QString& processPath_par_con)
+actionType_ec runProcessAction_c::type_f() const
 {
-    processPath_pri = processPath_par_con;
+    return actionType_ec::runProcess;
 }
 
-std::vector<argument_c> runProcessAction_c::arguments_f() const
+QString runProcessAction_c::typeStr_f() const
 {
-    return arguments_pri;
+    return actionTypeToStrUMap_ext_con.at(actionType_ec::runProcess);
 }
 
-void runProcessAction_c::setArguments_f(const std::vector<argument_c>& arguments_par_con)
+runProcessAction_c::runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con)
+    : action_c(actionData_par_con)
+    , runProcessData_c(runProcessData_par_con)
 {
-    arguments_pri = arguments_par_con;
+}
+
+QString runProcessData_c::processPath_f() const
+{
+    return processPath_pro;
+}
+
+QString runProcessData_c::processPathParsed_f() const
+{
+    COPYPARSERETURNVAR(processPath_pro);
+}
+
+void runProcessData_c::setProcessPath_f(const QString& processPath_par_con)
+{
+    processPath_pro = processPath_par_con;
+}
+
+std::vector<argument_c> runProcessData_c::arguments_f() const
+{
+    return arguments_pro;
+}
+
+void runProcessData_c::setArguments_f(const std::vector<argument_c>& arguments_par_con)
+{
+    arguments_pro = arguments_par_con;
 }
 
 bool argument_c::enabled_f() const

@@ -3,10 +3,12 @@
 #include "actonDataHub.hpp"
 #include "actionData.hpp"
 #include "actonExecutionOptions.hpp"
-
-#include <vector>
+#include "actionMappings/actionStrMapping.hpp"
 
 #include <QJsonArray>
+#include <QJsonObject>
+
+#include <vector>
 
 #ifdef DEBUGJOUVEN
 #include <QDebug>
@@ -18,19 +20,19 @@ QJsonObject copyFromActonDataHubAndSerialize_f()
 
     if (actonDataHub_ptr_ext->size_f() > 0)
     {
-        std::vector<actionData_c> actionVectorTmp;
+        std::vector<const action_c*> actionVectorTmp;
         actionVectorTmp.reserve(actonDataHub_ptr_ext->size_f());
         for (int_fast32_t index_ite = 0, l = actonDataHub_ptr_ext->size_f(); index_ite < l; ++index_ite)
         {
             auto actionDataIdTmp(actonDataHub_ptr_ext->rowToActionDataId_f(index_ite));
-            actionVectorTmp.emplace_back(*(actonDataHub_ptr_ext->actionData_ptr_f(actionDataIdTmp)));
+            actionVectorTmp.emplace_back(actonDataHub_ptr_ext->action_ptr_f(actionDataIdTmp));
         }
 
         QJsonArray actionArrayTmp;
-        for (const actionData_c& actionData_ite_con : actionVectorTmp)
+        for (const action_c* const action_ite_con : actionVectorTmp)
         {
             QJsonObject jsonObjectTmp;
-            actionData_ite_con.write_f(jsonObjectTmp);
+            action_ite_con->write_f(jsonObjectTmp);
             actionArrayTmp.append(jsonObjectTmp);
         }
         jsonTmp["actions"] = actionArrayTmp;
@@ -52,18 +54,29 @@ void deserializeAndCopyToActonDataHub_f(const QJsonObject& json)
     }
     else
     {
-        std::vector<actionData_c> actionVectorTmp;
+        std::vector<action_c*> actionVectorTmp;
         QJsonArray arrayTmp(json["actions"].toArray());
         actionVectorTmp.reserve(arrayTmp.size());
         for (const auto& item_ite_con : arrayTmp)
         {
             QJsonObject actionDataJsonObject(item_ite_con.toObject());
-            actionData_c actionDataTmp;
-            actionDataTmp.read_f(actionDataJsonObject);
-            actionVectorTmp.emplace_back(std::move(actionDataTmp));
+            actionType_ec actionTypeTmp(strToActionTypeMap_ext_con.value(actionDataJsonObject["type"].toString().toLower()));
 #ifdef DEBUGJOUVEN
-            //qDebug() << "after actionVectorTmp.emplace_back(std::move(actionDataTmp));" << endl;
+            //qDebug() << "actionData_c* actionDataPtrTmp(actionData_c::readCreateDerived_f(actionTypeTmp));" << endl;
 #endif
+            action_c* actionPtrTmp(action_c::readCreateDerived_f(actionTypeTmp));
+
+            if (actionPtrTmp not_eq nullptr)
+            {
+#ifdef DEBUGJOUVEN
+                //qDebug() << "actionDataPtrTmp->read_f(actionDataJsonObject);" << endl;
+#endif
+                actionPtrTmp->read_f(actionDataJsonObject);
+                actionVectorTmp.emplace_back(actionPtrTmp);
+#ifdef DEBUGJOUVEN
+                //qDebug() << "after actionVectorTmp.emplace_back(std::move(actionDataTmp));" << endl;
+#endif
+            }
         }
 
         //take in account existing count when inserting more rows
@@ -71,13 +84,10 @@ void deserializeAndCopyToActonDataHub_f(const QJsonObject& json)
 #ifdef DEBUGJOUVEN
         //qDebug() << "actonBaseSerialization_c::moveToDataHub_f() before loop" << endl;
 #endif
-        for (const actionData_c& item_ite_con : actionVectorTmp)
+        for (action_c* item_ite_con : actionVectorTmp)
         {
             actonDataHub_ptr_ext->insertActionData_f(item_ite_con, rowCountTmp);
             rowCountTmp = rowCountTmp + 1;
-#ifdef DEBUGJOUVEN
-            //qDebug() << "actonBaseSerialization_c::moveToDataHub_f() actionDataExecutionResult_ptr_pri.isNullPtr_f() " << item_ite_con.actionDataExecutionResult_ptr_f() << endl;
-#endif
         }
     }
 

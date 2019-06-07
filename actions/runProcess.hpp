@@ -1,14 +1,17 @@
 #ifndef ACTONQTSO_RUNPROCESS_HPP
 #define ACTONQTSO_RUNPROCESS_HPP
 
+#include "../actionData.hpp"
+
 #include "../crossPlatformMacros.hpp"
 
 #include <QString>
-#include <QJsonObject>
 #include <QDir>
 #include <QHash>
 
 #include <vector>
+
+class QJsonObject;
 
 class EXPIMP_ACTONQTSO argument_c
 {
@@ -54,31 +57,30 @@ public:
     void setEnabled_f(const bool enabled_par_con);
 };
 
-class EXPIMP_ACTONQTSO runProcessAction_c
+class EXPIMP_ACTONQTSO runProcessData_c
 {
-    QString processPath_pri;
-    std::vector<argument_c> arguments_pri;
-    QString workingDirectory_pri;
+protected:
+    QString processPath_pro;
+    std::vector<argument_c> arguments_pro;
+    QString workingDirectory_pro;
     //enviroment requires some extra options
 
     //copy acton environment as a base
     //otherwise use an empty one
-    bool useActonEnvironment_pri = true;
+    bool useActonEnvironment_pro = true;
     //specific environment to add to the "base" one
     //keys must be unique
-    QHash<QString, environmentPairConfig_c> environmentToAdd_pri;
+    QHash<QString, environmentPairConfig_c> environmentToAdd_pro;
+
 public:
-    runProcessAction_c() = default;
-    runProcessAction_c(
+    runProcessData_c() = default;
+    runProcessData_c(
             const QString& processPath_par_con
             , const std::vector<argument_c>& arguments_par_con = std::vector<argument_c>()
             , const QString& workingDirectory_par_con = QDir::currentPath()
             , const bool useProcessEnvironment_par_con = true
             , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con = QHash<QString, environmentPairConfig_c>()
     );
-
-    void write_f(QJsonObject &json_par) const;
-    void read_f(const QJsonObject &json_par_con);
 
     QString processPath_f() const;
     QString processPathParsed_f() const;
@@ -93,6 +95,22 @@ public:
     void setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con);
     bool useActonEnvironment_f() const;
     void setUseActonEnvironment_f(const bool useActonEnvironment_par_con);
+};
+
+class EXPIMP_ACTONQTSO runProcessAction_c : public action_c, public runProcessData_c
+{
+    void derivedWrite_f(QJsonObject &json_par) const override;
+    void derivedRead_f(const QJsonObject &json_par_con) override;
+
+    action_c* derivedClone_f() const override;
+
+    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    actionType_ec type_f() const override;
+    QString typeStr_f() const override;
+public:
+    runProcessAction_c() = default;
+    runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con);
+
 };
 
 #endif // ACTONQTSO_RUNPROCESS_HPP

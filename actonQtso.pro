@@ -27,12 +27,14 @@ HEADERS += \
     actionData.hpp \
     actionExecution/createDirectoryExecution.hpp \
     actionExecution/runProcessExecution.hpp \
+    actionMappings/actionMapping.hpp \
     actions/createDirectory.hpp \
     actions/runProcess.hpp \
     actionMappings/actionExecutionStates.hpp \
     actionMappings/actionExecutionStateStrMapping.hpp \
     actionMappings/actions.hpp \
     actionMappings/actionStrMapping.hpp \
+    checkMappings/checkMapping.hpp \
     checkMappings/checks.hpp \
     actionDataExecutionResult.hpp \
     checkData.hpp \
@@ -60,6 +62,7 @@ SOURCES += \
     actionData.cpp \
     actionExecution/createDirectoryExecution.cpp \
     actionExecution/runProcessExecution.cpp \
+    actionMappings/actionMapping.cpp \
     actions/createDirectory.cpp \
     actions/runProcess.cpp \
     actionMappings/actionExecutionStateStrMapping.cpp \
@@ -67,6 +70,7 @@ SOURCES += \
     actionDataExecutionResult.cpp \
     checkData.cpp \
     checkMappings/checkExecutionStateStrMapping.cpp \
+    checkMappings/checkMapping.cpp \
     checkMappings/checkStrMapping.cpp \
     checkDataExecutionResult.cpp \
     checks/sameFile.cpp \
@@ -100,7 +104,7 @@ CONFIG(release, debug|release){
 }
 #debug
 CONFIG(debug, debug|release){
-    LIBS += -L$${MYPATH}home/jouven/mylibs/debug/ -lbackwardSTso
+    LIBS += -L$${MYPATH}home/jouven/mylibs/debug/
     DEPENDPATH += $${MYPATH}home/jouven/mylibs/debug
     QMAKE_RPATHDIR += $${MYPATH}home/jouven/mylibs/debug
     DEFINES += DEBUGJOUVEN

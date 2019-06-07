@@ -22,3 +22,4 @@ const std::unordered_map<actionType_ec, QString> actionTypeToStrUMap_ext_con(
     , {	actionType_ec::modifyEnvironment, "modifyEnvironment" }
     , {	actionType_ec::copyFile, "copyFile" }
 });
+

@@ -1,25 +1,27 @@
 #include "copyFileExecution.hpp"
 
 #include "../actionDataExecutionResult.hpp"
+#include "../actions/copyFile.hpp"
 #include "../reused/sameFileAlgo.hpp"
-
 #include "../actonDataHub.hpp"
+
 #include "../essentialQtso/macros.hpp"
 
 #include "comuso/practicalTemplates.hpp"
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #ifdef DEBUGJOUVEN
 #include <QDebug>
 #endif
 
 copyFileActionExecution_c::copyFileActionExecution_c(
         actionDataExecutionResult_c* actionExecutionResultObj_par_con
-        , const copyFileAction_c& copyFileAction_par_con
+        , copyFileAction_c* copyFileActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
-    , copyFileAction_c(copyFileAction_par_con)
+    , copyFileActionPtr_pri(copyFileActionPtr_par)
 {}
 
 bool copyFileActionExecution_c::sameFile_f(
@@ -86,7 +88,7 @@ void copyFileActionExecution_c::blockMove_f(
         //would use size_t but qt uses qint64 making it unsigned vs signed, compiler complains
         qint64 bytesReadSourceTmp(0);
         qint64 bytesWrittenDestinationTmp(0);
-        qint64 bufferSizeTmp(bufferSize_f());
+        qint64 bufferSizeTmp(copyFileActionPtr_pri->bufferSize_f());
         //remove?
 //        if (bufferSizeTmp > sourceCurrentFileSizeTmp)
 //        {
@@ -104,7 +106,7 @@ void copyFileActionExecution_c::blockMove_f(
             int_fast64_t destinationFileSizeTmp(destinationFileTmp.size());
             if (destinationFileSizeTmp > 0)
             {
-                int_fast64_t destinationBufferSizeTmp(bufferSize_f());
+                int_fast64_t destinationBufferSizeTmp(copyFileActionPtr_pri->bufferSize_f());
                 //if the source file size is smaller than the destination buffer
                 //adjust the buffer because otherwise it would shift more space than it would need
                 int_fast64_t resizeSizeTmp(destinationBufferSizeTmp);
@@ -325,7 +327,11 @@ void copyFileActionExecution_c::blockCopy_f(
         }
 
         QFile destinationFileTmp(destination_par_con);
-        bool isResumeTmp(equalOnce_ft(destinationTreatment_f(), destinationTreatment_ec::tryStupidResume, destinationTreatment_ec::lazyResume));
+        bool isResumeTmp(equalOnce_ft(
+                             copyFileActionPtr_pri->destinationTreatment_f()
+                             , copyFileAction_c::destinationTreatment_ec::tryStupidResume
+                             , copyFileAction_c::destinationTreatment_ec::lazyResume)
+        );
         if (isResumeTmp ?
             destinationFileTmp.open(QIODevice::Append)
             : destinationFileTmp.open(QIODevice::WriteOnly))
@@ -350,7 +356,7 @@ void copyFileActionExecution_c::blockCopy_f(
         bool breakAfterTmp(false);
         while (isResumeTmp)
         {
-            if (destinationTreatment_f() == destinationTreatment_ec::tryStupidResume)
+            if (copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::tryStupidResume)
             {
                 if (destinationFileTmp.size() == sourceFileTmp.size())
                 {
@@ -377,7 +383,7 @@ void copyFileActionExecution_c::blockCopy_f(
                 break;
             }
 
-            if (destinationTreatment_f() == destinationTreatment_ec::lazyResume)
+            if (copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::lazyResume)
             {
                 //seek to the diff pos
                 //if the source and destination are different from the first byte or destination doesn't exist
@@ -397,7 +403,7 @@ void copyFileActionExecution_c::blockCopy_f(
         //would use size_t but qt uses qint64 making it unsigned vs signed, compiler complains
         qint64 bytesReadSourceTmp(0);
         qint64 bytesWrittenDestinationTmp(0);
-        qint64 bufferSizeTmp(bufferSize_f());
+        qint64 bufferSizeTmp(copyFileActionPtr_pri->bufferSize_f());
         if (bufferSizeTmp > (sourceFileTmp.size() - sourceFileTmp.pos()))
         {
             bufferSizeTmp = sourceFileTmp.size() - sourceFileTmp.pos();
@@ -466,13 +472,13 @@ void copyFileActionExecution_c::prepareCopyFile_f(
         if (destinationFileInfo_par_con.exists())
         {
             //destinationTreatment CASES:
-            if (destinationTreatment_f() == destinationTreatment_ec::noOverwrite)
+            if (copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::noOverwrite)
             {
                 //ignore and continue
                 break;
             }
 
-            if (destinationTreatment_f() == destinationTreatment_ec::overwriteIsError)
+            if (copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::overwriteIsError)
             {
                 //it's an error
                 APPENDSTRPTR(errorStrPtr_par, "Overwrite is error, source " + sourceFileInfo_par_con.filePath() + " destination " + destinationFileInfo_par_con.filePath())
@@ -480,26 +486,30 @@ void copyFileActionExecution_c::prepareCopyFile_f(
             }
 
             bool sameFileTmp(false);
-            if (equalOnce_ft(destinationTreatment_f()
-                             , destinationTreatment_ec::overwriteOnlyIfDifferent
-                             , destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent
+            if (equalOnce_ft(copyFileActionPtr_pri->destinationTreatment_f()
+                             , copyFileAction_c::destinationTreatment_ec::overwriteOnlyIfDifferent
+                             , copyFileAction_c::destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent
                              //lazy resume requires sameFile to get at which index the file is different
-                             , destinationTreatment_ec::lazyResume
+                             , copyFileAction_c::destinationTreatment_ec::lazyResume
                              )
                 )
             {
                 sameFileTmp = sameFile_f(sourceFileInfo_par_con.filePath(), destinationFileInfo_par_con.filePath());
             }
 
-            if (not sameFileTmp and destinationTreatment_f() == destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent)
+            if (not sameFileTmp and copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent)
             {
                 APPENDSTRPTR(errorStrPtr_par, "Files are different, overwrite error, source " + sourceFileInfo_par_con.filePath() + " destination " + destinationFileInfo_par_con.filePath())
                 break;
             }
 
             //truemove first, since it's own beast
-            if (transferType_f() == transferType_ec::trueMove
-                and not equalOnce_ft(destinationTreatment_f(), destinationTreatment_ec::lazyResume, destinationTreatment_ec::tryStupidResume))
+            if (copyFileActionPtr_pri->transferType_f() == copyFileAction_c::transferType_ec::trueMove
+                and not equalOnce_ft(
+                    copyFileActionPtr_pri->destinationTreatment_f()
+                    , copyFileAction_c::destinationTreatment_ec::lazyResume
+                    , copyFileAction_c::destinationTreatment_ec::tryStupidResume)
+                )
             {
                 blockMove_f(sourceFileInfo_par_con.filePath(), destinationFileInfo_par_con.filePath(), errorStrPtr_par);
                 IFERRORSTRPTRNOTEMPTYBREAK(errorStrPtr_par)
@@ -508,8 +518,9 @@ void copyFileActionExecution_c::prepareCopyFile_f(
 
             //if it's not the same file and replace only if different
             //or unconditional overwrite
-            if ((not sameFileTmp and destinationTreatment_f() == destinationTreatment_ec::overwriteOnlyIfDifferent)
-                or destinationTreatment_f() == destinationTreatment_ec::overwrite)
+            if ((not sameFileTmp
+                 and copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::overwriteOnlyIfDifferent)
+                or copyFileActionPtr_pri->destinationTreatment_f() == copyFileAction_c::destinationTreatment_ec::overwrite)
             {
                 if (QFile::remove(destinationFileInfo_par_con.filePath()))
                 {
@@ -523,9 +534,9 @@ void copyFileActionExecution_c::prepareCopyFile_f(
 
             }
 
-            if (equalOnce_ft(transferType_f()
-                             , transferType_ec::copy
-                             , transferType_ec::move
+            if (equalOnce_ft(copyFileActionPtr_pri->transferType_f()
+                             , copyFileAction_c::transferType_ec::copy
+                             , copyFileAction_c::transferType_ec::move
                              ))
             {
                 blockCopy_f(sourceFileInfo_par_con.filePath(), destinationFileInfo_par_con.filePath(), errorStrPtr_par);
@@ -544,7 +555,7 @@ void copyFileActionExecution_c::prepareCopyFile_f(
             }
             else
             {
-                if (createDestinationAndParents_f())
+                if (copyFileActionPtr_pri->createDestinationAndParents_f())
                 {
                     QDir parentDir(destinationFileInfo_par_con.path());
                     parentDir.mkpath(".");
@@ -556,9 +567,9 @@ void copyFileActionExecution_c::prepareCopyFile_f(
                 }
             }
 
-            if (equalOnce_ft(transferType_f()
-                             , transferType_ec::copy
-                             , transferType_ec::move
+            if (equalOnce_ft(copyFileActionPtr_pri->transferType_f()
+                             , copyFileAction_c::transferType_ec::copy
+                             , copyFileAction_c::transferType_ec::move
                              ))
             {
                 blockCopy_f(sourceFileInfo_par_con.filePath(), destinationFileInfo_par_con.filePath(), errorStrPtr_par);
@@ -566,8 +577,10 @@ void copyFileActionExecution_c::prepareCopyFile_f(
                 break;
             }
 
-            if (transferType_f() == transferType_ec::trueMove
-                and not equalOnce_ft(destinationTreatment_f(), destinationTreatment_ec::lazyResume, destinationTreatment_ec::tryStupidResume))
+            if (copyFileActionPtr_pri->transferType_f() == copyFileAction_c::transferType_ec::trueMove
+                and not equalOnce_ft(copyFileActionPtr_pri->destinationTreatment_f()
+                                     , copyFileAction_c::destinationTreatment_ec::lazyResume
+                                     , copyFileAction_c::destinationTreatment_ec::tryStupidResume))
             {
                 blockMove_f(sourceFileInfo_par_con.filePath(), destinationFileInfo_par_con.filePath(), errorStrPtr_par);
                 IFERRORSTRPTRNOTEMPTYBREAK(errorStrPtr_par)
@@ -580,7 +593,9 @@ void copyFileActionExecution_c::prepareCopyFile_f(
     //"if" no errors
     while (errorStrPtr_par->isEmpty())
     {
-        if (equalOnce_ft(transferType_f(), transferType_ec::move, transferType_ec::trueMove))
+        if (equalOnce_ft(copyFileActionPtr_pri->transferType_f()
+                         , copyFileAction_c::transferType_ec::move
+                         , copyFileAction_c::transferType_ec::trueMove))
         {
             //if the copy action is stopped, the copy/move functions will stop midway
             //and return and continue here going about removing the source, for the move,
@@ -595,7 +610,7 @@ void copyFileActionExecution_c::prepareCopyFile_f(
             }
             else
             {
-                APPENDSTRPTR(errorStrPtr_par, "After successful move could not remove source file: " + sourcePathParsed_f())
+                APPENDSTRPTR(errorStrPtr_par, "After successful move could not remove source file: " + copyFileActionPtr_pri->sourcePathParsed_f())
                 break;
             }
         }
@@ -607,9 +622,9 @@ void copyFileActionExecution_c::derivedExecute_f()
 {
     MACRO_ADDACTONQTSOLOG("Begin", logItem_c::type_ec::debug);
     QString errorStrTmp;
-    while (isValid_f(std::addressof(errorStrTmp)))
+    while (copyFileActionPtr_pri->isValid_f(std::addressof(errorStrTmp)))
     {
-        QFileInfo sourceFileInfoTmp(sourcePathParsed_f());
+        QFileInfo sourceFileInfoTmp(copyFileActionPtr_pri->sourcePathParsed_f());
         if (sourceFileInfoTmp.exists())
         {
             //good
@@ -639,7 +654,7 @@ void copyFileActionExecution_c::derivedExecute_f()
             }
         }
 
-        QFileInfo destinationFileInfoTmp(destinationPathParsed_f());
+        QFileInfo destinationFileInfoTmp(copyFileActionPtr_pri->destinationPathParsed_f());
         bool destinationIsFileTmp(false);
         bool destinationIsDirTmp(false);
         const bool destinationExistsTmp(destinationFileInfoTmp.exists());
@@ -653,7 +668,7 @@ void copyFileActionExecution_c::derivedExecute_f()
             //case non existing destination
             //let's assume if source is file destination is file and if source is dir destination is dir
             //except if destination path string ends with "/"
-            if (destinationPathParsed_f().endsWith("/"))
+            if (copyFileActionPtr_pri->destinationPathParsed_f().endsWith("/"))
             {
                 destinationIsDirTmp = true;
                 destinationIsFileTmp = false;
@@ -711,7 +726,7 @@ void copyFileActionExecution_c::derivedExecute_f()
             }
             else
             {
-                if (createDestinationAndParents_f())
+                if (copyFileActionPtr_pri->createDestinationAndParents_f())
                 {
                     QDir dirTmp(destinationFileInfoTmp.filePath());
                     dirTmp.mkpath(".");
@@ -725,7 +740,7 @@ void copyFileActionExecution_c::derivedExecute_f()
 
             if (sourceIsDirTmp)
             {
-                std::vector<QString> fileListTmp(testSourceFileList_f(std::addressof(errorStrTmp)));
+                std::vector<QString> fileListTmp(copyFileActionPtr_pri->testSourceFileList_f(std::addressof(errorStrTmp)));
                 MACRO_ADDACTONQTSOLOG("FileList size " + QString::number(fileListTmp.size()), logItem_c::type_ec::info);
                 if (errorStrTmp.isEmpty())
                 {
@@ -738,7 +753,7 @@ void copyFileActionExecution_c::derivedExecute_f()
 
                 if (fileListTmp.empty())
                 {
-                    if (noFilesCopiedIsError_f())
+                    if (copyFileActionPtr_pri->noFilesCopiedIsError_f())
                     {
                         errorStrTmp.append("No file/s to copy found");
                     }
@@ -768,7 +783,7 @@ void copyFileActionExecution_c::derivedExecute_f()
                     }
                     else
                     {
-                        if (stopAllCopyOnFileCopyError_f())
+                        if (copyFileActionPtr_pri->stopAllCopyOnFileCopyError_f())
                         {
                             break;
                         }
@@ -804,7 +819,7 @@ void copyFileActionExecution_c::derivedExecute_f()
 void copyFileActionExecution_c::derivedStop_f()
 {
     pleaseStop_pri = true;
-    stopDirectoryFiltering_f();
+    copyFileActionPtr_pri->stopDirectoryFiltering_f();
     {
         QMutexLocker mutexLockerTmp(std::addressof(checkSameFileMutex_pri));
         if (checkSameFile_ptr not_eq nullptr)

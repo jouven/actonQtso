@@ -1,23 +1,24 @@
 #include "createDirectoryExecution.hpp"
 
 #include "../actionDataExecutionResult.hpp"
+#include "../actions/createDirectory.hpp"
 
 #include <QDir>
 
 createDirectoryActionExecution_c::createDirectoryActionExecution_c(
         actionDataExecutionResult_c* actionExecutionResultObj_par_con
-        , const createDirectoryAction_c& createDirectoryAction_par_con
+        , createDirectoryAction_c* createDirectoryActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
-    , createDirectoryAction_c(createDirectoryAction_par_con)
+    , createDirectoryActionPtr_pri(createDirectoryActionPtr_par)
 {}
 
 void createDirectoryActionExecution_c::derivedExecute_f()
 {
-    QDir pathToCreateTmp(directoryPathParsed_f());
+    QDir pathToCreateTmp(createDirectoryActionPtr_pri->directoryPathParsed_f());
     if (pathToCreateTmp.exists())
     {
-        if (errorIfExists_f())
+        if (createDirectoryActionPtr_pri->errorIfExists_f())
         {
             //addError already change the state
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
@@ -37,7 +38,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             bool resultTmp(false);
             QString directoryNameTmp(pathToCreateTmp.dirName());
             bool parentExistsTmp(pathToCreateTmp.cdUp());
-            if (not parentExistsTmp and not createParents_f())
+            if (not parentExistsTmp and not createDirectoryActionPtr_pri->createParents_f())
             {
                 Q_EMIT addError_signal("Can't create directory " + pathToCreateTmp.path() + ", parent directory doesn't exists");
                 break;
