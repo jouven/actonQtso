@@ -1,6 +1,6 @@
 #include "actionExecutionStateStrMapping.hpp"
 
-//const QHash<QString, actionExecutionState_ec> strToActionExecutionStateUMap_glo_sta_con(
+//const QHash<QString, actionExecutionState_ec> strToActionExecutionStateUMap_ext_con(
 //{
 //    {	"Initial", actionExecutionState_ec::initial}
 //    , {	"Executing", actionExecutionState_ec::executing}
@@ -17,8 +17,11 @@ const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateT
     , {	actionExecutionState_ec::executingChecks, "Executing checks" }
     , {	actionExecutionState_ec::executing, "Executing" }
     , {	actionExecutionState_ec::error, "Error" }
-    , {	actionExecutionState_ec::stoppingByUser, "Stopping by the user" }
-    , {	actionExecutionState_ec::stoppedByUser, "Stopped by the user" }
+    , {	actionExecutionState_ec::stopping, "Stopping" }
+    , {	actionExecutionState_ec::stopped, "Stopped" }
+    , {	actionExecutionState_ec::killing, "Killing" }
+    , {	actionExecutionState_ec::killed, "Killed" }
     , {	actionExecutionState_ec::timeOut, "Time out" }
     , {	actionExecutionState_ec::success, "Success" }
+    , {	actionExecutionState_ec::checksFailed, "Checks failed" }
 });

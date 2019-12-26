@@ -16,7 +16,7 @@ sameFileCheckExecution_c::sameFileCheckExecution_c(
 
 void sameFileCheckExecution_c::derivedExecute_f()
 {
-    Q_EMIT executionStateChange_signal(checkExecutionState_ec::executing);
+    //Q_EMIT executionStateChange_signal(checkExecutionState_ec::executing);
     Q_EMIT anyFinish_signal(checkSameFile_pri.checkIfSameFile_f());
 }
 

@@ -3,12 +3,14 @@
 
 #include "checkMappings/checkExecutionStates.hpp"
 
+#include "textQtso/text.hpp"
+
 #include <QObject>
-#include <QString>
 
 #include <vector>
 
 #include "crossPlatformMacros.hpp"
+
 
 class check_c;
 //this class it to deal in a generic way with all the check execution result/s
@@ -19,7 +21,7 @@ class EXPIMP_ACTONQTSO checkDataExecutionResult_c : public QObject
     Q_OBJECT
 
     //description of any errors during the execution of this check
-    QString errors_pri;
+    textCompilation_c errors_pri;
 
     check_c* const parent_ptr_pri;
 
@@ -40,7 +42,7 @@ public:
             check_c* const parentCheck_par_ptr_con
     );
 
-    QString error_f() const;
+    textCompilation_c errors_f() const;
 
     std::vector<checkExecutionState_ec> executionStateVector_f() const;
     checkExecutionState_ec lastState_f() const;
@@ -48,7 +50,11 @@ public:
 
     bool started_f() const;
     bool finished_f() const;
+    //will always return false if the execution hasn't finished
     bool result_f() const;
+    //accounts for checkData_c::resultLogic_f
+    //and like the above it will always return false if the execution hasn't finished
+    bool logicResult_f() const;
     bool stoppedByUser_f() const;
 
     qint64 startTime_f() const;
@@ -74,7 +80,7 @@ Q_SIGNALS:
     //the slots should only be used by the check/execution object
 public Q_SLOTS:
     //changes the execution state to error
-    void appendError_f(const QString& error_par_con);
+    void appendError_f(const text_c& error_par_con);
 
     //some of the checkExecutionState are final, like error, after the object can't be modified anymore
     bool trySetExecutionState_f(const checkExecutionState_ec checkExecutionState_par_con);

@@ -8,6 +8,8 @@
 
 #include <vector>
 
+class text_c;
+
 class checkSameFile_c : public QObject, public baseClassQt_c
 {
     Q_OBJECT
@@ -57,7 +59,7 @@ public:
 private Q_SLOTS:
     void updateToErrorState_f();
 Q_SIGNALS:
-    void error_signal(const QString& error_par);
+    void error_signal(const text_c& error_par);
     void finished_signal();
     void running_signal();
     void stopped_signal();

@@ -12,21 +12,17 @@
 
 class action_c;
 class check_c;
+class textCompilation_c;
 
-class EXPIMP_ACTONQTSO checksDataHubProxyQObj_c : public QObject
+
+//20191124 parentActionPtrTmp->checkResultLogicAnd_f() makes this class hard depend on having a parent set to an action_c object
+//then again this class is always-only used in action_c
+//"it defines the checks of an action"
+class EXPIMP_ACTONQTSO checksDataHub_c : public QObject
 {
     Q_OBJECT
-public:
-Q_SIGNALS:
-    void checksExecutionStarted_signal();
-    void stoppingChecksExecution_signal();
-    void checksExecutionStopped_signal();
-    void checksExecutionFinished_signal(std::vector<check_c*> lastRunChecks_par);
-};
 
-class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
-{
-    //Q_OBJECT
+    //data variables
 
     //"row" is defines the position "order" of the actions when visually represented,
     //used on actonQtg to show the actions in order in a grid,
@@ -42,26 +38,23 @@ class EXPIMP_ACTONQTSO checksDataHub_c //: public QObject
     //key = checkData Id, value = checkData obj
     std::unordered_map<int_fast64_t, check_c*> checkDataIdToCheckUMap_pri;
 
-    action_c* parentAction_pri = nullptr;
+    typedef decltype(checkDataIdToRow_pri.size()) row_t;
 
-    checksDataHubProxyQObj_c* proxyQObj_pri = nullptr;
-
+    //control variables
     std::vector<check_c*> checksToRun_pri;
     //checks to run sequentially
     std::deque<check_c*> checksToRunSeq_pri;
 
     bool executingChecks_pri = false;
-    bool checksExecutionFinished_pri = false;
     bool stoppingChecksExecution_pri = false;
     bool checksExecutionStopped_pri = false;
 
     void executeChecks_f();
-    void verifyExecutionFinished_f();
-    void executeNextSeqCheck_f();
 public:
     explicit checksDataHub_c(action_c* parentAction_par);
 
-    //copies everything except proxy pointer
+    //DON'T use the regular constructors to explicitly copy the object, use clone (because pointers)
+
     checksDataHub_c(const checksDataHub_c& from_par_con);
     //needed to allow parent action object to set a new parent of this object when copying an action,
     //does the same as the above copy ctor
@@ -75,23 +68,25 @@ public:
     //same as move ctor
     checksDataHub_c& operator=(checksDataHub_c&& from_par) noexcept;
 
+    //set this checkDataHub parent action and sets the parents of all the checks objects
+    //use this instead of the QObject setParent
     void setParentAction_f(action_c* parentAction_par);
 
     ~checksDataHub_c();
 
     //to check if a row value can be inserted, not negative and row/index=<"container size"
-    bool validRow_f(const int row_par_con) const;
+    bool validRow_f(const row_t row_par_con) const;
 
     //adds an object to the data "container", if the row exists it moves the target row to the next index (row+1)
     //cascading any row after to row+1
     //returns true if an insert happened, might not happen if the row value is invalid (negative or greater than the container size)
-    //or the actionString Id is already on use or empty
-    bool insertCheck_f(check_c* obj_par, const int row_par_con);
-    //remove the object from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
-    //returns true if a removal happened
+    //or the action stringd is already in use or empty
+    bool insertCheck_f(check_c* obj_par, const row_t row_par_con);
+    //remove the object pointer from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
+    //returns true if a removal happened (does not remove or delete the actual object)
     bool removeCheckUsingId_f(const int_fast64_t checkDataId_par_con);
     //same but with row, optional pass actionDataId if it's known
-    bool removeCheckUsingRow_f(const int row_par_con, const int_fast64_t checkDataId_par_con = 0);
+    bool removeCheckUsingRow_f(const row_t row_par_con, const int_fast64_t checkDataId_par_con = 0);
 
     bool moveCheckRow_f(const int sourceRow_par_con, const int destinationRow_par_con);
 
@@ -99,7 +94,7 @@ public:
     int checkDataIdToRow_f(const int_fast64_t checkDataId_par_con) const;
     int_fast64_t rowToCheckDataId_f(const int row_par_con) const;
 
-    int_fast32_t size_f() const;
+    decltype(rowToCheckDataId_pri.size()) size_f() const;
 
     check_c* check_ptr_f(const int_fast64_t checkDataId_par_con);
     check_c* check_ptr_f(const int_fast64_t checkDataId_par_con) const;
@@ -107,19 +102,17 @@ public:
 
     //not in use
     //void clearAllCheckData_f();
-    //does the signals of checksDataHub_c
-    //this way there is no need to make checksDataHub_c a QObject derived class
-    checksDataHubProxyQObj_c* proxyQObj_f();
 
     //if empty it will execute all the checks
-    void executeCheckDataRows_f(std::vector<int> rows_par = std::vector<int>());
+    //returns the checks that will be executed (enabled, valid, not already running)
+    std::vector<check_c*> executeCheckDataRows_f(std::vector<int> rows_par = std::vector<int>());
 
     bool executingChecks_f() const;
     bool stoppingChecksExecution_f() const;
-    bool checksExecutionFinished_f() const;
 
     void stopExecutingChecks_f();
-    action_c* parentAction_f() const;
+    bool checksExecutionStopped_f() const;
+    //action_c* parentAction_f() const;
     //update all the checks setting that depend on an actionStringId
     //returns the number of updated checks which did match with the oldStringId
     int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
@@ -129,6 +122,23 @@ public:
     bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
     //although the return value is a vector, it will only contain unique strings
     std::vector<QString> stringTriggersInUseByChecks_f() const;
+
+    //verifies if ALL the checks are valid
+    //a more optimized version of this could be made, i.e. get the first invalid one...
+    //but right now this function is used when deserializing and before execution where an ALL version is required
+    bool areChecksValid_f(textCompilation_c* errors_par = nullptr) const;
+
+    checksDataHub_c clone_f() const;
+
+private Q_SLOTS:
+    void verifyCheckResults_f();
+    void executeNextSeqCheck_f();
+    //void verifyExecutionFinished_f(check_c* checkPtr_par);
+Q_SIGNALS:
+    void checksExecutionStarted_signal();
+    void stoppingChecksExecution_signal();
+    void checksExecutionStopped_signal();
+    void checksExecutionFinished_signal(const bool result_par_con);
 };
 
 #endif // ACTONQTSO_CHECKSDATAHUB_HPP

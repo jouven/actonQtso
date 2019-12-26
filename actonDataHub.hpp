@@ -19,6 +19,9 @@
 //don't use in actonDataHub_c ctors
 #define MACRO_ADDACTONQTSOLOG(MESSAGE, TYPE) actonDataHub_ptr_ext->addLogMessage_f(MESSAGE, TYPE, MACRO_FILENAME, __func__, __LINE__)
 
+//the 2 macro bellow are used in getter of string functions, the return is intended
+
+//this macro will leave the original value if there is not parser configuration or no string "triggered"
 #define COPYPARSERETURNVAR(X) QString copyStrTmp(X); \
 if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
 { \
@@ -26,6 +29,7 @@ if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptio
 } \
 return copyStrTmp;
 
+//same as above but for container of QString
 #define COPYPARSERETURNSTRINGLIST(X) QStringList copyStrListTmp(X); \
 if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
 { \
@@ -49,28 +53,13 @@ return copyStrListTmp;
 //3 allow to use the result clases or the result files of point 2 as source for actions
 //
 
-class EXPIMP_ACTONQTSO actonDataHubProxyQObj_c : public QObject
-{
-    Q_OBJECT
-public:
-    actonDataHubProxyQObj_c();
-Q_SIGNALS:
-    void actionsExecutionStarted_signal();
-    void stoppingActionsExecution_signal();
-    void actionsExecutionStopped_signal();
-    void killingActionsExecution_signal();
-    void actionsExecutionKilled_signal();
-    void actionsExecutionFinished_signal(std::vector<action_c*> lastRunActions_par);
-    void anyExecutingChecksStopped_signal();
-};
-
-
-
 
 //main hub of data
-class EXPIMP_ACTONQTSO actonDataHub_c
+class EXPIMP_ACTONQTSO actonDataHub_c : public QObject
 {
-    actonDataHubProxyQObj_c* const proxyQObj_pri;
+    Q_OBJECT
+    //data variables
+
     //"row" is defines the position "order" of the actions when visually represented,
     //used on actonQtg to show the actions in order in a grid,
     //used when saving.
@@ -93,7 +82,7 @@ class EXPIMP_ACTONQTSO actonDataHub_c
 
     logDataHub_c* logDataHub_pri = nullptr;
 
-
+    //control variables
     bool executingActions_pri = false;
     bool actionsExecutionFinished_pri = false;
     bool stoppingActionsExecution_pri = false;
@@ -101,13 +90,14 @@ class EXPIMP_ACTONQTSO actonDataHub_c
     bool killingActionsExecution_pri = false;
     bool actionsExecutionKilled_pri = false;
 
-    bool stopOnThisLoopEnd_pri = false;
+    bool stopWhenCurrentExecutionCycleFinishes_pri = false;
+
+    uint_fast64_t executionLoopCount_pri = 0;
 
     void executeActions_f(const bool loop_par_con = false);
-    void verifyExecutionFinished_f(action_c* actionPtr_par);
-    void killingStarted_f();
+
 public:
-    explicit actonDataHub_c();
+    explicit actonDataHub_c(QObject* parent_par);
 
     //to check if a row value can be inserted, not negative and index=<"container size"
     bool validRow_f(const int row_par_con) const;
@@ -117,12 +107,12 @@ public:
     //adds an object to the data "container", if the row exists it moves the target row to the next index (row+1)
     //cascading any row after to row+1
     //returns true if an insert happened, might not happen if the row value is invalid (negative or greater than the container size)
-    //or the actionString Id is already in use or empty
-    bool insertActionData_f(action_c* const actionPtr_par, const int row_par_con);
-    //remove the object from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
-    //returns true if a removal happened
+    //or the actionStringId is already in use or empty
+    bool insertActionData_f(action_c* const actionPtr_par, const int row_par_con, textCompilation_c* errorsPtr_par = nullptr);
+    //remove the object ptr from the data "container" using actionId, if there is any row+1 moves in cascade all the following rows to row-1
+    //returns true if a removal happened (does not remove or delete the actual object)
     bool removeActionDataUsingId_f(const int_fast64_t actionDataId_par_con);
-    //same but with row, optional pass actionDataId if it's known
+    //same as above but with row, optional pass actionDataId if it's known
     bool removeActionDataUsingRow_f(const int row_par_con, const int_fast64_t actionDataId_par_con = 0);
 
     //moves a row to the position of another row, DOESN'T REPLACE,
@@ -139,6 +129,7 @@ public:
     int_fast32_t size_f() const;
 
     action_c* action_ptr_f(const int_fast64_t actionDataId_par_con);
+    action_c* action_ptr_f(const int_fast64_t actionDataId_par_con) const;
     //actionData_c actionData_f(const int_fast64_t actionDataId_par_con, bool* found_ptr = nullptr) const;
 
     void clearAllActionData_f();
@@ -150,7 +141,8 @@ public:
     QStringList actionStringIdList_f(const bool sorted_par_con = true) const;
 
     executionOptions_c executionOptions_f() const;
-    executionOptions_c& executionOptions_f();
+    void setExecutionOptions_f(const executionOptions_c& executionOptions_par_con);
+    //executionOptions_c& executionOptionsRef_f();
 
     //actions
 
@@ -183,25 +175,13 @@ public:
     void tryStopExecutingActions_f(const bool killAfterTimeout_par_con = false);
     //because otherwise when executing loops the only way to stop them is using tryStopExecutingActions_f
     //and that leaves some actions finished, some executing-stopped and some not executed at all
-    //this will stop at the end of the execution cycle (if there is any)
-    void stopWhenLoopFinished_f();
-//private Q_SLOTS:
-    //void checkLoopExecution_f();
-    //ways to run actions
-    //single action
-    //selected actions
-    //all actions
+    //this will stop at the end of the overall execution cycle
+    //it will also stop (once their finish their current execution) actions not bound by a "execution cycle"
+    //will stop keepExecuting_pro = true actions too
+    void stopWhenCurrentExecutionCycleFinishes_f();
 
-    //does the signals of actonDataHub_c
-    //this way there is no need to make actonDataHub_c a QObject derived class
-    actonDataHubProxyQObj_c* proxyQObj_f() const;
-
-    //update all the actions/checks setting that depend on an actionStringId
-    //returns the number of updated checks/action properties which did match with the oldStringId
-    int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
     bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
-    //below 3 functions, only used in actionFinished checks for now
-    int_fast32_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+
     //objectToIgnore_par can be nullptr, this argument is to ignore the current
     //object being edited when checking for string trigger dependencies
     bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
@@ -216,13 +196,33 @@ public:
     void setLogDataHub_f(logDataHub_c* logDataHub_par);
     //will do nothing if logDataHub_pri hasn't been set
     bool addLogMessage_f(
-            const QString& message_par_con
+            const text_c& message_par_con
             , const logItem_c::type_ec logType_par_con
             , const QString& sourceFile_par_con
             , const QString& sourceFunction_par_con
             , const int_fast32_t line_par_con
     );
 
+    //verifies if ALL the actions are valid
+    //a more optimized version of this could be made, i.e. get the first invalid one...
+    //but right now this function is used when deserializing and before execution where an ALL version is required
+    bool areActionsValid_f(textCompilation_c* errors_par = nullptr) const;
+Q_SIGNALS:
+    void actionsExecutionStarted_signal();
+    void stoppingActionsExecution_signal();
+    void actionsExecutionStopped_signal();
+    void killingActionsExecution_signal();
+    void actionsExecutionKilled_signal();
+    void actionsExecutionFinished_signal(std::vector<action_c*> lastRunActions_par);
+    void anyExecutingChecksStopped_signal();
+private Q_SLOTS:
+    void verifyExecutionFinished_f(action_c* actionPtr_par);
+    void killingStarted_f();
+public Q_SLOTS:
+    //update all the actions/checks setting that depend on an actionStringId
+    //returns the number of updated checks/action properties which did match with the oldStringId
+    int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
+    int_fast32_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
 };
 
 extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;

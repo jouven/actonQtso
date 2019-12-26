@@ -4,9 +4,11 @@
 //shared by all types of checks
 enum class checkExecutionState_ec
 {
-    //default state on check execution object creation
+    //check is not going/being/was executed
     initial = 0
-    //when the qThread for the check starts but before the check really starts
+    //when the check is going to be executed
+    //(this is only visible when the checks execute sequentially, one check is making the others wait,
+    //or when waiting for an available thread, otherwise it will "instantly" go from initial to executing)
     , preparing = 1
     //executing the check
     , executing = 2

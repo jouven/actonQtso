@@ -1,6 +1,6 @@
 #include "checkExecutionStateStrMapping.hpp"
 
-//const QHash<QString, checkExecutionState_ec> strToCheckExecutionStateUMap_glo_sta_con(
+//const QHash<QString, checkExecutionState_ec> strToCheckExecutionStateUMap_ext_con(
 //{
 //    {	"Initial", checkExecutionState_ec::initial}
 //    , {	"Executing", checkExecutionState_ec::executing}

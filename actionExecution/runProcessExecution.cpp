@@ -4,6 +4,7 @@
 #include "../actions/runProcess.hpp"
 #include "../actonDataHub.hpp"
 
+#include "textQtso/text.hpp"
 #include "essentialQtso/macros.hpp"
 
 //#include <QThread>
@@ -34,7 +35,7 @@ runProcessActionExecution_c::runProcessActionExecution_c(
 
     //process writing the stderr doesn't trigger this
     QObject::connect(&actionProcess_pri, &QProcess::errorOccurred, this, &runProcessActionExecution_c::readError_f);
-    QObject::connect(&actionProcess_pri, &QProcess::started, this, &runProcessActionExecution_c::setStarted_f);
+    //QObject::connect(&actionProcess_pri, &QProcess::started, this, &runProcessActionExecution_c::setStarted_f);
     QObject::connect(&actionProcess_pri, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &runProcessActionExecution_c::setFinished_f);
     QObject::connect(&actionProcess_pri, &QProcess::readyReadStandardError, this, &runProcessActionExecution_c::readStderr_f);
     QObject::connect(&actionProcess_pri, &QProcess::readyReadStandardOutput, this, &runProcessActionExecution_c::readStdout_f);
@@ -44,8 +45,9 @@ runProcessActionExecution_c::runProcessActionExecution_c(
 void runProcessActionExecution_c::derivedExecute_f()
 {
 #ifdef DEBUGJOUVEN
-    qDebug() << "runProcessActionExecution_c::execute_f()" << endl;
+    //qDebug() << "runProcessActionExecution_c::execute_f()" << endl;
 #endif
+    bool errorHappenedTmp(false);
     while (true)
     {
         QStringList argumentsTmp;
@@ -59,7 +61,8 @@ void runProcessActionExecution_c::derivedExecute_f()
         QDir workingDirectoryTmp(runProcessActionPtr_pri->workingDirectoryParsed_f());
         if (not workingDirectoryTmp.exists())
         {
-            Q_EMIT addError_signal("Working directory doesn't exists");
+            Q_EMIT addError_signal({"Working directory {0} doesn't exists", runProcessActionPtr_pri->workingDirectoryParsed_f()});
+            errorHappenedTmp = true;
             break;
         }
 
@@ -125,11 +128,19 @@ void runProcessActionExecution_c::derivedExecute_f()
         });
 #endif
         //TODO? issue an error on the "qt bug site" that even with a clear environment, no PATH set, it manages to run stuff in /usr/bin
-        //IMPORTANT ignore above, the issue is that to find the process location path what is used is the actonQtg environment,
+        //IMPORTANT ignore above, the issue is that to find the process location path what is used is the actonQtg environment (not actionProcess_pri),
         //qprocess::setProcessEnvironment set variables of the QProcess which won't help,
         //so actonQtg environment must be modified, use relative paths or use absolute path
         actionProcess_pri.start(runProcessActionPtr_pri->processPathParsed_f(), argumentsTmp);
+        {
+            text_c logMessageTmp("Process {0} started", runProcessActionPtr_pri->processPathParsed_f());
+            MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::info);
+        }
         break;
+    }
+    if (errorHappenedTmp)
+    {
+        Q_EMIT anyFinish_signal();
     }
 }
 
@@ -222,8 +233,10 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
 
     //MACRO_ADDACTONQTSOLOG("same thread as main " + QSTRINGBOOL(QThread::currentThread() == QCoreApplication::instance()->thread()), logItem_c::type_ec::debug);
     MACRO_ADDACTONQTSOLOG(errorStrTmp, logItem_c::type_ec::debug);
-    MACRO_ADDACTONQTSOLOG("Callee error " + QSTRINGBOOL(calleeErrorTmp), logItem_c::type_ec::debug);
-    Q_EMIT addError_signal(errorStrTmp);
+    text_c errorTmp("Callee error {0}", QSTRINGBOOL(calleeErrorTmp));
+    MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::debug);
+    //if QProcess error messages are fixed, it should be translatable
+    Q_EMIT addError_signal({errorStrTmp});
     if (calleeErrorTmp)
     {
         //the execution never started and setFinished(in this class) won't be called
@@ -239,10 +252,10 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
 
 }
 
-void runProcessActionExecution_c::setStarted_f()
-{
-    Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
-}
+//void runProcessActionExecution_c::setStarted_f()
+//{
+//    Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
+//}
 
 void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::ExitStatus exitStatus_par)
 {
@@ -252,13 +265,14 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
     }
     setFinishedCalled_pri = true;
     Q_EMIT setReturnCode_signal(exitCode_par);
-    MACRO_ADDACTONQTSOLOG("Exit code " + QString::number(exitCode_par), logItem_c::type_ec::debug);
+    text_c textTmp("Exit code {0}", exitCode_par);
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     if (exitStatus_par == QProcess::ExitStatus::CrashExit)
     {
         //MACRO_ADDACTONQTSOLOG("Crash exit, shoudn't? enter here", logItem_c::type_ec::debug);
         //theoretically readError_f takes care of this already
         //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-        Q_EMIT addError_signal("Crash exit");
+        Q_EMIT addError_signal({"Crash exit"});
     }
     else
     {
@@ -272,7 +286,7 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
 //        {
 
 //        }
-        Q_EMIT addOutput_signal("Exit/return code: " + QString::number(exitCode_par));
+        Q_EMIT addOutput_signal({"Exit/return code: {0}", exitCode_par});
     }
     Q_EMIT anyFinish_signal();
 }

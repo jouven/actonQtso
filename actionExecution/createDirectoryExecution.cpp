@@ -3,6 +3,8 @@
 #include "../actionDataExecutionResult.hpp"
 #include "../actions/createDirectory.hpp"
 
+#include "textQtso/text.hpp"
+
 #include <QDir>
 
 createDirectoryActionExecution_c::createDirectoryActionExecution_c(
@@ -22,17 +24,16 @@ void createDirectoryActionExecution_c::derivedExecute_f()
         {
             //addError already change the state
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-            Q_EMIT addError_signal(pathToCreateTmp.path() + " already exists");
+            Q_EMIT addError_signal({"{0} already exists", pathToCreateTmp.path()});
         }
         else
         {
-            Q_EMIT addOutput_signal(pathToCreateTmp.path() + " already exists");
+            Q_EMIT addOutput_signal({"{0} already exists", pathToCreateTmp.path()});
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
         }
     }
     else
     {
-        Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
         while (true)
         {
             bool resultTmp(false);
@@ -40,7 +41,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             bool parentExistsTmp(pathToCreateTmp.cdUp());
             if (not parentExistsTmp and not createDirectoryActionPtr_pri->createParents_f())
             {
-                Q_EMIT addError_signal("Can't create directory " + pathToCreateTmp.path() + ", parent directory doesn't exists");
+                Q_EMIT addError_signal({"Can't create directory {0}, parent directory doesn't exists", pathToCreateTmp.path()});
                 break;
             }
             else
@@ -63,7 +64,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             else
             {
                 //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-                Q_EMIT addError_signal("Couldn't create the directory" + pathToCreateTmp.path() + ", no permissions?");
+                Q_EMIT addError_signal({"Couldn't create the directory {0}", pathToCreateTmp.path()});
             }
             break;
         }

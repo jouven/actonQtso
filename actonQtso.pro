@@ -51,12 +51,21 @@ HEADERS += \
     checks/actionFinished.hpp \
     actonExecutionOptions.hpp \
     actonDataHub.hpp \
+    checks/timer.hpp \
     checksBaseSerialization.hpp \
     checksDataHub.hpp \
     crossPlatformMacros.hpp \
     actions/copyFile.hpp \
     actionExecution/copyFileExecution.hpp \
-    reused/sameFileAlgo.hpp
+    dateTimeStringFormat.hpp \
+    reused/sameFileAlgo.hpp \
+    actions/deleteFileDir.hpp \
+    actionExecution/deleteFileDirExecution.hpp \
+    checks/pathExists.hpp \
+    checkExecution/pathExistsExecution.hpp \
+    actionExecution/metaEndExecutionCycleExecution.hpp \
+    actions/metaEndExecutionCycle.hpp \
+    checkExecution/timerExecution.hpp
 
 SOURCES += \
     actionData.cpp \
@@ -80,13 +89,22 @@ SOURCES += \
     checks/actionFinished.cpp \
     actonExecutionOptions.cpp \
     actonDataHub.cpp \
+    checks/timer.cpp \
     checksDataHub.cpp \
     checksBaseSerialization.cpp \
     checkExecution/baseCheckExecution.cpp \
     actionExecution/baseActionExecution.cpp \
     actions/copyFile.cpp \
     actionExecution/copyFileExecution.cpp \
-    reused/sameFileAlgo.cpp
+    dateTimeStringFormat.cpp \
+    reused/sameFileAlgo.cpp \
+    actions/deleteFileDir.cpp \
+    actionExecution/deleteFileDirExecution.cpp \
+    checks/pathExists.cpp \
+    checkExecution/pathExistsExecution.cpp \
+    actionExecution/metaEndExecutionCycleExecution.cpp \
+    actions/metaEndExecutionCycle.cpp \
+    checkExecution/timerExecution.cpp
 
 !win32:MYPATH = "/"
 win32:MYPATH = "H:/veryuseddata/portable/msys64/"

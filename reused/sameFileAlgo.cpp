@@ -2,6 +2,8 @@
 
 #include "comuso/practicalTemplates.hpp"
 
+#include "textQtso/text.hpp"
+
 #include <QFileInfo>
 #include <QFile>
 
@@ -29,14 +31,14 @@ bool checkSameFile_c::checkIfSameFile_f()
         QFileInfo fileInfoFileA(fileA_pri);
         if (not fileInfoFileA.exists())
         {
-            Q_EMIT error_signal("File A doesn't exist: " + fileA_pri);
+            Q_EMIT error_signal({"File A doesn't exist: {0}", fileA_pri});
             break;
         }
 
         QFileInfo fileInfoFileB(fileB_pri);
         if (not fileInfoFileB.exists())
         {
-            Q_EMIT error_signal("File B doesn't exist: " + fileB_pri);
+            Q_EMIT error_signal({"File B doesn't exist: {0}", fileB_pri});
             break;
         }
 
@@ -60,7 +62,7 @@ bool checkSameFile_c::checkIfSameFile_f()
         }
         else
         {
-            Q_EMIT error_signal("Error when opening File A: " + fileA_pri);
+            Q_EMIT error_signal({"Error when opening File A: {0}", fileA_pri});
             break;
         }
 
@@ -69,7 +71,7 @@ bool checkSameFile_c::checkIfSameFile_f()
         }
         else
         {
-            Q_EMIT error_signal("Error when opening File B: " + fileB_pri);
+            Q_EMIT error_signal({"Error when opening File B: {0}", fileB_pri});
             break;
         }
 
@@ -94,7 +96,19 @@ bool checkSameFile_c::checkIfSameFile_f()
             }
             bytesReadTmpA = fileA.read(&bufferA[0], bufferSize_pri);
             bytesReadTmpB = fileB.read(&bufferB[0], bufferSize_pri);
-            if (fileB.bytesAvailable() not_eq fileA.bytesAvailable() or bytesReadTmpA not_eq bytesReadTmpB or bufferA not_eq bufferB)
+            if (bytesReadTmpA == -1)
+            {
+                Q_EMIT error_signal({"Error reading File A: {0}", fileA_pri});
+                break;
+            }
+            if (bytesReadTmpB == -1)
+            {
+                Q_EMIT error_signal({"Error reading File B {0}", fileB_pri});
+                break;
+            }
+            if (fileB.bytesAvailable() not_eq fileA.bytesAvailable()
+                or bytesReadTmpA not_eq bytesReadTmpB
+                or bufferA not_eq bufferB)
             {
                 sameBytesReadTmp = false;
                 break;
@@ -113,6 +127,10 @@ bool checkSameFile_c::checkIfSameFile_f()
                //and bytesReadTmpA == bytesReadTmpB
                );
 
+        if (currentState_f() == state_ec::error)
+        {
+            break;
+        }
         resultTmp = sameBytesReadTmp and (fileA.bytesAvailable() == 0);
         if (pleaseStop_pri)
         {

@@ -7,7 +7,7 @@
 
 #include <QDateTime>
 
-QString actionDataExecutionResult_c::error_f() const
+textCompilation_c actionDataExecutionResult_c::errors_f() const
 {
     return errors_pri;
 }
@@ -73,13 +73,13 @@ bool actionDataExecutionResult_c::tryClear_f()
     bool resultTmp(false);
     if (finished_pri)
     {
-        output_pri.clear();
+        output_pri.clear_f();
 
         externalOutput_pri.clear();
 
         externalErrorOutput_pri.clear();
 
-        errors_pri.clear();
+        errors_pri.clear_f();
 
         returnCode_pri = -1;
         returnCodeSet_pri = false;
@@ -110,28 +110,44 @@ actionDataExecutionResult_c::actionDataExecutionResult_c(
     : parentAction_ptr_pri(parentAction_par_ptr_con)
 {}
 
-QString actionDataExecutionResult_c::output_f() const
+textCompilation_c actionDataExecutionResult_c::output_f() const
 {
     return output_pri;
 }
 
-void actionDataExecutionResult_c::appendOutput_f(const QString& output_par_con)
+void actionDataExecutionResult_c::appendOutput_f(const text_c& output_par_con)
 {
     if (not finished_pri)
     {
-        output_pri.append(output_par_con);
+        output_pri.append_f(output_par_con);
         Q_EMIT outputUpdated_signal(parentAction_ptr_pri);
     }
 }
 
-void actionDataExecutionResult_c::appendError_f(const QString& error_par_con)
+void actionDataExecutionResult_c::appendError_f(const text_c& error_par_con)
 {
     if (not finished_pri)
     {
-        errors_pri.append(error_par_con);
+        errors_pri.append_f(error_par_con);
         trySetExecutionState_f(actionExecutionState_ec::error);
 #ifdef DEBUGJOUVEN
         MACRO_ADDACTONQTSOLOG(error_par_con, logItem_c::type_ec::debug);
+#endif
+        Q_EMIT error_signal(parentAction_ptr_pri);
+    }
+}
+
+void actionDataExecutionResult_c::appendErrors_f(const textCompilation_c& errors_par_con)
+{
+    if (not finished_pri)
+    {
+        errors_pri.append_f(errors_par_con);
+        trySetExecutionState_f(actionExecutionState_ec::error);
+#ifdef DEBUGJOUVEN
+        for (int_fast32_t i = 0, l = errors_par_con.size_f(); i < l; ++i)
+        {
+            MACRO_ADDACTONQTSOLOG(errors_par_con.text_f(i), logItem_c::type_ec::debug);
+        }
 #endif
         Q_EMIT error_signal(parentAction_ptr_pri);
     }
@@ -167,7 +183,7 @@ void actionDataExecutionResult_c::setReturnCode_f(const int returnCode_par_con)
 
 bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con)
 {
-    bool resultTmp(false);
+    bool validExecutionStateChangeTmp(false);
     bool emitPreparingTmp(false);
     bool emitExecutingChecksTmp(false);
     bool emitExecutingTmp(false);
@@ -179,8 +195,8 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         //states that can't be set outside of this class
         if (equalOnce_ft(actionExecutionState_par_con
                          , actionExecutionState_ec::initial
-                         , actionExecutionState_ec::stoppedByUser
-                         , actionExecutionState_ec::killedByUser)
+                         , actionExecutionState_ec::stopped
+                         , actionExecutionState_ec::killed)
         )
         {
             break;
@@ -193,7 +209,7 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
                               , actionExecutionState_ec::executingChecks)
         )
         {
-            resultTmp = true;
+            validExecutionStateChangeTmp = true;
             if (actionExecutionState_par_con == actionExecutionState_ec::preparing)
             {
                 emitPreparingTmp = true;
@@ -206,22 +222,23 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
             }
         }
 
-        //from executhing checks it can only go to preparing, stopping/killing
+        //from executhing checks it can only go to preparing, stopping/killing and checks failed
         if (lastState_f() == actionExecutionState_ec::executingChecks
             and equalOnce_ft(actionExecutionState_par_con
                              , actionExecutionState_ec::preparing
-                             , actionExecutionState_ec::stoppingByUser
-                             , actionExecutionState_ec::killingByUser)
+                             , actionExecutionState_ec::stopping
+                             , actionExecutionState_ec::killing
+                             , actionExecutionState_ec::checksFailed)
         )
         {
-            resultTmp = true;
+            validExecutionStateChangeTmp = true;
             if (actionExecutionState_par_con == actionExecutionState_ec::preparing)
             {
                 emitPreparingTmp = true;
                 break;
             }
-            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser
-                or actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            if (actionExecutionState_par_con == actionExecutionState_ec::stopping
+                or actionExecutionState_par_con == actionExecutionState_ec::killing)
             {
                 emitStoppingTmp = true;
                 break;
@@ -237,19 +254,19 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
             and equalOnce_ft(actionExecutionState_par_con
                              , actionExecutionState_ec::error
                              , actionExecutionState_ec::executing
-                             , actionExecutionState_ec::stoppingByUser
-                             , actionExecutionState_ec::killingByUser
+                             , actionExecutionState_ec::stopping
+                             , actionExecutionState_ec::killing
                              , actionExecutionState_ec::success)
             )
         {
-            resultTmp = true;
+            validExecutionStateChangeTmp = true;
             if (actionExecutionState_par_con == actionExecutionState_ec::executing)
             {
                 emitExecutingTmp = true;
                 break;
             }
-            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser
-                or actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            if (actionExecutionState_par_con == actionExecutionState_ec::stopping
+                or actionExecutionState_par_con == actionExecutionState_ec::killing)
             {
                 emitStoppingTmp = true;
                 break;
@@ -261,12 +278,12 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         if (lastState_f() == actionExecutionState_ec::executing
             and equalOnce_ft(actionExecutionState_par_con
                              , actionExecutionState_ec::error
-                             , actionExecutionState_ec::stoppingByUser
+                             , actionExecutionState_ec::stopping
                              , actionExecutionState_ec::success)
         )
         {
-            resultTmp = true;
-            if (actionExecutionState_par_con == actionExecutionState_ec::stoppingByUser)
+            validExecutionStateChangeTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::stopping)
             {
                 emitStoppingTmp = true;
                 break;
@@ -275,14 +292,14 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         }
 
         //from stoppingByUser it can only go to error or killing
-        if (lastState_f() == actionExecutionState_ec::stoppingByUser
+        if (lastState_f() == actionExecutionState_ec::stopping
             and equalOnce_ft(actionExecutionState_par_con
                              , actionExecutionState_ec::error
-                             , actionExecutionState_ec::killingByUser)
+                             , actionExecutionState_ec::killing)
         )
         {
-            resultTmp = true;
-            if (actionExecutionState_par_con == actionExecutionState_ec::killingByUser)
+            validExecutionStateChangeTmp = true;
+            if (actionExecutionState_par_con == actionExecutionState_ec::killing)
             {
                 emitKillingTmp = true;
                 break;
@@ -292,7 +309,7 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
 
         break;
     }
-    while (resultTmp)
+    while (validExecutionStateChangeTmp)
     {
         executionStateVector_pri.emplace_back(actionExecutionState_par_con);
         //setFinished removed from here because an action might emit a finishing state like error
@@ -330,7 +347,12 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         }
         break;
     }
-    return resultTmp;
+    return validExecutionStateChangeTmp;
+}
+
+bool actionDataExecutionResult_c::killedByUser_f() const
+{
+    return killedByUser_pri;
 }
 
 void actionDataExecutionResult_c::setStarted_f()
@@ -351,8 +373,11 @@ void actionDataExecutionResult_c::trySetFinished_f()
                          , actionExecutionState_ec::executing
                          //error is special because it's a final state already
                          , actionExecutionState_ec::error
-                         , actionExecutionState_ec::killingByUser
-                         , actionExecutionState_ec::stoppingByUser
+                         , actionExecutionState_ec::killing
+                         , actionExecutionState_ec::stopping
+                         //executing checks finishing means the check/s logic result is false
+                         //and the action won't be executed after
+                         , actionExecutionState_ec::executingChecks
                          )
     )
     {
@@ -365,34 +390,39 @@ void actionDataExecutionResult_c::trySetFinished_f()
 
         if (equalOnce_ft(lastState_f()
                          , actionExecutionState_ec::executing
-                         , actionExecutionState_ec::killingByUser
-                         , actionExecutionState_ec::stoppingByUser
+                         , actionExecutionState_ec::killing
+                         , actionExecutionState_ec::stopping
+                         , actionExecutionState_ec::executingChecks
                          ))
         {
             if (lastState_f() == actionExecutionState_ec::executing)
             {
                 executionStateVector_pri.emplace_back(actionExecutionState_ec::success);
             }
-            if (lastState_f() == actionExecutionState_ec::stoppingByUser)
+            if (lastState_f() == actionExecutionState_ec::stopping)
             {
                 stoppedByUser_pri = true;
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::stoppedByUser);
+                executionStateVector_pri.emplace_back(actionExecutionState_ec::stopped);
             }
-            if (lastState_f() == actionExecutionState_ec::killingByUser)
+            if (lastState_f() == actionExecutionState_ec::killing)
             {
                 killedByUser_pri = true;
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::killedByUser);
+                executionStateVector_pri.emplace_back(actionExecutionState_ec::killed);
+            }
+            if (lastState_f() == actionExecutionState_ec::executingChecks)
+            {
+                executionStateVector_pri.emplace_back(actionExecutionState_ec::checksFailed);
             }
             Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri);
             if (lastState_f() == actionExecutionState_ec::success)
             {
                 Q_EMIT success_signal(parentAction_ptr_pri);
             }
-            if (lastState_f() == actionExecutionState_ec::stoppedByUser)
+            if (lastState_f() == actionExecutionState_ec::stopped)
             {
                 Q_EMIT stopped_signal(parentAction_ptr_pri);
             }
-            if (lastState_f() == actionExecutionState_ec::killedByUser)
+            if (lastState_f() == actionExecutionState_ec::killed)
             {
                 Q_EMIT killed_signal(parentAction_ptr_pri);
             }

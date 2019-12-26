@@ -1,0 +1,8 @@
+#ifndef ACTONQTSO_DATETIMESTRINGFORMAT_HPP
+#define ACTONQTSO_DATETIMESTRINGFORMAT_HPP
+
+#include <QString>
+
+extern const QString dateTimeFormat_con;
+
+#endif // ACTONQTSO_DATETIMESTRINGFORMAT_HPP

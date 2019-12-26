@@ -5,6 +5,8 @@
 #include "../actonDataHub.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
+#include "textQtso/text.hpp"
+#include "essentialQtso/macros.hpp"
 
 #include <QProcess>
 #include <QJsonArray>
@@ -59,6 +61,40 @@ void runProcessData_c::setUseActonEnvironment_f(const bool useActonEnvironment_p
     useActonEnvironment_pro = useActonEnvironment_par_con;
 }
 
+bool runProcessData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
+{
+    bool resultTmp(false);
+    while (true)
+    {
+        if (processPathParsed_f().isEmpty())
+        {
+            APPENDTEXTPTR(errorsPtr_par, "Process path is empty");
+            break;
+        }
+        else
+        {
+            //it's valid
+        }
+
+        {
+            text_c errorTextTmp;
+            if (isValidStringSize_f(processPathParsed_f(), 255, std::addressof(errorTextTmp), "Process path is too long: {0} (maximum length is {1})"))
+            {
+                //it's valid
+            }
+            else
+            {
+                APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+                break;
+            }
+        }
+
+        resultTmp = true;
+        break;
+    }
+    return resultTmp;
+}
+
 runProcessData_c::runProcessData_c(
         const QString& processPath_par_con
         , const std::vector<argument_c>& arguments_par_con
@@ -90,7 +126,7 @@ void runProcessAction_c::derivedWrite_f(QJsonObject& json_par) const
     {
         QJsonArray environmentPairArray;
         QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp = environmentToAdd_pro.constBegin();
-        while (iteratorTmp != environmentToAdd_pro.constEnd())
+        while (iteratorTmp not_eq environmentToAdd_pro.constEnd())
         {
             QJsonObject pairTmp;
             pairTmp["key"] = iteratorTmp.key();
@@ -131,15 +167,23 @@ void runProcessAction_c::derivedRead_f(const QJsonObject& json_par_con)
             for (const QJsonValueRef& jsonArrayItem_ite_con : pairsTmp)
             {
                 QJsonObject jsonObjectTmp(jsonArrayItem_ite_con.toObject());
-                environmentPairConfig_c environmentPairTmp(jsonObjectTmp["value"].toString(), jsonObjectTmp["enabled"].toBool());
+                environmentPairConfig_c environmentPairTmp;
+                environmentPairTmp.read_f(jsonObjectTmp);
                 environmentToAdd_pro.insert(jsonObjectTmp["key"].toString(), environmentPairTmp);
             }
         }
     }
     workingDirectory_pro = json_par_con["workingDirectory"].toString();
-    useActonEnvironment_pro = json_par_con["useActonEnvironment"].toBool();
+    if (json_par_con["useActonEnvironment"].isBool())
+    {
+        useActonEnvironment_pro = json_par_con["useActonEnvironment"].toBool();
+    }
 }
 
+bool runProcessAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) const
+{
+    return isFieldsDataValid_f(errors_par);
+}
 
 action_c* runProcessAction_c::derivedClone_f() const
 {
@@ -161,13 +205,18 @@ actionType_ec runProcessAction_c::type_f() const
 
 QString runProcessAction_c::typeStr_f() const
 {
-    return actionTypeToStrUMap_ext_con.at(actionType_ec::runProcess);
+    return actionTypeToStrUMap_ext_con.at(type_f());
 }
 
 runProcessAction_c::runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con)
     : action_c(actionData_par_con)
     , runProcessData_c(runProcessData_par_con)
 {
+}
+
+void runProcessAction_c::updateRunProcessData_f(const runProcessData_c& runProcessData_par_con)
+{
+    this->runProcessData_c::operator=(runProcessData_par_con);
 }
 
 QString runProcessData_c::processPath_f() const
@@ -222,7 +271,10 @@ void argument_c::write_f(QJsonObject& json_par) const
 void argument_c::read_f(const QJsonObject& json_par_con)
 {
     argument_pri = json_par_con["value"].toString();
-    enabled_pri = json_par_con["enabled"].toBool();
+    if (json_par_con["enabled"].isBool())
+    {
+        enabled_pri = json_par_con["enabled"].toBool();
+    }
 }
 
 QString argument_c::argument_f() const
@@ -256,7 +308,10 @@ void environmentPairConfig_c::write_f(QJsonObject& json_par) const
 void environmentPairConfig_c::read_f(const QJsonObject& json_par_con)
 {
     environmentValue_pri = json_par_con["value"].toString();
-    enabled_pri = json_par_con["enabled"].toBool();
+    if (json_par_con["enabled"].isBool())
+    {
+        enabled_pri = json_par_con["enabled"].toBool();
+    }
 }
 
 QString environmentPairConfig_c::environmentValue() const

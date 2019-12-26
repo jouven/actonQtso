@@ -6,6 +6,7 @@
 #include "../crossPlatformMacros.hpp"
 
 #include "filterDirectoryQtso/filterDirectory.hpp"
+#include "textQtso/text.hpp"
 
 #include <QString>
 #include <QStringList>
@@ -25,6 +26,7 @@ class EXPIMP_ACTONQTSO copyFileData_c
 {
 protected:
     //this can be absolute or relative, file or directory
+    //it can also be several paths separated by newline
     QString sourcePath_pro;
     //this can be absolute or relative, file or directory
     //must be compatible with the source:
@@ -39,10 +41,11 @@ public:
         //regular move that every OS uses, aka copy and if success delete the source
         , move = 2
 
-        //TODO a way to mark which file transfers have been left midway, this might signal the need for a greater thing called
+        //TODO? a way to mark which file transfers have been left midway, this might signal the need for a greater thing called
         //"storing execution state (controlled)interruption-proof"
-        //FUTURE add an option to truncate while the read is in RAM still (which can be dangerous,
+        //DONTDO add an option to truncate while the read is in RAM still (which can be dangerous,
         //but will make this transfer technique use 0 extra space)
+
 
         //move by "blocks" starting from the source "end" to its begining,
         //truncating the source on each block moved, in this order, aka first it writes then it truncates (it's safe)
@@ -59,6 +62,12 @@ public:
         //unlike the destinatioTreatment resume options if the interruption is hard, like power outage or a sigkill, resuming might go wrong
         //becase it can happen before the source is truncated, so the destination gets the "interruped block" appended twice
         , trueMove = 3
+        //a variation of the above, instead of writing and shifting previous written data for each block
+        //this one writes a file for each block, when all the blocks/files are at the destination it joins them.
+        //It's 1 read on source + 1 write on destination + 1 another read and write (for the join)
+        //way more optimal than trueMove, but file exploring software might slow/crash when navigating
+        //a folder with 1000+ files, using small (<1024k) blocks/bufferSize_pro is not advised
+        , trueMoveFiles = 4
     };
     static EXPIMP_ACTONQTSO const QMap<QString, transferType_ec> strToTransferTypeMap_sta_con;
     static EXPIMP_ACTONQTSO const std::unordered_map<transferType_ec, QString> transferTypeToStrUMap_sta_con;
@@ -77,8 +86,22 @@ public:
         , overwrite = 4
         //no overwrite always, ignore existing files
         , noOverwrite = 5
+        //see resumeType_ec
+        , resume = 6
+    };
+
+    static EXPIMP_ACTONQTSO const QMap<QString, destinationTreatment_ec> strToDestinationTreatmentMap_sta_con;
+    static EXPIMP_ACTONQTSO const std::unordered_map<destinationTreatment_ec, QString> destinationTreatmentToStrUMap_sta_con;
+
+    enum class resumeType_ec
+    {
+        empty = 0
+        //IMPORTANT
+        //Fixed by the transfer type, this is true for trueMove and trueMoveFiles right now
+        //the other transfer types support the other resume types
+        , transferTypeImplementation = 1
         //like overwrite but only if the destination is smaller and writing at the end of the destination,
-        //if destination is bigger it will be ignored and outputed and the transfer will cotinue
+        //if destination is bigger it will be ignored and warned and the transfer will continue
         //this can have some adverse consequences if
         //source or destination changed after the initial interrupted transfer
         //will only check if the source@size > destination@size,
@@ -87,24 +110,26 @@ public:
         //should be able to resume successfully if source/destination haven't changed since the transfer interruption
         //use only? to copy large amounts of data that won't change in either side but can be interrupted
         //fastest resume method if nothing goes wrong (no changes in the source or destination)
-        , tryStupidResume = 6
+        , stupid = 2
         //like the above but compares source and destination and only overwrites
         //when a difference is detected (the first one), i.e. destination already exists so a comparison is done
         //between source and destination, in blocks, and as long as they are equal no writing will happen
         //once a difference is found overwriting happens and no more comparison for that file is done
         //in the rare case where the destination file is the same but larger, it will be truncated from the end
-        , lazyResume = 7
-        //FUTURE, same as above, but detect the blocks that are different, comparing blockwise (making it per byte would? be overkill)
+        , lazy = 3
+        //FUTURE, same as above, but detect the blocks that are different, comparing blockwise (making it per byte would be overkill)
         //so it only overwrites the blocks that are different and not when the first different block is found
-        //, smartResume = 8
+        //, smart = 3
     };
 
-    static EXPIMP_ACTONQTSO const QMap<QString, destinationTreatment_ec> strToDestinationTreatmentMap_sta_con;
-    static EXPIMP_ACTONQTSO const std::unordered_map<destinationTreatment_ec, QString> destinationTreatmentToStrUMap_sta_con;
+    static EXPIMP_ACTONQTSO const QMap<QString, resumeType_ec> strToResumeTypeMap_sta_con;
+    static EXPIMP_ACTONQTSO const std::unordered_map<resumeType_ec, QString> resumeTypeToStrUMap_sta_con;
+
 
 protected:
-    transferType_ec transferType_pro = transferType_ec::empty;
-    destinationTreatment_ec destinationTreatment_pro = destinationTreatment_ec::empty;
+    transferType_ec transferType_pro = transferType_ec::copy;
+    destinationTreatment_ec destinationTreatment_pro = destinationTreatment_ec::resume;
+    resumeType_ec resumeType_pro = resumeType_ec::transferTypeImplementation;
 
     //applies to files and directories
     bool copyHidden_pro = true;
@@ -134,15 +159,27 @@ protected:
     //above stuff is json save-load-able
 
 
-    directoryFilter_c* directoryFilterPtr_pro = nullptr;
+    //directoryFilter_c* directoryFilterPtr_pro = nullptr;
     //FUTURE sort options? tho it can be "done" using several copy actions and actionFinished check
+
+    //prevent public assignments
+    copyFileData_c& operator=(copyFileData_c const &) = default;
+    copyFileData_c& operator=(copyFileData_c&) = default;
+    copyFileData_c& operator=(copyFileData_c&&) = default;
 public:
+    //declaring move ctor/operators removes non-explicit default copy ctors
+    //see https://stackoverflow.com/questions/11255027
+    //so... explicit them
+    copyFileData_c(copyFileData_c const&) = default;
+    copyFileData_c(copyFileData_c&) = default;
+
     copyFileData_c() = default;
     copyFileData_c(
             const QString& sourcePath_par_con
             , const QString& destinationPath_par_con
             , const transferType_ec transferType_par_con
             , const destinationTreatment_ec destinationTreatment_par_con
+            , const resumeType_ec resumeType_par_con = resumeType_ec::transferTypeImplementation
             , const bool copyHidden_par_con = true
             , const QStringList& sourceFilenameRegexFilters_par_con = QStringList()
             , const QStringList& sourceFilenameFullExtensions_par_con = QStringList()
@@ -168,10 +205,6 @@ public:
 //    copyFileAction_c& operator=(copyFileAction_c& from_par);
 //    //same as move ctor
 //    copyFileAction_c& operator=(copyFileAction_c&& from_par) noexcept;
-
-    //because when initializing using the default ctor + json reading
-    //there might be some unset properties use this to check
-    bool isValid_f(QString* errorStrPtr_par = nullptr) const;
 
     QString sourcePath_f() const;
     QString sourcePathParsed_f() const;
@@ -205,32 +238,47 @@ public:
     void setNoFilesCopiedIsError_f(const bool noFilesCopiedIsError_par_con);
     int_fast64_t bufferSize_f() const;
     void setBufferSize_f(const int_fast64_t& bufferSize_par_con);
+    resumeType_ec resumeType_f() const;
+    void setResumeType_f(const resumeType_ec resumeType_par_con);
 
     //for the below 2 functions
-    //pass a mutex if stopping the directory filtering is required (from another thread)
+    //pass a mutex if stopping the directory filtering is required from another thread
     //The mutex is "mandatory" to prevent the stopDirectoryFiltering_f function and the testSourceFileList_f function to
     //conflict, because stopDirectoryFiltering_f might try to access directoryFilterPtr_pri,
-    //the object that does the filtering, when it's getting created or deleted
+    //the object that does the filtering, when it's getting ctored or dtored
 
-    //tries to generate the file list that will be copied
-    std::vector<QString> testSourceFileList_f(QString* error_ptr = nullptr, QMutex* directoryFilterPtrMutexPtr_par = nullptr);
-    //to stop from outside
-    void stopDirectoryFiltering_f(QMutex* directoryFilterPtrMutexPtr_par = nullptr);
+    //tries to generate a file list, used in copyFileActionExecution_c during execution and
+    //in actonQtg copyFile editor to do dry runs of what will be copied
+    static std::vector<QString> testSourceFileList_f(
+            const copyFileData_c* const copyFileDataPtr_par
+            , directoryFilter_c*& directoryFilterPtrRef_par
+            , textCompilation_c* errors_ptr = nullptr
+            , QMutex* directoryFilterPtrMutexPtr_par = nullptr);
+    //to stop directoryFilter_c* filtering, no effect if it's not filtering or already stopping/ed
+    static void stopDirectoryFiltering_f(directoryFilter_c* directoryFilterPtr_par, QMutex* directoryFilterPtrMutexPtr_par = nullptr);
+
+    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
 
 class EXPIMP_ACTONQTSO copyFileAction_c : public action_c, public copyFileData_c
 {
+    Q_OBJECT
+
     void derivedWrite_f(QJsonObject &json_par) const override;
     void derivedRead_f(const QJsonObject &json_par_con) override;
+    bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
     action_c* derivedClone_f() const override;
 
     baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     QString typeStr_f() const override;
+
 public:
     copyFileAction_c() = default;
     copyFileAction_c(const actionData_c& actionData_par_con, const copyFileData_c& copyFile_par_con);
+
+    void updateCopyFileData_f(const copyFileData_c& copyFileData_par_con);
 };
 
 #endif // ACTONQTSO_CREATEDIRECTORY_HPP

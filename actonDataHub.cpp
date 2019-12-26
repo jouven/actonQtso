@@ -7,6 +7,7 @@
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "threadedFunctionQtso/threadedFunctionQt.hpp"
 #include "essentialQtso/macros.hpp"
+#include "textQtso/text.hpp"
 
 #include "comuso/practicalTemplates.hpp"
 
@@ -17,15 +18,6 @@
 #include "backwardSTso/backward.hpp"
 #endif
 #endif
-
-
-#include <functional>
-
-//the qapp instance, QApplication qtapp(argc, argv); in the main,
-//can dtor this when it goes out of the scope
-actonDataHubProxyQObj_c::actonDataHubProxyQObj_c()
-    : QObject(QCoreApplication::instance())
-{}
 
 bool actonDataHub_c::moveRowActionData_f(
     const int sourceRow_par_con
@@ -40,10 +32,8 @@ bool actonDataHub_c::moveRowActionData_f(
         {
             break;
         }
-        //save the actionData stuff that is going to get moved
-        //no ref because... first it's removed (removeActionDataUsingRow_f)
-        //so copy
-        action_c* actionCopyTmp(action_ptr_f(actionDataIdTmp));
+        //save the actionData ptr that is going to be moved
+        action_c* actionPtrTmp(action_ptr_f(actionDataIdTmp));
 
         //qInfo() << "sourceActionDataTmp.id_f() " << sourceActionDataTmp.id_f() << endl;
 
@@ -53,14 +43,16 @@ bool actonDataHub_c::moveRowActionData_f(
         if (removeResult)
         {
             //insert it in the destination row, this can fail if the destination row is not "in range"
-            resultTmp = insertActionData_f(actionCopyTmp, destinationRow_par_con);
+            resultTmp = insertActionData_f(actionPtrTmp, destinationRow_par_con);
         }
         else
         {
             //otherwise there would be duplicates
         }
+        break;
     }
-    MACRO_ADDACTONQTSOLOG("Action moved? " + QSTRINGBOOL(resultTmp), logItem_c::type_ec::debug);
+    text_c logTextTmp("Action moved? ", QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -127,10 +119,22 @@ executionOptions_c actonDataHub_c::executionOptions_f() const
 	return executionOptions_pri;
 }
 
-executionOptions_c&actonDataHub_c::executionOptions_f()
+void actonDataHub_c::setExecutionOptions_f(const executionOptions_c& executionOptions_par_con)
 {
-	return executionOptions_pri;
+	if (executingActions_pri)
+	{
+		//do nothing if already executing
+	}
+	else
+	{
+		executionOptions_pri = executionOptions_par_con;
+	}
 }
+
+//executionOptions_c& actonDataHub_c::executionOptionsRef_f()
+//{
+//	return executionOptions_pri;
+//}
 
 void actonDataHub_c::executeActionDataRows_f(std::vector<int> rows_par)
 {
@@ -142,7 +146,9 @@ void actonDataHub_c::executeActionDataRows_f(std::vector<int> rows_par)
 	else
 	{
 		bool somethingIsExecuting(false);
+		bool actionsToRunValidTmp(true);
 		actionsToRun_pri.clear();
+		executionLoopCount_pri = 0;
 		if (rows_par.empty())
 		{
 			for (int i = 0, l = actionDataIdToRow_pri.size(); i < l; ++i)
@@ -163,19 +169,28 @@ void actonDataHub_c::executeActionDataRows_f(std::vector<int> rows_par)
 				action_c* actionPtrTmp(action_ptr_f(actionIdTmp));
 				if (actionPtrTmp->isExecuting_f())
 				{
-					MACRO_ADDACTONQTSOLOG("Something is executing", logItem_c::type_ec::warning);
+					text_c textTmp("Action is executing, stringId: {0}", actionPtrTmp->stringId_f());
+					MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::warning);
 					somethingIsExecuting = true;
 					break;
 				}
 				if (not actionPtrTmp->enabled_f())
 				{
-					MACRO_ADDACTONQTSOLOG("Action is not enabled, string id: " + actionPtrTmp->stringId_f() , logItem_c::type_ec::warning);
+					text_c textTmp("Action is not enabled, stringId: {0}", actionPtrTmp->stringId_f());
+					MACRO_ADDACTONQTSOLOG(textTmp , logItem_c::type_ec::warning);
+					continue;
+				}
+				if (not actionPtrTmp->isFieldsActionValid_f())
+				{
+					text_c textTmp("Action to execute is not valid, stringId: {0}", actionPtrTmp->stringId_f());
+					MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::error);
+					actionsToRunValidTmp = false;
 					continue;
 				}
 				actionsToRun_pri.emplace_back(actionPtrTmp);
 			}
 		}
-		if (not somethingIsExecuting)
+		if (not somethingIsExecuting and actionsToRunValidTmp)
 		{
 			executeActions_f();
 		}
@@ -212,47 +227,47 @@ void actonDataHub_c::setLogDataHub_f(logDataHub_c* logDataHub_par)
 
 void actonDataHub_c::executeActions_f(const bool loop_par_con)
 {
-    MACRO_ADDACTONQTSOLOG("Execute actions, loop: " + QSTRINGBOOL(loop_par_con), logItem_c::type_ec::debug);
+    text_c textTmp("Execute actions, loop: {0}", QSTRINGBOOL(loop_par_con));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     if (not actionsToRun_pri.empty())
     {
         actionsExecutionStopped_pri = false;
         actionsExecutionKilled_pri = false;
         executingActions_pri = true;
-        proxyQObj_pri->actionsExecutionStarted_signal();
+        Q_EMIT actionsExecutionStarted_signal();
         for (action_c* action_ite_ptr : actionsToRun_pri)
         {
-            if (loop_par_con)
+            actionDataExecutionResult_c* actionDataExecutionResultTmp(action_ite_ptr->createGetActionDataExecutionResult_ptr_f());
+            if (actionDataExecutionResultTmp->lastState_f() == actionExecutionState_ec::initial)
             {
-                //don't connect again
+                //initial state requires no changes
             }
             else
             {
-                actionDataExecutionResult_c* actionDataExecutionResultTmp(action_ite_ptr->createGetActionDataExecutionResult_ptr_f());
-                //when an action finished verify if the overall execution has finished,
-                //also disconnect the "connect" that did it
-                QObject::connect(
-                            actionDataExecutionResultTmp
-                            , &actionDataExecutionResult_c::finished_signal
-                            , proxyQObj_pri
-                , [this](action_c* actionPtr_par)
-                {
-                    QObject::disconnect(actionPtr_par->actionDataExecutionResult_ptr_f(), &actionDataExecutionResult_c::finished_signal, proxyQObj_pri, nullptr);
-                    verifyExecutionFinished_f(actionPtr_par);
-                }
-                );
-                //when an action signals it's killing, signal this object, actonDataHub_c that killing is going on
-                //also disconnect the "connect" that did it
-                QObject::connect(
-                            actionDataExecutionResultTmp
-                            , &actionDataExecutionResult_c::killing_signal
-                            , proxyQObj_pri
-                            , [this](action_c* actionPtr_par)
-                            {
-                                QObject::disconnect(actionPtr_par->actionDataExecutionResult_ptr_f(), &actionDataExecutionResult_c::killing_signal, proxyQObj_pri, nullptr);
-                                killingStarted_f();
-                            }
-                );
+                actionDataExecutionResultTmp->tryClear_f();
             }
+        }
+        for (action_c* action_ite_ptr : actionsToRun_pri)
+        {
+            actionDataExecutionResult_c* actionDataExecutionResultTmp(action_ite_ptr->createGetActionDataExecutionResult_ptr_f());
+            //when an action finishes verify if the overall execution has finished,
+            QObject::connect(
+                        actionDataExecutionResultTmp
+                        , &actionDataExecutionResult_c::finished_signal
+                        , this
+                        , &actonDataHub_c::verifyExecutionFinished_f
+                        , Qt::UniqueConnection
+                        );
+
+            //when an action signals it's killing, signal this object, actonDataHub_c that killing is going on
+            //also disconnect the "connect" that did it
+            QObject::connect(
+                        actionDataExecutionResultTmp
+                        , &actionDataExecutionResult_c::killing_signal
+                        , this
+                        , &actonDataHub_c::killingStarted_f
+                        , Qt::UniqueConnection
+                        );
 
             action_ite_ptr->tryExecute_f();
         }
@@ -266,22 +281,36 @@ void actonDataHub_c::verifyExecutionFinished_f(action_c* actionPtr_par)
     bool somethingKilledTmp(false);
     for (action_c* action_ite_ptr : actionsToRun_pri)
     {
+//#ifdef DEBUGJOUVEN
+//        if (action_ite_ptr->actionDataExecutionResult_ptr_f() == nullptr)
+//        {
+//            qDebug() << "action_ite_ptr->actionDataExecutionResult_ptr_f() == nullptr " << endl;
+//        }
+//#endif
         if (not action_ite_ptr->actionDataExecutionResult_ptr_f()->finished_f())
         {
             allFinishedTmp = false;
             break;
         }
-        if (action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stoppedByUser)
+        if (action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stopped)
         {
             somethingStoppedTmp = true;
         }
-        if (action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::killedByUser)
+        if (action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::killed)
         {
             somethingKilledTmp = true;
         }
     }
     while (true)
     {
+        if (actionPtr_par->repeatExecution_f()
+            and not stopWhenCurrentExecutionCycleFinishes_pri
+            and not stoppingActionsExecution_pri)
+        {
+            actionPtr_par->tryExecute_f();
+            allFinishedTmp = false;
+        }
+
         if (allFinishedTmp)
         {
             MACRO_ADDACTONQTSOLOG("All actions finished executing", logItem_c::type_ec::info);
@@ -300,7 +329,7 @@ void actonDataHub_c::verifyExecutionFinished_f(action_c* actionPtr_par)
                 {
                     MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were stopped", logItem_c::type_ec::info);
                     actionsExecutionStopped_pri = true;
-                    proxyQObj_pri->actionsExecutionStopped_signal();
+                    Q_EMIT actionsExecutionStopped_signal();
                 }
             }
 
@@ -312,34 +341,50 @@ void actonDataHub_c::verifyExecutionFinished_f(action_c* actionPtr_par)
                 {
                     MACRO_ADDACTONQTSOLOG("Execution finished, one or more actions were killed", logItem_c::type_ec::info);
                     actionsExecutionKilled_pri = true;
-                    proxyQObj_pri->actionsExecutionKilled_signal();
+                    Q_EMIT actionsExecutionKilled_signal();
                 }
             }
 
             executingActions_pri = false;
             actionsExecutionFinished_pri = true;
-            proxyQObj_pri->actionsExecutionFinished_signal(actionsToRun_pri);
+            Q_EMIT actionsExecutionFinished_signal(actionsToRun_pri);
 
             if (not actionsExecutionKilled_pri and not actionsExecutionStopped_pri)
             {
+                {
+                    text_c textTmp("Execution finished, stop on this execution cycle: {0}", QSTRINGBOOL(stopWhenCurrentExecutionCycleFinishes_pri));
+                    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+                }
                 //niche case, if the last action "errors", all actions have finished and they can't be stopped,
                 //but if that action stopExecutionOnError_f is true, loopExecution can't happen either
-                if (actionPtr_par->stopExecutionOnError_f() and not actionPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
+                //so overall actions execution can't be stopped but also it can't be looped
+                //it's the "else" case from "if (allFinishedTmp)" but without doing "tryStopExecutingActions_f();"
+                if (actionPtr_par->stopAllExecutionOnError_f() and not actionPtr_par->actionDataExecutionResult_ptr_f()->errors_f().empty_f())
                 {
-                    stopOnThisLoopEnd_pri = true;
+                    stopWhenCurrentExecutionCycleFinishes_pri = true;
                 }
-                if (executionOptions_pri.loopExecution_f() and not stopOnThisLoopEnd_pri)
+                if ((executionOptions_pri.executionLoopType_f() == executionOptions_c::executionLoopType_ec::forever
+                    or (executionOptions_pri.executionLoopType_f() == executionOptions_c::executionLoopType_ec::loopXTimes
+                        and executionLoopCount_pri < executionOptions_f().loopXTimesCount_f()))
+                    and not stopWhenCurrentExecutionCycleFinishes_pri)
                 {
-                    MACRO_ADDACTONQTSOLOG("Execution finished, looping execution", logItem_c::type_ec::info);
+                    executionLoopCount_pri = executionLoopCount_pri + 1;
+                    text_c textTmp("Execution finished, looping execution, loop number {0}", executionLoopCount_pri);
+                    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
                     executeActions_f(true);
                 }
-                stopOnThisLoopEnd_pri = false;
+                if (stopWhenCurrentExecutionCycleFinishes_pri)
+                {
+                    stopWhenCurrentExecutionCycleFinishes_pri = false;
+                }
             }
         }
         else
         {
-            if (actionPtr_par->stopExecutionOnError_f()
-                and not actionPtr_par->actionDataExecutionResult_ptr_f()->error_f().isEmpty())
+            //if the action has the option stop the execution on error
+            //and it has errors stop the execution
+            if (actionPtr_par->stopAllExecutionOnError_f()
+                and not actionPtr_par->actionDataExecutionResult_ptr_f()->errors_f().empty_f())
             {
                 tryStopExecutingActions_f();
             }
@@ -358,7 +403,7 @@ void actonDataHub_c::killingStarted_f()
     {
         MACRO_ADDACTONQTSOLOG("Killing execution", logItem_c::type_ec::info);
         killingActionsExecution_pri = true;
-        proxyQObj_pri->killingActionsExecution_signal();
+        Q_EMIT killingActionsExecution_signal();
     }
 }
 
@@ -367,8 +412,9 @@ void actonDataHub_c::tryStopExecutingActions_f(const bool killAfterTimeout_par_c
     if (executingActions_pri)
     {
         stoppingActionsExecution_pri = true;
-        proxyQObj_pri->stoppingActionsExecution_signal();
-        //MACRO_ADDACTONQTSOLOG("Stopping " + QString::number(actionsToRun_pri.size()) + " actions", logItem_c::type_ec::debug);
+        Q_EMIT stoppingActionsExecution_signal();
+        text_c textTmp("Stopping {0} actions", actionsToRun_pri.size());
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
         for (action_c* action_ite_ptr : actionsToRun_pri)
         {
             action_ite_ptr->tryStopExecution_f(killAfterTimeout_par_con);
@@ -380,9 +426,9 @@ void actonDataHub_c::tryStopExecutingActions_f(const bool killAfterTimeout_par_c
     }
 }
 
-void actonDataHub_c::stopWhenLoopFinished_f()
+void actonDataHub_c::stopWhenCurrentExecutionCycleFinishes_f()
 {
-    stopOnThisLoopEnd_pri = true;
+    stopWhenCurrentExecutionCycleFinishes_pri = true;
 }
 
 void actonDataHub_c::tryResumeActionsExecution_f()
@@ -395,7 +441,7 @@ void actonDataHub_c::tryResumeActionsExecution_f()
         bool stateSetTmp(false);
         for (action_c* action_ite_ptr : actionsToRun_pri)
         {
-            if (action_ite_ptr->actionDataExecutionResult_ptr_f() not_eq nullptr and action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stoppedByUser)
+            if (action_ite_ptr->actionDataExecutionResult_ptr_f() not_eq nullptr and action_ite_ptr->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::stopped)
             {
                 action_ite_ptr->tryExecute_f();
                 if (not stateSetTmp)
@@ -403,7 +449,7 @@ void actonDataHub_c::tryResumeActionsExecution_f()
                     MACRO_ADDACTONQTSOLOG("An action resumed", logItem_c::type_ec::info);
                     stateSetTmp = true;
                     executingActions_pri = true;
-                    proxyQObj_pri->actionsExecutionStarted_signal();
+                    Q_EMIT actionsExecutionStarted_signal();
                 }
             }
         }
@@ -457,7 +503,8 @@ QString actonDataHub_c::actionStringIdExecutingChecks_f() const
     {
         if (actionIdObjectPair_ite_con.second->checkDataHub_f().executingChecks_f())
         {
-            MACRO_ADDACTONQTSOLOG("An action is executing checks, action stringId: " + actionIdObjectPair_ite_con.second->stringId_f(), logItem_c::type_ec::debug);
+            text_c textTmp("An action is executing checks, action stringId: ", actionIdObjectPair_ite_con.second->stringId_f());
+            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
             resultTmp = actionIdObjectPair_ite_con.second->stringId_f();
             break;
         }
@@ -475,11 +522,6 @@ bool actonDataHub_c::actionsExecutionStopped_f() const
     return actionsExecutionStopped_pri;
 }
 
-actonDataHubProxyQObj_c* actonDataHub_c::proxyQObj_f() const
-{
-    return proxyQObj_pri;
-}
-
 int_fast32_t actonDataHub_c::updateStringIdDependencies_f(
         const QString& newStringId_par_con
         , const QString& oldStringId_par_con)
@@ -487,7 +529,7 @@ int_fast32_t actonDataHub_c::updateStringIdDependencies_f(
     int_fast32_t updateCountTmp(0);
     if (executingActions_pri)
     {
-        //don't while executing
+        //don't update stringId dependencies while executing
     }
     else
     {
@@ -495,7 +537,8 @@ int_fast32_t actonDataHub_c::updateStringIdDependencies_f(
         {
             updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
         }
-        MACRO_ADDACTONQTSOLOG("Updated " + QString::number(updateCountTmp) + " checks with action stringId dependencies", logItem_c::type_ec::debug);
+        text_c textTmp("Updated {0} action/checks with action stringId dependencies", updateCountTmp);
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     }
     return updateCountTmp;
 }
@@ -511,7 +554,8 @@ bool actonDataHub_c::hasStringIdAnyDependency_f(const QString& stringId_par_con)
             break;
         }
     }
-    MACRO_ADDACTONQTSOLOG("Action stringId " + stringId_par_con + " has dependencies: " + QSTRINGBOOL(resultTmp), logItem_c::type_ec::debug);
+    text_c textTmp("Action stringId {0} has dependencies: ", stringId_par_con, QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -528,9 +572,11 @@ int_fast32_t actonDataHub_c::updateStringTriggerDependencies_f(
     {
         for (std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite : actionDataIdToActionPtrUMap_pri)
         {
+            //TODO modify-replace possible stringtrigger use in string fields in action/checks (and derived)
             updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
         }
-        MACRO_ADDACTONQTSOLOG("Updated " + QString::number(updateCountTmp) + " checks with action key string parser dependencies", logItem_c::type_ec::debug);
+        text_c textTmp("Updated {0} checks with action key string parser dependencies", updateCountTmp);
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     }
     return updateCountTmp;
 }
@@ -550,7 +596,8 @@ bool actonDataHub_c::hasStringTriggerAnyDependency_f(const QString& stringTrigge
             break;
         }
     }
-    MACRO_ADDACTONQTSOLOG("Action key string parser " + stringTrigger_par_con + " has dependencies: " + QSTRINGBOOL(resultTmp), logItem_c::type_ec::debug);
+    text_c textTmp("Action key string parser {0} has dependencies: {1}", stringTrigger_par_con, QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -565,13 +612,19 @@ std::vector<QString> actonDataHub_c::stringTriggersInUseByActionsOrChecks_f() co
     return resultTmp;
 }
 
-actonDataHub_c::actonDataHub_c()
-    : proxyQObj_pri(new actonDataHubProxyQObj_c)
+actonDataHub_c::actonDataHub_c(QObject* parent_par)
+    : QObject(parent_par)
 {
+    //20191221 since recent changes actonHub_c can be declared more than once
+    //comparing two actonDataHub_c json serializations, from two objects, to check if there has been changes
+    //anyway checking qRegisterMetaType it seems that Qt checks if a metatype is already declared, so it shouldn't? matter
+    //if actonDataHub_c ctor is called more than once
     //qRegisterMetaType<action_c*>("action_c*");
     //qRegisterMetaType<check_c*>("check_c*");
     qRegisterMetaType<actionExecutionState_ec>("actionExecutionState_ec");
     qRegisterMetaType<checkExecutionState_ec>("checkExecutionState_ec");
+    qRegisterMetaType<text_c>("text_c");
+    qRegisterMetaType<textCompilation_c>("textCompilation_c");
 }
 
 bool actonDataHub_c::validRow_f(const int row_par_con) const
@@ -587,23 +640,29 @@ bool actonDataHub_c::validStringId_f(const QString& actionDataStringId_par_con) 
 
 bool actonDataHub_c::insertActionData_f(
         action_c* const actionPtr_par
-        , const int row_par_con)
+        , const int row_par_con
+        , textCompilation_c* errorsPtr_par)
 {
     bool resultTmp(false);
     while (true)
     {
         if (executingActions_pri)
         {
+            APPENDTEXTPTR(errorsPtr_par, "Can't insert action while executing")
             break;
         }
 
         if (not validRow_f(row_par_con))
         {
+            text_c errorTextTmp("Row {0} to insert action is not valid", row_par_con);
+            APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
             break;
         }
 
         if (not validStringId_f(actionPtr_par->stringId_f()))
         {
+            text_c errorTextTmp("Action stringId \"{0}\" is not valid (empty or already in use)", actionPtr_par->stringId_f());
+            APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
             break;
         }
 
@@ -626,42 +685,48 @@ bool actonDataHub_c::insertActionData_f(
         //"else"
         //new row goes in between existing ones (moving them one position and replacing one)
         //create a row at the end and move all the rows before one index
-        auto lastRowIndexTmp(size_f());
+        auto newLastRowIndexTmp(size_f());
         {
-            //get the previous to last
-            auto movedActionIdTmp(rowToActionDataId_pri.at(lastRowIndexTmp - 1));
-            //insert the actionId from the previous to last into the last
-            rowToActionDataId_pri.emplace(lastRowIndexTmp, movedActionIdTmp);
-            //update the actionId - row mapping
-            actionDataIdToRow_pri.at(movedActionIdTmp) = lastRowIndexTmp;
+            //get the current last row actionId
+            auto movedActionIdTmp(rowToActionDataId_pri.at(newLastRowIndexTmp - 1));
 
-            lastRowIndexTmp = lastRowIndexTmp - 1;
+            //insert this actionId into a new last row (to make space for the new row that will go in-between)
+            rowToActionDataId_pri.emplace(newLastRowIndexTmp, movedActionIdTmp);
+
+            //update the actionId - row mapping
+            actionDataIdToRow_pri.at(movedActionIdTmp) = newLastRowIndexTmp;
+            //decrease the index (to deal with the previous to last)
+            newLastRowIndexTmp = newLastRowIndexTmp - 1;
         }
-        //move all the rows from the last to the target row, to row+1 (to make space for the new one)
-        while (row_par_con < lastRowIndexTmp)
+        //move all the rows from the previous to last row to the target row, to row+1 (to leave space for the new one)
+        while (row_par_con < newLastRowIndexTmp)
         {
             //qInfo() << "newRowIndexTmp " << newRowIndexTmp << endl;
             //qInfo() << "row_par_con " << row_par_con << endl;
             //get the actionId of the previous row
-            auto movedActionIdTmp(rowToActionDataId_pri.at(lastRowIndexTmp - 1));
+            auto movedActionIdTmp(rowToActionDataId_pri.at(newLastRowIndexTmp - 1));
             //move the mappings to "row+1"
             //insert the actionId to the next row
-            rowToActionDataId_pri.at(lastRowIndexTmp) = movedActionIdTmp;
+            rowToActionDataId_pri.at(newLastRowIndexTmp) = movedActionIdTmp;
             //update the actionId - row mapping with the next row
-            actionDataIdToRow_pri.at(movedActionIdTmp) = lastRowIndexTmp;
+            actionDataIdToRow_pri.at(movedActionIdTmp) = newLastRowIndexTmp;
 
-            lastRowIndexTmp = lastRowIndexTmp - 1;
+            newLastRowIndexTmp = newLastRowIndexTmp - 1;
         }
 
         //since all the rows (mappings), target and below, have been moved, it's only necessary to insert
         //the new mapping in the desired row
         actionDataIdToRow_pri.emplace(actionPtr_par->id_f(), row_par_con);
         rowToActionDataId_pri.at(row_par_con) = actionPtr_par->id_f();
+        //this way there is no need to delete all the action/checks on the destruction of the actonHub_c object
+        actionPtr_par->setParent(this);
         resultTmp = true;
 
+        QObject::connect(actionPtr_par, &action_c::actionStringIdChanged_signal, this, &actonDataHub_c::updateStringIdDependencies_f, Qt::UniqueConnection);
         break;
     }
-    MACRO_ADDACTONQTSOLOG("Action inserted? " + QSTRINGBOOL(resultTmp), logItem_c::type_ec::debug);
+    text_c textTmp("Action inserted? {0}", QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -717,7 +782,18 @@ int_fast32_t actonDataHub_c::size_f() const
 
 action_c* actonDataHub_c::action_ptr_f(const int_fast64_t actionDataId_par_con)
 {
-    action_c* actionTmp_ptr(Q_NULLPTR);
+    action_c* actionTmp_ptr(nullptr);
+    auto findResult(actionDataIdToActionPtrUMap_pri.find(actionDataId_par_con));
+    if (findResult not_eq actionDataIdToActionPtrUMap_pri.end())
+    {
+        actionTmp_ptr = findResult->second;
+    }
+    return actionTmp_ptr;
+}
+
+action_c*actonDataHub_c::action_ptr_f(const int_fast64_t actionDataId_par_con) const
+{
+    action_c* actionTmp_ptr(nullptr);
     auto findResult(actionDataIdToActionPtrUMap_pri.find(actionDataId_par_con));
     if (findResult not_eq actionDataIdToActionPtrUMap_pri.end())
     {
@@ -728,13 +804,18 @@ action_c* actonDataHub_c::action_ptr_f(const int_fast64_t actionDataId_par_con)
 
 void actonDataHub_c::clearAllActionData_f()
 {
-    MACRO_ADDACTONQTSOLOG("Clear all actionDataHub data, executing actions? " + QSTRINGBOOL(executingActions_pri), logItem_c::type_ec::debug);
+    text_c textTmp("Clear all actionDataHub data, executing actions? {0}", QSTRINGBOOL(executingActions_pri));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     if (executingActions_pri)
     {
     }
     else
     {
-
+        //delete the action objects first, then clear the containers
+        for (std::pair<const int_fast64_t, action_c*>& pair_ite : actionDataIdToActionPtrUMap_pri)
+        {
+            pair_ite.second->deleteLater();
+        }
         actionsExecutionFinished_pri = false;
         stoppingActionsExecution_pri = false;
         actionsExecutionStopped_pri = false;
@@ -745,7 +826,10 @@ void actonDataHub_c::clearAllActionData_f()
         rowToActionDataId_pri.clear();
         actionDataIdToActionPtrUMap_pri.clear();
         actionDataStringIdToActionDataId_pri.clear();
-        executionOptions_pri.stringParserMap_f()->clear_f();
+        if (executionOptions_pri.stringParserMap_f() not_eq nullptr)
+        {
+            executionOptions_pri.stringParserMap_f()->clear_f();
+        }
     }
 }
 
@@ -864,7 +948,8 @@ bool actonDataHub_c::removeActionDataUsingRow_f(
 
         break;
     }
-    MACRO_ADDACTONQTSOLOG("Action in row " + QString::number(row_par_con) + " removed: " + QSTRINGBOOL(resultTmp), logItem_c::type_ec::debug);
+    text_c textTmp("Action in row {0} removed: {1}", row_par_con, QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -880,7 +965,7 @@ bool actonDataHub_c::removeActionDataUsingId_f(const int_fast64_t actionDataId_p
 }
 
 bool actonDataHub_c::addLogMessage_f(
-        const QString& message_par_con
+        const text_c& message_par_con
         , const logItem_c::type_ec logType_par_con
         , const QString& sourceFile_par_con
         , const QString& sourceFunction_par_con
@@ -893,6 +978,18 @@ bool actonDataHub_c::addLogMessage_f(
         resultTmp = logDataHub_pri->addMessage_f(message_par_con, logType_par_con, sourceFile_par_con, sourceFunction_par_con, line_par_con);
     }
     return resultTmp;
+}
+
+bool actonDataHub_c::areActionsValid_f(textCompilation_c* errors_par) const
+{
+    bool areValidTmp(true);
+    for (unsigned int i = 0; i < rowToActionDataId_pri.size(); ++i)
+    {
+         auto actionDataIdTmp(rowToActionDataId_pri.at(i));
+         action_c* const actionPtrTmp_con(action_ptr_f(actionDataIdTmp));
+         areValidTmp = areValidTmp and actionPtrTmp_con->isFieldsActionValid_f(errors_par);
+    }
+    return areValidTmp;
 }
 
 actonDataHub_c* actonDataHub_ptr_ext = nullptr;

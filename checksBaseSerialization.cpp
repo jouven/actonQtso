@@ -3,6 +3,7 @@
 #include "checkData.hpp"
 #include "checksDataHub.hpp"
 #include "checkMappings/checkStrMapping.hpp"
+#include "actonDataHub.hpp"
 
 #include <QJsonObject>
 #include <QJsonArray>
@@ -41,7 +42,9 @@ void copyFromChecksDataHubAndSerialize_f(
 void deserializeAndCopyToChecksDataHub_f(
         const QJsonObject& json_par_con
         , checksDataHub_c& checkDataHub_par_ref
-)
+        , const bool loadOnlyValid_par_con
+        //error text compilation to know why and which objects aren't valid
+        , textCompilation_c* errors_par)
 {
     if (json_par_con["checks"].isUndefined())
     {
@@ -54,13 +57,28 @@ void deserializeAndCopyToChecksDataHub_f(
         for (const auto& item_ite_con : arrayTmp)
         {
             QJsonObject checkDataJsonObject(item_ite_con.toObject());
-            checkType_ec checkTypeTmp(strToCheckTypeMap_glo_sta_con.value(checkDataJsonObject["type"].toString().toLower()));
+            checkType_ec checkTypeTmp(strToCheckTypeMap_ext_con.value(checkDataJsonObject["type"].toString().toLower()));
 
             check_c* checkDataPtrTmp(check_c::readCreateDerived_f(checkTypeTmp));
             if (checkDataPtrTmp not_eq nullptr)
             {
                 checkDataPtrTmp->read_f(checkDataJsonObject);
-                checkVectorTmp.emplace_back(checkDataPtrTmp);
+                if (loadOnlyValid_par_con)
+                {
+                    if (checkDataPtrTmp->isFieldsCheckValid_f(errors_par))
+                    {
+                        checkVectorTmp.emplace_back(checkDataPtrTmp);
+                    }
+                }
+                else
+                {
+                    checkVectorTmp.emplace_back(checkDataPtrTmp);
+                }
+            }
+            else
+            {
+                text_c deserializeErrorTmp("Failed to deserialize check JSON: type {0} description {1}", checkDataJsonObject["type"].toString().toLower(), checkDataJsonObject["description"].toString().toLower());
+                MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
             }
         }
 

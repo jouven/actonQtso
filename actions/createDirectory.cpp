@@ -4,6 +4,8 @@
 #include "../actionMappings/actionStrMapping.hpp"
 #include "../actonDataHub.hpp"
 
+#include "essentialQtso/macros.hpp"
+#include "textQtso/text.hpp"
 #include "stringParserMapQtso/stringParserMap.hpp"
 
 #include <QJsonObject>
@@ -43,6 +45,35 @@ void createDirectoryData_c::setErrorIfExists_f(const bool errorIfExists_par_con)
     errorIfExists_pro = errorIfExists_par_con;
 }
 
+
+bool createDirectoryData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
+{
+    bool resultTmp(false);
+    while (true)
+    {
+        text_c errorTextTmp;
+        if (isValidStringSize_f(directoryPathParsed_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
+        {
+            //it's valid
+        }
+        else
+        {
+            APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+            break;
+        }
+        if (directoryPath_pro.isEmpty())
+        {
+            APPENDTEXTPTR(errorsPtr_par, "Directory path is empty")
+            break;
+        }
+
+        resultTmp = true;
+        break;
+    }
+    return resultTmp;
+}
+
+
 createDirectoryData_c::createDirectoryData_c(
         const QString& directoryPath_par_con
         , const bool createParents_par_con
@@ -62,8 +93,19 @@ void createDirectoryAction_c::derivedWrite_f(QJsonObject& json_par) const
 void createDirectoryAction_c::derivedRead_f(const QJsonObject& json_par_con)
 {
     directoryPath_pro = json_par_con["directoryPath"].toString();
-    createParents_pro = json_par_con["createParents"].toBool();
-    errorIfExists_pro = json_par_con["errorIfExists"].toBool();
+    if (json_par_con["createParents"].isBool())
+    {
+        createParents_pro = json_par_con["createParents"].toBool();
+    }
+    if (json_par_con["errorIfExists"].isBool())
+    {
+        errorIfExists_pro = json_par_con["errorIfExists"].toBool();
+    }
+}
+
+bool createDirectoryAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) const
+{
+    return isFieldsDataValid_f(errors_par);
 }
 
 action_c* createDirectoryAction_c::derivedClone_f() const
@@ -86,7 +128,7 @@ actionType_ec createDirectoryAction_c::type_f() const
 
 QString createDirectoryAction_c::typeStr_f() const
 {
-    return actionTypeToStrUMap_ext_con.at(actionType_ec::createDirectory);
+    return actionTypeToStrUMap_ext_con.at(type_f());
 }
 
 createDirectoryAction_c::createDirectoryAction_c(
@@ -95,5 +137,10 @@ createDirectoryAction_c::createDirectoryAction_c(
     : action_c(actionData_par_con)
     , createDirectoryData_c(createDirectoryData_par_con)
 {
+}
+
+void createDirectoryAction_c::updateCreateDirectoryData_f(const createDirectoryData_c& createDirectoryData_par_con)
+{
+    this->createDirectoryData_c::operator=(createDirectoryData_par_con);
 }
 

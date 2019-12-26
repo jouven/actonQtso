@@ -7,6 +7,9 @@
 
 class checkSameFile_c;
 class copyFileAction_c;
+class textCompilation_c;
+class directoryFilter_c;
+
 class QFileInfo;
 
 class copyFileActionExecution_c : public baseActionExecution_c
@@ -20,28 +23,38 @@ class copyFileActionExecution_c : public baseActionExecution_c
     copyFileAction_c* const copyFileActionPtr_pri = nullptr;
 
     QMutex checkSameFileMutex_pri;
+    QMutex directoryFilteringMutex_pri;
+    directoryFilter_c* directoryFilterPtr_pri = nullptr;
     checkSameFile_c* checkSameFile_ptr = nullptr;
     int_fast64_t diffPos_pri = 0;
 
+
+    void executeSinglePath_f(const QString& path_par_con, textCompilation_c* errorsPtr_par = nullptr);
     bool sameFile_f(const QString& source_par_con, const QString& destination_par_con);
 
     void prepareCopyFile_f(
             const QFileInfo& sourceFileInfo_par_con
             , const QFileInfo& destinationFileInfo_par_con
-            , QString* errorStrPtr_par = nullptr
+            , textCompilation_c* errorsPtr_par = nullptr
     );
     void blockMove_f(
             const QString& source_par_con
             , const QString& destination_par_con
-            , QString* errorStrPtr_par = nullptr
+            , textCompilation_c* errorsPtr_par = nullptr
+    );
+    void blockMoveFiles_f(
+            const QString& source_par_con
+            , const QString& destination_par_con
+            , textCompilation_c* errorsPtr_par = nullptr
     );
     void blockCopy_f(
             const QString& source_par_con
             , const QString& destination_par_con
-            , QString* errorStrPtr_par = nullptr
+            , textCompilation_c* errorsPtr_par = nullptr
     );
 
     bool pleaseStop_pri = false;
+
 protected:
     void derivedExecute_f() override;
 

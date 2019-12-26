@@ -18,15 +18,13 @@
 
 #include <vector>
 
-//TODO implement a field widget that has field name, source (combo), and field value
-//i.e: directory to create: (field name), from action result/manual input (source), action unique id/"/home/jouven/test" (value)
-
 //FUTURE make description optional, for each action create a description function that can be used some generic description
 //that use values of that specific action as a "description"
 
 class actionDataExecutionResult_c;
 class baseActionExecution_c;
 class QJsonObject;
+class textCompilation_c;
 
 //this class is a split from actionData_c to make it easier for the
 //classes inheriting from actionData_c to ctor the base class
@@ -34,21 +32,18 @@ class QJsonObject;
 class EXPIMP_ACTONQTSO actionData_c
 {
 protected:
-    //the id is a, fast, means to map the row position with the actionData
-    int_fast64_t id_pro = 0;
+
+    //FUTURE? make stringIdParsed_f? (when I make more meta actions)
     //can't be empty and should/must be unique (actionDataHub_c checks this)
     QString stringId_pro;
 
     QString description_pro;
 
-    //the following 2 bools, only apply if there are >0 checks
-
+    //TODO? if I add options to the checks in general (in checkDataHub_c?) move this there
     //all the check results should be *logic and* as a final result
-    //otherwise it's *or logic* (one successful check is enough to run the action)
+    //otherwise it's *or logic*: one successful check is enough to run the action
+    //this also means that when the first successful check happens the rest are "stopped"
     bool checkResultLogicAnd_pro = true;
-    //when the above is false and one result is successful but not all the checks
-    //have run finish already executing but don't run any check left (it's not required anyway)
-    bool runAllChecksAnyway_pro = false;
 
     //will ignore execution operations (execute, stop, execution objects, from this obj, will return Q_NULLPTR)
     bool enabled_pro = true;
@@ -58,36 +53,55 @@ protected:
     //20190121 removed the global option (in the executionOptions_c class) and added here
     //to allow more granular control.
     //Stops all the execution when any actions with this option "true" has an error,
-    //otherwise actions with this option "false" won't stop the global execution.
-    //Actions with check type "finishedExecution" might need extra care
-    //because of the option "failCheckOnNotSuccessfulActionFinish"
+    //actions with this option "false" won't stop the global execution.
     bool stopAllExecutionOnError_pro = true;
 
-    checksDataHub_c checkDataHub_pro;
+    //this implies:
+    //1 this action will keep being launched again after it finishes
+    //2 this action ignores "execution options" loop setting
+    //3 this action checks can be tricky, like actionFinished,
+    //  this check can get multiple success/s from an action which finished just once (which migth execute again but other stuff has to happen first)
+    //4 this action can only be stopped
+    //5 a "normal" the execution cycle will never end (because this action will keep it going)
+    bool repeatExecution_pro = false;
+
+    //actionData_c(actionData_c const&) = default;
+    //prevent public assignments
+    actionData_c& operator=(actionData_c const &) = default;
+    actionData_c& operator=(actionData_c&) = default;
+    actionData_c& operator=(actionData_c&&) = default;
 
 public:
+    //declaring move ctor/operators removes non-explicit default copy ctors
+    //see https://stackoverflow.com/questions/11255027
+    //so... explicit them
+    actionData_c(actionData_c const&) = default;
+    actionData_c(actionData_c&) = default;
 
-    //checkDataHub_pri will have no parent (=nullptr)
-    //just to make actionData_c& source_par_con = actionData_c() work
-    explicit actionData_c();
+    explicit actionData_c() = default;
+
+    //20191030 this below doesn't apply anymore since checkDataHub_pri has been moved to action_c
+    //now this class use default ctors (before actionData_c default ctor was manual i.e. explicit actionData_c();)
+
     //explanation time
     //why is this here? TLDR for derived classes
     //this class is inherited from an abstract class, the abstract class can't be ctored
-    //what is ctored are the the derived classes,
+    //what are ctored are the the derived classes,
     //so to not increase the derived classes ctor this is done
     //the variables here are the DATA part of what would/should? be in the abstract class
-    explicit actionData_c(action_c* actionPtr_par, const actionData_c& source_par_con = actionData_c());
-    //this is to ctor this object alone, checkDataHub_pri will have no parent (=nullptr)
-    //checkDataHub_pri parent type is action_c (not actionData_c)
+    //explicit actionData_c(const actionData_c& source_par_con);
+
     explicit actionData_c(
             const QString& stringId_par_con
             , const QString& description_par_con
             , const bool checkResultLogicAnd_par_con
-            , const bool runAllChecksAnyway_par_con
             , const bool enabled_par_con
             , const bool checksEnabled_par_con
             , const bool stopAllExecutionOnError_par_con
+            , const bool repeatExecution_par_con
     );
+
+    bool isFieldsActionDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
 
 //an action or actionData is:
@@ -99,19 +113,34 @@ public:
 //an action can have multiple checks
 class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public eines::baseClassQt_c
 {
-    //it's a baseActionExecution_c (base class) because every execution object
-    //has a different class but all have baseActionExecution_c as base and using the action type
-    //it's possible to cast to the different execution classes or use virtual functions
+    Q_OBJECT
+
+    //the id is a, fast, means to map the row position with the action
+    int_fast64_t id_pri = 0;
+
+    //DATA
+    checksDataHub_c checkDataHub_pri;
+    //this object can live on the main thread or on a different thread
+
+    //CONTROL
+    //this QObject can live on the main thread or on a different thread
     baseActionExecution_c* actionDataExecution_ptr_pri = nullptr;
+    //this QObject will always live on the main thread
     actionDataExecutionResult_c* actionDataExecutionResult_ptr_pri = nullptr;
+
+    bool lastCheckLogicResult_pri = false;
+    bool lastCheckLogicResultSet_pri = false;
 
     void clearExecutionResults_f() const;
 
     void deleteActionDataExecutionObject_f();
     void deleteActionDataExecutionResultObject_f();
 
+    void deleteExecutionObjects_f();
+    void deleteUsedPtrs_f();
+
     void execute_f();
-    void examineCheckResults_f(std::vector<check_c*> checksRun_par);
+
     void prepareToRunAction_f();
 
     bool isKillingExecutionAfterTimeout_pri = false;
@@ -121,11 +150,13 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
     void kill_f();
 
     bool isEditable_f() const;
-    //use only on sets
+    //use only on set value functions
     bool tryClearResultsOnEdit_f();
 
     virtual void derivedWrite_f(QJsonObject &json_ref_par) const = 0;
     virtual void derivedRead_f(const QJsonObject &json_par_con) = 0;
+    //to be able to call isFieldsDataValid_f (from each derived class base "data" class, i.e. copyFileData_c::isFieldsDataValid_f) from action_c
+    virtual bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const = 0;
 
     virtual action_c* derivedClone_f() const = 0;
 
@@ -136,8 +167,18 @@ protected:
     explicit action_c(
             const actionData_c& actionData_par_con
     );
+
+    //delete the pointer variables if they aren't nullptr
+    ~action_c();
 public:
-    void read_f(const QJsonObject &json_par_con);
+    void read_f(
+            const QJsonObject &json_par_con
+            //validates the actions objects (and anything nested that can be validated)
+            //and only loads the valid ones in the actonHub object
+            , const bool loadOnlyValid_par_con
+            //error text compilation to know why and which objects aren't valid
+            , textCompilation_c* errors_par = nullptr
+    );
     void write_f(QJsonObject &json_ref_par) const;
 
     virtual actionType_ec type_f() const = 0;
@@ -146,10 +187,12 @@ public:
     int_fast64_t id_f() const;
     QString stringId_f() const;
     QString description_f() const;
+    bool checkResultLogicAnd_f() const;
     bool checksEnabled_f() const;
     bool enabled_f() const;
     //stops all execution if this action has an error
-    bool stopExecutionOnError_f() const;
+    bool stopAllExecutionOnError_f() const;
+    bool repeatExecution_f() const;
 
     checksDataHub_c* checkDataHub_ptr_f();
     const checksDataHub_c& checkDataHub_f() const;
@@ -157,12 +200,16 @@ public:
     bool isStoppingExecution_f() const;
     bool isExecuting_f() const;
     bool killingExecutionAfterTimeout_f() const;
+    bool lastCheckLogicResult_f() const;
+    bool lastCheckLogicResultSet_f() const;
 
     int_fast32_t setStringId_f(const QString& stringId_par_con, const bool updateFieldsThatUsedOldValue_par_con = false);
     void setDescription_f(const QString& description_par_con);
+    void setCheckResultLogicAnd_f(const bool checkResultLogicAnd_par_con);
     void setChecksEnabled_f(const bool checksEnabled_par_con);
     void setEnabled_f(const bool enabled_par_con);
-    void setStopExecutionOnError_f(const bool stopExecutionOnError_par_con);
+    void setStopAllExecutionOnError_f(const bool stopAllExecutionOnError_par_con);
+    void setRepeatExecution_f(const bool repeatExecution_par_con);
 
     //WARNING actionDataHub_c (datahub_f) has an execute function too, executeActionDataRows_f
     //Use that call if the Action is in the datahub, only call this if the action is in the "void"
@@ -190,10 +237,20 @@ public:
     //although the return value is a vector, it will only contain unique strings
     std::vector<QString> stringTriggersInUse_f() const;
 
-    //can return nullptr, if the json type doesn't match anything expected
     static action_c* readCreateDerived_f(const actionType_ec actionType_par_con);
     //aka the copy ctor alternative for polymorphic classes
     action_c* clone_f() const;
+
+    bool isFieldsActionValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
+
+    void updateActionData_f(const actionData_c& actionData_par_con);
+
+Q_SIGNALS:
+    void actionStringIdChanged_signal(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
+private Q_SLOTS:
+    void setExecutionStateExecutingChecks_f();
+    void examineCheckResults_f(const bool result_par_con);
+    void setActionDataExecutionNull_f();
 };
 
 #endif // ACTONQTSO_ACTIONDATA_HPP

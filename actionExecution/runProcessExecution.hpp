@@ -48,7 +48,7 @@ Q_SIGNALS:
 private Q_SLOTS:
     //slots to catch QProcess signals
     void readError_f(QProcess::ProcessError error_par);
-    void setStarted_f();
+    //void setStarted_f();
     void setFinished_f(int exitCode_par, QProcess::ExitStatus exitStatus_par);
     void readStderr_f();
     void readStdout_f();

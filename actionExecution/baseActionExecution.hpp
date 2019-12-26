@@ -6,6 +6,8 @@
 #include <QObject>
 
 class actionDataExecutionResult_c;
+class text_c;
+class textCompilation_c;
 
 class baseActionExecution_c : public QObject
 {
@@ -46,9 +48,10 @@ public:
 Q_SIGNALS:
     void executionStateChange_signal(const actionExecutionState_ec actionExecutionState_par_con);
     //this action output
-    void addOutput_signal(const QString& output_par_con);
+    void addOutput_signal(const text_c& output_par_con);
     //this action errors
-    void addError_signal(const QString& error_par_con);
+    void addError_signal(const text_c& error_par_con);
+    void addErrors_signal(const textCompilation_c& errors_par_con);
     //when the process "finishes" in any way, error, user stopped/killed, successful
     void anyFinish_signal();
 };

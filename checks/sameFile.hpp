@@ -8,6 +8,7 @@
 #include <QString>
 
 class QJsonObject;
+class textCompilation_c;
 
 //FUTURE buffersize setting
 class EXPIMP_ACTONQTSO sameFileData_c
@@ -17,7 +18,17 @@ protected:
     QString fileAPath_pro;
     QString fileBPath_pro;
 
+    //prevent public assignments
+    sameFileData_c& operator=(sameFileData_c const &) = default;
+    sameFileData_c& operator=(sameFileData_c&) = default;
+    sameFileData_c& operator=(sameFileData_c&&) = default;
 public:
+    //declaring move ctor/operators removes non-explicit default copy ctors
+    //see https://stackoverflow.com/questions/11255027
+    //so... explicit them
+    sameFileData_c(sameFileData_c const&) = default;
+    sameFileData_c(sameFileData_c&) = default;
+
     sameFileData_c() = default;
     sameFileData_c(
             const QString& fileAPath_par_con
@@ -33,13 +44,18 @@ public:
     QString fileBPath_f() const;
     QString fileBPathParsed_f() const;
     void setFileBPath_f(const QString& fileBPath_par_con);
+
+    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
 
 
 class EXPIMP_ACTONQTSO sameFileCheck_c : public check_c, public sameFileData_c
 {
+    Q_OBJECT
+
     void derivedWrite_f(QJsonObject &json_par) const override;
     void derivedRead_f(const QJsonObject &json_par_con) override;
+    bool derivedIsValidCheck_f(textCompilation_c* errors_par = nullptr) const override;
 
     check_c* derivedClone_f() const override;
 
@@ -49,6 +65,8 @@ class EXPIMP_ACTONQTSO sameFileCheck_c : public check_c, public sameFileData_c
 public:
     sameFileCheck_c() = default;
     sameFileCheck_c(const checkData_c& checkData_par_con, const sameFileData_c& sameFile_par_con);
+
+    void updateSameFileData_f(const sameFileData_c& sameFileData_par_con);
 };
 
 #endif // ACTONQTSO_SAMEFILE_HPP

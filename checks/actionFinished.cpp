@@ -5,6 +5,8 @@
 #include "../actonDataHub.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
+#include "textQtso/text.hpp"
+#include "essentialQtso/macros.hpp"
 
 #include <QJsonObject>
 #include <QJsonArray>
@@ -50,15 +52,7 @@ void actionFinishedData_c::setActionStringId_f(const QString& actionStringId_par
     actionStringId_pro = actionStringId_par_con;
 }
 
-bool actionFinishedData_c::failCheckOnNotSuccessfulActionFinish_f() const
-{
-    return failCheckOnNotSuccessfulActionFinish_pro;
-}
 
-void actionFinishedData_c::setFailCheckOnNotSuccessfulActionFinish_f(const bool failCheckOnNotSuccessfulActionFinish_par_con)
-{
-    failCheckOnNotSuccessfulActionFinish_pro = failCheckOnNotSuccessfulActionFinish_par_con;
-}
 
 bool actionFinishedData_c::mapActionResultToStringParserConfig_f(
         const actionFinishedCheck_c::actionExecutionResultFields_ec actionExecutionResultField_par_con
@@ -102,19 +96,88 @@ void actionFinishedData_c::setActionExecutionResultFieldToStringTrigger_f(const 
     actionExecutionResultFieldToStringTrigger_pro = actionExecutionResultFieldToStringTrigger_par_con;
 }
 
+int_fast64_t actionFinishedData_c::finishedCount_f() const
+{
+    return finishedCount_pro;
+}
+
+void actionFinishedData_c::setFinishedCount_f(const int_fast64_t finishedCount_par_con)
+{
+    finishedCount_pro = finishedCount_par_con;
+}
+
+bool actionFinishedData_c::successOnActionSuccess_f() const
+{
+    return successOnActionSuccess_pro;
+}
+
+void actionFinishedData_c::setSuccessOnActionSuccess_f(const bool successOnActionSuccess_par_con)
+{
+    successOnActionSuccess_pro = successOnActionSuccess_par_con;
+}
+
+bool actionFinishedData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
+{
+    bool resultTmp(false);
+    while (true)
+    {
+        if (actionStringIdParsed_f().isEmpty())
+        {
+            APPENDTEXTPTR(errorsPtr_par, "Action stringId is empty")
+            break;
+        }
+        //TODO-FUTURE(see last comment line) there needs to be a hard validation and a soft validation
+        //to deal with dynamic stuff like stringparser results used in a field
+        //before executing a hard validation should be done to check if the chain of parsing
+        //basically all fields that are stringParsed must be gathered and checked for against all possible actionExecutionResultFieldToStringPair_ite_con
+        //and what's inside the stringparser obj
+        //do it as a separate option because it can become pretty heavy?, parsing all the strings and for each one search all the possible string triggers
+
+        if (finishedCount_pro < 0)
+        {
+            text_c errorTextTmp("Wrong finished count value: {0}, value must be between 0 and INT64MAX", finishedCount_pro);
+            APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+            break;
+        }
+
+        bool emptyMappingFoundTmp(false);
+        for (const std::pair<const actionFinishedData_c::actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+        {
+            if (actionExecutionResultFieldToStringPair_ite_con.second.isEmpty())
+            {
+                emptyMappingFoundTmp = true;
+                text_c errorTextTmp("Action execution result field to empty string trigger mapping found: {0}"
+                                    , actionExecutionResultFieldsToStrUMap_sta_con.at(actionExecutionResultFieldToStringPair_ite_con.first));
+                APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
+            }
+        }
+        if (emptyMappingFoundTmp)
+        {
+            break;
+        }
+
+        resultTmp = true;
+        break;
+    }
+    return resultTmp;
+}
+
 actionFinishedData_c::actionFinishedData_c(
         const QString& actionStringId_par_con
-        , const bool failCheckOnNotSuccessfulActionFinish_par_con
+        , const int_fast64_t finishedCount_par_con
+        , const bool successOnActionSuccess_par_con
         , const std::unordered_map<actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringTrigger_par_con)
     : actionStringId_pro(actionStringId_par_con)
-    , failCheckOnNotSuccessfulActionFinish_pro(failCheckOnNotSuccessfulActionFinish_par_con)
+    , finishedCount_pro(finishedCount_par_con)
+    , successOnActionSuccess_pro(successOnActionSuccess_par_con)
     , actionExecutionResultFieldToStringTrigger_pro(actionExecutionResultFieldToStringTrigger_par_con)
 {}
 
 void actionFinishedCheck_c::derivedWrite_f(QJsonObject& json_par) const
 {
     json_par["actionStringId"] = actionStringId_pro;
-    json_par["failCheckOnNotSuccessfulActionFinish"] = failCheckOnNotSuccessfulActionFinish_pro;
+    json_par["finishedCount"] = QString::number(finishedCount_pro);
+    json_par["successOnActionSuccess"] = successOnActionSuccess_pro;
     if (not actionExecutionResultFieldToStringTrigger_pro.empty())
     {
         QJsonArray actionExecutionResultFieldToStringTriggerPairArray;
@@ -131,8 +194,19 @@ void actionFinishedCheck_c::derivedWrite_f(QJsonObject& json_par) const
 
 void actionFinishedCheck_c::derivedRead_f(const QJsonObject& json_par_con)
 {
-    actionStringId_pro = json_par_con["actionStringId"].toString();
-    failCheckOnNotSuccessfulActionFinish_pro = json_par_con["failCheckOnNotSuccessfulActionFinish"].toBool();
+    if (json_par_con["actionStringId"].isString())
+    {
+        actionStringId_pro = json_par_con["actionStringId"].toString();
+    }
+    if (json_par_con["finishedCount"].isString())
+    {
+        finishedCount_pro = json_par_con["finishedCount"].toString().toLongLong();
+    }
+    if (json_par_con["successOnActionSuccess"].isBool())
+    {
+        successOnActionSuccess_pro = json_par_con["successOnActionSuccess"].toBool();
+    }
+
     if (not json_par_con["actionExecutionResultFieldToStringTrigger"].isUndefined())
     {
         QJsonArray pairsTmp(json_par_con["actionExecutionResultFieldToStringTrigger"].toArray());
@@ -149,6 +223,11 @@ void actionFinishedCheck_c::derivedRead_f(const QJsonObject& json_par_con)
             }
         }
     }
+}
+
+bool actionFinishedCheck_c::derivedIsValidCheck_f(textCompilation_c* errors_par) const
+{
+    return isFieldsDataValid_f(errors_par);
 }
 
 check_c* actionFinishedCheck_c::derivedClone_f() const
@@ -174,7 +253,7 @@ checkType_ec actionFinishedCheck_c::type_f() const
 
 QString actionFinishedCheck_c::typeStr_f() const
 {
-    return checkTypeToStrUMap_glo_sta_con.at(checkType_ec::actionFinished);
+    return checkTypeToStrUMap_ext_con.at(type_f());
 }
 
 bool actionFinishedCheck_c::derivedUpdateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
@@ -236,6 +315,32 @@ std::vector<QString> actionFinishedCheck_c::derivedStringTriggersInUse_f() const
         keyStringsTmp.emplace_back(pair_ite_con.second);
     }
     return keyStringsTmp;
+}
+
+void actionFinishedCheck_c::updateActionFinishedData_f(
+        const actionFinishedData_c& actionFinishedData_par_con
+        , actonDataHub_c* actonDataHubPtr_par
+)
+{
+    if (actonDataHubPtr_par not_eq nullptr)
+    {
+        QObject::connect(this
+                         , &actionFinishedCheck_c::stringTriggerChanged_signal
+                         , actonDataHubPtr_par
+                         , &actonDataHub_c::updateStringTriggerDependencies_f
+                         , Qt::UniqueConnection);
+    }
+    std::unordered_map<actionExecutionResultFields_ec, QString> oldTriggerValuesTmp(actionExecutionResultFieldToStringTrigger_pro);
+    this->actionFinishedData_c::operator=(actionFinishedData_par_con);
+    for (const auto& actionResultField_trigger_pair_ite_con : oldTriggerValuesTmp)
+    {
+        const QString newValueTmp(actionExecutionResultFieldToStringTrigger_pro.at(actionResultField_trigger_pair_ite_con.first));
+        const QString oldValueTmp(actionResultField_trigger_pair_ite_con.second);
+        if (newValueTmp not_eq oldValueTmp)
+        {
+            Q_EMIT stringTriggerChanged_signal(newValueTmp, oldValueTmp);
+        }
+    }
 }
 
 

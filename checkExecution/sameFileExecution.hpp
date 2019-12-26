@@ -17,7 +17,6 @@ protected:
     void derivedExecute_f() override;
     void derivedStop_f() override;
 public:
-public:
     sameFileCheckExecution_c() = delete;
     explicit sameFileCheckExecution_c(
             checkDataExecutionResult_c* checkExecutionResultObj_par_con

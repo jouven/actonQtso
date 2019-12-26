@@ -7,6 +7,7 @@
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "essentialQtso/macros.hpp"
 #include "comuso/practicalTemplates.hpp"
+#include "textQtso/text.hpp"
 
 #include <QDir>
 #include <QFileInfo>
@@ -21,6 +22,7 @@ const QMap<QString, copyFileData_c::transferType_ec> copyFileData_c::strToTransf
     {	"copy", copyFileData_c::transferType_ec::copy}
     , {	"move", copyFileData_c::transferType_ec::move}
     , {	"truemove", copyFileData_c::transferType_ec::trueMove}
+    , {	"truemovefiles", copyFileData_c::transferType_ec::trueMoveFiles}
 });
 
 const std::unordered_map<copyFileData_c::transferType_ec, QString> copyFileData_c::transferTypeToStrUMap_sta_con(
@@ -28,7 +30,7 @@ const std::unordered_map<copyFileData_c::transferType_ec, QString> copyFileData_
     {	copyFileData_c::transferType_ec::copy, "copy" }
     , {	copyFileData_c::transferType_ec::move, "move" }
     , {	copyFileData_c::transferType_ec::trueMove, "trueMove" }
-
+    , {	copyFileData_c::transferType_ec::trueMoveFiles, "trueMoveFiles" }
 });
 
 
@@ -38,8 +40,7 @@ const QMap<QString, copyFileData_c::destinationTreatment_ec> copyFileData_c::str
 //there and compare, allowing to ignore case
     {	"overwrite", copyFileData_c::destinationTreatment_ec::overwrite}
     , {	"nooverwrite", copyFileData_c::destinationTreatment_ec::noOverwrite}
-    , {	"trystupidresume", copyFileData_c::destinationTreatment_ec::tryStupidResume}
-    , {	"lazyresume", copyFileData_c::destinationTreatment_ec::lazyResume}
+    , {	"resume", copyFileData_c::destinationTreatment_ec::resume}
     , {	"overwriteiserror", copyFileData_c::destinationTreatment_ec::overwriteIsError}
     , {	"overwriteonlyifdifferent", copyFileData_c::destinationTreatment_ec::overwriteOnlyIfDifferent}
     , {	"overwriteiserroronlyifdifferent", copyFileData_c::destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent}
@@ -49,11 +50,27 @@ const std::unordered_map<copyFileData_c::destinationTreatment_ec, QString> copyF
 {
     {	copyFileData_c::destinationTreatment_ec::overwrite, "overwrite" }
     , {	copyFileData_c::destinationTreatment_ec::noOverwrite, "noOverwrite" }
-    , {	copyFileData_c::destinationTreatment_ec::tryStupidResume, "tryStupidResume" }
-    , {	copyFileData_c::destinationTreatment_ec::lazyResume, "lazyResume" }
+    , {	copyFileData_c::destinationTreatment_ec::resume, "resume" }
     , {	copyFileData_c::destinationTreatment_ec::overwriteIsError, "overwriteIsError" }
     , {	copyFileData_c::destinationTreatment_ec::overwriteOnlyIfDifferent, "overwriteOnlyIfDifferent" }
     , {	copyFileData_c::destinationTreatment_ec::overwriteIsErrorOnlyIfDifferent, "overwriteIsErrorOnlyIfDifferent" }
+});
+
+const QMap<QString, copyFileData_c::resumeType_ec> copyFileData_c::strToResumeTypeMap_sta_con(
+{
+//Keys are lower case because this way when reading from json we can "lower" w/e is
+//there and compare, allowing to ignore case
+    { "transfertypeimplementation", copyFileData_c::resumeType_ec::transferTypeImplementation}
+    , {	"stupid", copyFileData_c::resumeType_ec::stupid}
+    , {	"lazy", copyFileData_c::resumeType_ec::lazy}
+});
+
+const std::unordered_map<copyFileData_c::resumeType_ec, QString> copyFileData_c::resumeTypeToStrUMap_sta_con(
+{
+    {	copyFileData_c::resumeType_ec::transferTypeImplementation, "transferTypeImplementation" }
+    , {	copyFileData_c::resumeType_ec::stupid, "stupid" }
+    , {	copyFileData_c::resumeType_ec::lazy, "lazy" }
+
 });
 
 QString copyFileData_c::sourcePath_f() const
@@ -122,23 +139,25 @@ void copyFileData_c::setCreateDestinationAndParents_f(const bool createDestinati
 }
 
 std::vector<QString> copyFileData_c::testSourceFileList_f(
-        QString* error_ptr
+        const copyFileData_c* const copyFileDataPtr_par
+        , directoryFilter_c*& directoryFilterPtrRef_par
+        , textCompilation_c* errors_ptr
         , QMutex* directoryFilterPtrMutexPtr_par)
 {
     std::vector<QString> resultTmp;
-    while (isValid_f(error_ptr))
+    while (copyFileDataPtr_par->isFieldsDataValid_f(errors_ptr))
     {
         //ignore destination options
-        const QString sourcePathTmp_con(sourcePathParsed_f());
+        const QString sourcePathTmp_con(copyFileDataPtr_par->sourcePathParsed_f());
         if (QFileInfo::exists(sourcePathTmp_con))
         {
             //good
         }
         else
         {
-            if (error_ptr not_eq nullptr)
+            if (errors_ptr not_eq nullptr)
             {
-                error_ptr->append("Source doesn't exist");
+                errors_ptr->append_f({"Source doesn't exist"});
             }
             break;
         }
@@ -147,15 +166,15 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
         if (sourceFileInfoTmp.isDir())
         {
             filterOptions_s filterOptionsTmp;
-            filterOptionsTmp.navigateSubdirectories_pub = navigateSubdirectories_pro;
+            filterOptionsTmp.navigateSubdirectories_pub = copyFileDataPtr_par->navigateSubdirectories_pro;
             filterOptionsTmp.useAbsolutePaths_pub = sourceFileInfoTmp.isAbsolute();
             filterOptionsTmp.listFiles_pub = true;
-            filterOptionsTmp.listHidden_pub = copyHidden_pro;
-            filterOptionsTmp.navigateHiddenDirectories_pub = copyHidden_pro;
+            filterOptionsTmp.listHidden_pub = copyFileDataPtr_par->copyHidden_pro;
+            filterOptionsTmp.navigateHiddenDirectories_pub = copyFileDataPtr_par->copyHidden_pro;
             filterOptionsTmp.listDirectories_pub = false;
-            filterOptionsTmp.filenameRegexFilters_pub = sourceFilenameRegexFiltersParsed_f();
-            filterOptionsTmp.listEmptyDirectories_pub = copyEmptyDirectories_pro;
-            filterOptionsTmp.filenameFullExtensions_pub = sourceFilenameFullExtensionsParsed_f();
+            filterOptionsTmp.filenameRegexFilters_pub = copyFileDataPtr_par->sourceFilenameRegexFiltersParsed_f();
+            filterOptionsTmp.listEmptyDirectories_pub = copyFileDataPtr_par->copyEmptyDirectories_pro;
+            filterOptionsTmp.filenameFullExtensions_pub = copyFileDataPtr_par->sourceFilenameFullExtensionsParsed_f();
 
             directoryFilter_c directoryFilterTmp(sourcePathTmp_con, filterOptionsTmp);
             //the mutex here is to prevent the stop function to conflict
@@ -165,25 +184,25 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
             {
                 {
                     QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-                    directoryFilterPtr_pro = std::addressof(directoryFilterTmp);
+                    directoryFilterPtrRef_par = std::addressof(directoryFilterTmp);
                 }
                 resultTmp = directoryFilterTmp.filter_f();
-                if (error_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
+                if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
                 {
-                    error_ptr->append(directoryFilterTmp.getError_f());
+                    errors_ptr->append_f(directoryFilterTmp.getErrors_f());
                 }
                 {
                     QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-                    directoryFilterPtr_pro = nullptr;
+                    directoryFilterPtrRef_par = nullptr;
                 }
             }
             else
             {
-                directoryFilterPtr_pro = std::addressof(directoryFilterTmp);
+                directoryFilterPtrRef_par = std::addressof(directoryFilterTmp);
                 resultTmp = directoryFilterTmp.filter_f();
-                if (error_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
+                if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
                 {
-                    error_ptr->append(directoryFilterTmp.getError_f());
+                    errors_ptr->append_f(directoryFilterTmp.getErrors_f());
                 }
             }
             break;
@@ -199,24 +218,25 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
     return resultTmp;
 }
 
-void copyFileData_c::stopDirectoryFiltering_f(QMutex* directoryFilterPtrMutexPtr_par)
+void copyFileData_c::stopDirectoryFiltering_f(
+        directoryFilter_c* directoryFilterPtr_par
+        , QMutex* directoryFilterPtrMutexPtr_par)
 {
     if (directoryFilterPtrMutexPtr_par not_eq nullptr)
     {
         QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-        if (directoryFilterPtr_pro not_eq nullptr)
+        if (directoryFilterPtr_par not_eq nullptr)
         {
-            directoryFilterPtr_pro->stopFiltering_f();
+            directoryFilterPtr_par->stopFiltering_f();
         }
     }
     else
     {
-        if (directoryFilterPtr_pro not_eq nullptr)
+        if (directoryFilterPtr_par not_eq nullptr)
         {
-            directoryFilterPtr_pro->stopFiltering_f();
+            directoryFilterPtr_par->stopFiltering_f();
         }
     }
-
 }
 
 bool copyFileData_c::copyHidden_f() const
@@ -314,11 +334,22 @@ void copyFileData_c::setStopAllCopyOnFileCopyError_f(const bool stopAllCopyOnFil
     stopAllCopyOnFileCopyError_pro = stopAllCopyOnFileCopyError_par_con;
 }
 
+copyFileData_c::resumeType_ec copyFileData_c::resumeType_f() const
+{
+    return resumeType_pro;
+}
+
+void copyFileData_c::setResumeType_f(const copyFileData_c::resumeType_ec resumeType_par_con)
+{
+    resumeType_pro = resumeType_par_con;
+}
+
 copyFileData_c::copyFileData_c(
         const QString& sourcePath_par_con
         , const QString& destinationPath_par_con
         , const transferType_ec transferType_par_con
         , const destinationTreatment_ec destinationTreatment_par_con
+        , const resumeType_ec resumeType_par_con
         , const bool copyHidden_par_con
         , const QStringList& sourceFilenameRegexFilters_par_con
         , const QStringList& sourceFilenameFullExtensions_par_con
@@ -333,6 +364,7 @@ copyFileData_c::copyFileData_c(
     , destinationPath_pro(destinationPath_par_con)
     , transferType_pro(transferType_par_con)
     , destinationTreatment_pro(destinationTreatment_par_con)
+    , resumeType_pro(resumeType_par_con)
     , copyHidden_pro(copyHidden_par_con)
     , sourceFilenameRegexFilters_pro(sourceFilenameRegexFilters_par_con)
     , sourceFilenameFullExtensions_pro(sourceFilenameFullExtensions_par_con)
@@ -468,12 +500,18 @@ copyFileAction_c::copyFileAction_c(
 {
 }
 
+void copyFileAction_c::updateCopyFileData_f(const copyFileData_c& copyFileData_par_con)
+{
+    this->copyFileData_c::operator=(copyFileData_par_con);
+}
+
 void copyFileAction_c::derivedWrite_f(QJsonObject& json_par_ref) const
 {
     json_par_ref["sourcePath"] = sourcePath_pro;
     json_par_ref["destinationPath"] = destinationPath_pro;
     json_par_ref["transferType"] = transferTypeToStrUMap_sta_con.at(transferType_pro);
     json_par_ref["destinationTreatment"] = destinationTreatmentToStrUMap_sta_con.at(destinationTreatment_pro);
+    json_par_ref["resumeType"] = resumeTypeToStrUMap_sta_con.at(resumeType_pro);
     json_par_ref["copyHidden"] = copyHidden_pro;
     if (not sourceFilenameRegexFilters_pro.empty())
     {
@@ -502,13 +540,27 @@ void copyFileAction_c::derivedWrite_f(QJsonObject& json_par_ref) const
     json_par_ref["bufferSize"] = QString::number(bufferSize_pro);
 }
 
-void copyFileAction_c::derivedRead_f(const QJsonObject& json_par_con)
+void copyFileAction_c::derivedRead_f(
+        const QJsonObject& json_par_con)
 {
     sourcePath_pro = json_par_con["sourcePath"].toString();
     destinationPath_pro = json_par_con["destinationPath"].toString();
-    transferType_pro = strToTransferTypeMap_sta_con.value(json_par_con["transferType"].toString().toLower());
-    destinationTreatment_pro = strToDestinationTreatmentMap_sta_con.value(json_par_con["destinationTreatment"].toString().toLower());
-    copyHidden_pro = json_par_con["copyHidden"].toBool();
+    if (json_par_con["transferType"].isString())
+    {
+        transferType_pro = strToTransferTypeMap_sta_con.value(json_par_con["transferType"].toString().toLower());
+    }
+    if (json_par_con["destinationTreatment"].isString())
+    {
+        destinationTreatment_pro = strToDestinationTreatmentMap_sta_con.value(json_par_con["destinationTreatment"].toString().toLower(), copyFileAction_c::destinationTreatment_ec::empty);
+    }
+    if (json_par_con["resumeType"].isString())
+    {
+        resumeType_pro = strToResumeTypeMap_sta_con.value(json_par_con["resumeType"].toString().toLower());
+    }
+    if (json_par_con["copyHidden"].isBool())
+    {
+        copyHidden_pro = json_par_con["copyHidden"].toBool();
+    }
     if (not json_par_con["sourceRegexFilters"].isUndefined())
     {
         QJsonArray jsonArraySourceRegexFiltersTmp(json_par_con["sourceRegexFilters"].toArray());
@@ -536,39 +588,44 @@ void copyFileAction_c::derivedRead_f(const QJsonObject& json_par_con)
 
     //all the isbool is to not replace the default value from the class defaults,
     //because toBool() defaults to false when the field is not found or the conversion fails
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["navigateSubdirectories"].isBool())
     {
         navigateSubdirectories_pro = json_par_con["navigateSubdirectories"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["navigateHidden"].isBool())
     {
         navigateHidden_pro = json_par_con["navigateHidden"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["copyEmptyDirectories"].isBool())
     {
         copyEmptyDirectories_pro = json_par_con["copyEmptyDirectories"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["createDestinationAndParents"].isBool())
     {
         createDestinationAndParents_pro = json_par_con["createDestinationAndParents"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["stopAllCopyOnFileCopyError"].isBool())
     {
         stopAllCopyOnFileCopyError_pro = json_par_con["stopAllCopyOnFileCopyError"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isBool())
+    if (json_par_con["noFilesCopiedIsError"].isBool())
     {
         noFilesCopiedIsError_pro = json_par_con["noFilesCopiedIsError"].toBool();
     }
-    if (not json_par_con["navigateSubdirectories"].isUndefined())
+    if (json_par_con["bufferSize"].isString())
     {
         bool goodConversionTmp(false);
         int_fast64_t conversionResultTmp(json_par_con["bufferSize"].toString().toLongLong(std::addressof(goodConversionTmp)));
-        if (goodConversionTmp)
+        if (goodConversionTmp and conversionResultTmp > 0)
         {
             bufferSize_pro = conversionResultTmp;
         }
     }
+}
+
+bool copyFileAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) const
+{
+    return isFieldsDataValid_f(errors_par);
 }
 
 action_c* copyFileAction_c::derivedClone_f() const
@@ -591,34 +648,103 @@ actionType_ec copyFileAction_c::type_f() const
 
 QString copyFileAction_c::typeStr_f() const
 {
-    return actionTypeToStrUMap_ext_con.at(actionType_ec::copyFile);
+    return actionTypeToStrUMap_ext_con.at(type_f());
 }
 
-bool copyFileData_c::isValid_f(QString* errorStrPtr_par) const
+bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
 {
     bool isValidResultTmp(false);
     while (true)
     {
-        if (sourcePath_pro.isEmpty())
+        if (sourcePathParsed_f().contains('\n'))
         {
-            APPENDSTRPTR(errorStrPtr_par, "Source path is empty");
+            QStringList splitStringTmp(sourcePathParsed_f().split('\n', QString::SkipEmptyParts));
+            for (const QString& sourceStr_ite_con : splitStringTmp)
+            {
+                //this one won't happen because skipempty parts
+//                if (sourceStr_ite_con.isEmpty())
+//                {
+//                    APPENDSTRPTR(errorStrPtr_par, "Source path is empty");
+//                    break;
+//                }
+
+                text_c errorTextTmp;
+                if (isValidStringSize_f(sourceStr_ite_con, 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
+                {
+                    //it's valid
+                }
+                else
+                {
+                    APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if (sourcePathParsed_f().isEmpty())
+            {
+                APPENDTEXTPTR(errorsPtr_par, "Source path is empty");
+                break;
+            }
+
+            text_c errorTextTmp;
+            if (isValidStringSize_f(sourcePathParsed_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
+            {
+                //it's valid
+            }
+            else
+            {
+                APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+                break;
+            }
+        }
+
+        if (destinationPathParsed_f().isEmpty())
+        {
+            APPENDTEXTPTR(errorsPtr_par, "Destination path is empty");
             break;
+        }
+
+        if (bufferSize_pro < 1)
+        {
+            text_c errorTextTmp("Wrong buffer value: {0}, value must be between 1 and INT64MAX", bufferSize_pro);
+            APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+            break;
+        }
+
+        {
+            text_c errorTextTmp;
+            if (isValidStringSize_f(destinationPathParsed_f(), 255, std::addressof(errorTextTmp), "Destination path is too long: {0} (maximum length is {1})"))
+            {
+                //it's valid
+            }
+            else
+            {
+                APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
+                break;
+            }
         }
         if (transferType_pro == transferType_ec::empty)
         {
-            APPENDSTRPTR(errorStrPtr_par, "Empty transfer type");
+            APPENDTEXTPTR(errorsPtr_par, "Empty transfer type");
             break;
         }
         if (destinationTreatment_pro == destinationTreatment_ec::empty)
         {
-            APPENDSTRPTR(errorStrPtr_par, "Empty destination treatment");
+            APPENDTEXTPTR(errorsPtr_par, "Empty destination treatment");
             break;
         }
-
         if (transferType_pro == transferType_ec::trueMove
-            and equalOnce_ft(destinationTreatment_pro, destinationTreatment_ec::lazyResume, destinationTreatment_ec::tryStupidResume))
+            and equalOnce_ft(resumeType_pro, resumeType_ec::lazy, resumeType_ec::stupid))
         {
-            APPENDSTRPTR(errorStrPtr_par, R"("True move" is not compatible with any "resume" destination treatment)");
+            APPENDTEXTPTR(errorsPtr_par, R"("True move" is only compatible with "transferTypeImplementation" resume type)");
+            break;
+        }
+        if (transferType_pro == transferType_ec::trueMoveFiles
+            and equalOnce_ft(resumeType_pro, resumeType_ec::lazy, resumeType_ec::stupid))
+        {
+            APPENDTEXTPTR(errorsPtr_par, R"("True move files" is only compatible with "transferTypeImplementation" resume type)");
             break;
         }
 

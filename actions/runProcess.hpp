@@ -12,6 +12,7 @@
 #include <vector>
 
 class QJsonObject;
+class textCompilation_c;
 
 class EXPIMP_ACTONQTSO argument_c
 {
@@ -62,6 +63,7 @@ class EXPIMP_ACTONQTSO runProcessData_c
 protected:
     QString processPath_pro;
     std::vector<argument_c> arguments_pro;
+    //this action type has a working directory because QProcess has the option
     QString workingDirectory_pro;
     //enviroment requires some extra options
 
@@ -72,7 +74,17 @@ protected:
     //keys must be unique
     QHash<QString, environmentPairConfig_c> environmentToAdd_pro;
 
+    //prevent public assignments
+    runProcessData_c& operator=(runProcessData_c const &) = default;
+    runProcessData_c& operator=(runProcessData_c&) = default;
+    runProcessData_c& operator=(runProcessData_c&&) = default;
 public:
+    //declaring move ctor/operators removes non-explicit default copy ctors
+    //see https://stackoverflow.com/questions/11255027
+    //so... explicit them
+    runProcessData_c(runProcessData_c const&) = default;
+    runProcessData_c(runProcessData_c&) = default;
+
     runProcessData_c() = default;
     runProcessData_c(
             const QString& processPath_par_con
@@ -95,12 +107,17 @@ public:
     void setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con);
     bool useActonEnvironment_f() const;
     void setUseActonEnvironment_f(const bool useActonEnvironment_par_con);
+
+    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
 
 class EXPIMP_ACTONQTSO runProcessAction_c : public action_c, public runProcessData_c
 {
+    Q_OBJECT
+
     void derivedWrite_f(QJsonObject &json_par) const override;
     void derivedRead_f(const QJsonObject &json_par_con) override;
+    bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
     action_c* derivedClone_f() const override;
 
@@ -111,6 +128,7 @@ public:
     runProcessAction_c() = default;
     runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con);
 
+    void updateRunProcessData_f(const runProcessData_c& runProcessData_par_con);
 };
 
 #endif // ACTONQTSO_RUNPROCESS_HPP

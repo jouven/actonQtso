@@ -11,7 +11,7 @@
 #include <unordered_map>
 
 
-//extern const QHash<QString, checkExecutionState_ec> strToCheckExecutionStateUMap_glo_sta_con;
+//extern const QHash<QString, checkExecutionState_ec> strToCheckExecutionStateUMap_ext_con;
 //only output for now
 extern EXPIMP_ACTONQTSO const std::unordered_map<checkExecutionState_ec, QString> checkExecutionStateToStrUMap_ext_con;
 

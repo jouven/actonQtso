@@ -1,12 +1,13 @@
 #include "checkDataExecutionResult.hpp"
 
 #include "actionData.hpp"
+#include "checkData.hpp"
 
 #include "comuso/practicalTemplates.hpp"
 
 #include <QDateTime>
 
-QString checkDataExecutionResult_c::error_f() const
+textCompilation_c checkDataExecutionResult_c::errors_f() const
 {
     return errors_pri;
 }
@@ -52,12 +53,48 @@ bool checkDataExecutionResult_c::result_f() const
     return result_pri;
 }
 
+bool checkDataExecutionResult_c::logicResult_f() const
+{
+    bool resultTmp(false);
+    while (finished_pri)
+    {
+        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnSuccess
+            and lastState_f() == checkExecutionState_ec::success
+            and result_pri)
+        {
+            resultTmp = true;
+            break;
+        }
+        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnFailure
+            and lastState_f() == checkExecutionState_ec::success
+            and not result_pri)
+        {
+            resultTmp = true;
+            break;
+        }
+        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnError
+            and lastState_f() == checkExecutionState_ec::error)
+        {
+            resultTmp = true;
+            break;
+        }
+        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueAlwaysExceptOnError
+            and lastState_f() not_eq checkExecutionState_ec::error)
+        {
+            resultTmp = true;
+            break;
+        }
+        break;
+    }
+    return resultTmp;
+}
+
 bool checkDataExecutionResult_c::tryClear_f()
 {
     bool resultTmp(false);
     if (finished_pri)
     {
-        errors_pri.clear();
+        errors_pri.clear_f();
 
         executionStateVector_pri = { checkExecutionState_ec::initial };
 
@@ -87,9 +124,9 @@ checkDataExecutionResult_c::checkDataExecutionResult_c(
     : parent_ptr_pri(parentCheck_par_ptr_con)
 {}
 
-void checkDataExecutionResult_c::appendError_f(const QString& error_par_con)
+void checkDataExecutionResult_c::appendError_f(const text_c& error_par_con)
 {
-    errors_pri.append(error_par_con);
+    errors_pri.append_f(error_par_con);
     Q_EMIT error_signal(parent_ptr_pri);
 }
 

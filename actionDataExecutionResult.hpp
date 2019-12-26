@@ -5,10 +5,14 @@
 
 #include "crossPlatformMacros.hpp"
 
+#include "textQtso/text.hpp"
+
 #include <QObject>
 #include <QString>
 
 #include <vector>
+
+class textCompilation_c;
 
 class action_c;
 //this class it to deal in a generic way with all the action execution result/s
@@ -20,13 +24,13 @@ class EXPIMP_ACTONQTSO actionDataExecutionResult_c : public QObject
 {
     Q_OBJECT
     //description of what the action did successfully during the execution
-    QString output_pri;
+    textCompilation_c output_pri;
     //when the action recieves external output like in runProcess
     QString externalOutput_pri;
     //when the action recieves external error output like in runProcess
     QString externalErrorOutput_pri;
     //description of any errors during the execution of this action
-    QString errors_pri;
+    textCompilation_c errors_pri;
     //this might only apply to the runProcess kind, 0 should be success, anything else error,
     //BUT each process might vary
     //usually? it's a number from 0 to 255, https://en.wikipedia.org/wiki/Return_code
@@ -52,8 +56,8 @@ public:
             action_c* const parentAction_par_ptr_con
     );
 
-    QString output_f() const;
-    QString error_f() const;
+    textCompilation_c output_f() const;
+    textCompilation_c errors_f() const;
 
     QString externalOutput_f() const;
     QString externalErrorOutput_f() const;
@@ -67,7 +71,9 @@ public:
 
     bool started_f() const;
     bool finished_f() const;
+    //20191118 these 2 aren't being used, not here, not in actonQtg
     bool stoppedByUser_f() const;
+    bool killedByUser_f() const;
 
     //start time begins when the execution state changes from initial to executingChecks or preparing
     qint64 startTime_f() const;
@@ -94,10 +100,12 @@ Q_SIGNALS:
     void killing_signal(action_c* action_ptr_par_con);
     void killed_signal(action_c* action_ptr_par_con);
 
+    //20191118 these 4 aren't being used, not here, not in actonQtg
     void preparing_signal(action_c* action_ptr_par_con);
     void executingChecks_signal(action_c* action_ptr_par_con);
     void executing_signal(action_c* action_ptr_par_con);
     void success_signal(action_c* action_ptr_par_con);
+
     void error_signal(action_c* action_ptr_par_con);
 
     void resultsCleared_signal(action_c* action_ptr_par_con);
@@ -108,9 +116,10 @@ public Q_SLOTS:
     //they'll be set when trySetFinished_f is called
     bool trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con);
 
-    void appendOutput_f(const QString& output_par_con);
+    void appendOutput_f(const text_c& output_par_con);
     //changes the execution state to error
-    void appendError_f(const QString& error_par_con);
+    void appendError_f(const text_c& error_par_con);
+    void appendErrors_f(const textCompilation_c& errors_par_con);
 
     void appendExternalOutput_f(const QString& actionOutput_par_con);
     void appendExternalError_f(const QString& actionError_par_con);

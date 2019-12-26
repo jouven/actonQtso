@@ -5,6 +5,8 @@
 
 #include <QObject>
 
+class text_c;
+
 class checkDataExecutionResult_c;
 
 class baseCheckExecution_c : public QObject
@@ -33,7 +35,7 @@ public:
 Q_SIGNALS:
     void executionStateChange_signal(const checkExecutionState_ec& checkExecutionState_par_con);
     //this check errors
-    void addError_signal(const QString& error_par_con);
+    void addError_signal(const text_c& error_par_con);
     //when the check "finishes" in any way
     void anyFinish_signal(const bool result_par_con);
 };
