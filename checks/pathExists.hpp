@@ -28,7 +28,7 @@ public:
     pathExistsData_c(pathExistsData_c&) = default;
 
     pathExistsData_c() = default;
-    pathExistsData_c(
+    explicit pathExistsData_c(
             const QString& path_par_con
     );
 

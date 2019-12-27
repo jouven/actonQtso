@@ -53,7 +53,7 @@ public:
     actionFinishedData_c(actionFinishedData_c&) = default;
 
     actionFinishedData_c() = default;
-    actionFinishedData_c(
+    explicit actionFinishedData_c(
             const QString& actionStringId_par_con
             , const int_fast64_t finishedCount_par_con = 1
             , const bool successOnActionSuccess_par_con = true

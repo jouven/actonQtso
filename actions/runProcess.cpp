@@ -254,7 +254,8 @@ void argument_c::setEnabled_f(const bool enabled_par_con)
     enabled_pri = enabled_par_con;
 }
 
-argument_c::argument_c(const QString& argument_par_con
+argument_c::argument_c(
+        const QString& argument_par_con
         , const bool enabled_par_con)
     : argument_pri(argument_par_con)
     , enabled_pri(enabled_par_con)

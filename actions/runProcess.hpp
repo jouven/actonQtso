@@ -20,7 +20,8 @@ class EXPIMP_ACTONQTSO argument_c
     bool enabled_pri = true;
 public:
     argument_c() = default;
-    argument_c(const QString& argument_par_con
+    explicit argument_c(
+            const QString& argument_par_con
             , const bool enabled_par_con = true
     );
 
@@ -42,7 +43,7 @@ class EXPIMP_ACTONQTSO environmentPairConfig_c
     bool enabled_pri = true;
 public:
     environmentPairConfig_c() = default;
-    environmentPairConfig_c(
+    explicit environmentPairConfig_c(
             const QString& environmentValue_par_con
             , const bool enabled_par_con = true
     );
@@ -86,7 +87,7 @@ public:
     runProcessData_c(runProcessData_c&) = default;
 
     runProcessData_c() = default;
-    runProcessData_c(
+    explicit runProcessData_c(
             const QString& processPath_par_con
             , const std::vector<argument_c>& arguments_par_con = std::vector<argument_c>()
             , const QString& workingDirectory_par_con = QDir::currentPath()

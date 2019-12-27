@@ -357,8 +357,8 @@ copyFileData_c::copyFileData_c(
         , const bool navigateHidden_par_con
         , const bool copyEmptyDirectories_par_con
         , const bool createDestinationParent_par_con
-        , const bool stopAllCopyOnFileCopyError_par_con
         , const bool noFilesCopiedIsError_par_con
+        , const bool stopAllCopyOnFileCopyError_par_con
         , const int_fast64_t bufferSize_par_con)
     : sourcePath_pro(sourcePath_par_con)
     , destinationPath_pro(destinationPath_par_con)

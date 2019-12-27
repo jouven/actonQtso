@@ -30,7 +30,7 @@ public:
     sameFileData_c(sameFileData_c&) = default;
 
     sameFileData_c() = default;
-    sameFileData_c(
+    explicit sameFileData_c(
             const QString& fileAPath_par_con
             , const QString& fileBPath_par_con
     );

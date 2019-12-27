@@ -30,7 +30,7 @@ public:
     createDirectoryData_c(createDirectoryData_c&) = default;
 
     createDirectoryData_c() = default;
-    createDirectoryData_c(
+    explicit createDirectoryData_c(
             const QString& directoryPath_par_con
             , const bool createParents_par_con
             , const bool errorIfExists_par_con

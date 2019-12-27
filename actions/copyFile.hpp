@@ -174,7 +174,7 @@ public:
     copyFileData_c(copyFileData_c&) = default;
 
     copyFileData_c() = default;
-    copyFileData_c(
+    explicit copyFileData_c(
             const QString& sourcePath_par_con
             , const QString& destinationPath_par_con
             , const transferType_ec transferType_par_con

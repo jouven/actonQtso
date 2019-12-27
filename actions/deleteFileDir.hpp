@@ -35,7 +35,7 @@ public:
     deleteFileDirData_c(deleteFileDirData_c&) = default;
 
     deleteFileDirData_c() = default;
-    deleteFileDirData_c(
+    explicit deleteFileDirData_c(
             const QString& path_par_con
             , const bool errorIfNotExists_par_con
             , const bool onlyIfEmpty_par_con

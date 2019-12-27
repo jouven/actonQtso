@@ -44,7 +44,7 @@ public:
     timerData_c(timerData_c&) = default;
 
     timerData_c() = default;
-    timerData_c(
+    explicit timerData_c(
             const type_ec type_par_con
             , const int_fast64_t value_par_con
             , const bool errorOnPastDatetimeValue_par_con

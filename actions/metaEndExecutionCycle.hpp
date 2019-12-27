@@ -36,7 +36,7 @@ public:
     metaEndExecutionCycleData_c(metaEndExecutionCycleData_c&) = default;
 
     metaEndExecutionCycleData_c() = default;
-    metaEndExecutionCycleData_c(
+    explicit metaEndExecutionCycleData_c(
             const endType_ec type_par_con
             , const bool killAfterTimeout_par_con
     );
