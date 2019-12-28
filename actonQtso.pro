@@ -149,7 +149,8 @@ CONFIG(debug, debug|release){
 }
 
 LIBS += -lbaseClassQtso -lthreadedFunctionQtso -llogsinJSONQtso \
-	-lessentialQtso -lfilterDirectoryQtso -lstringParserMapQtso
+    -lessentialQtso -lfilterDirectoryQtso -lstringParserMapQtso \
+    -ltextQtso
 
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3

@@ -71,7 +71,7 @@ public:
    executionLoopType_ec executionLoopType_f() const;
    uint_fast64_t loopXTimesCount_f() const;
    //bool stopExecutingOnError_f() const;
-   uint_fast32_t extraThreads_f() const;
+   uint_fast64_t extraThreads_f() const;
    uint_fast64_t killTimeoutMilliseconds_f() const;
 
    void setExecutionLoopType_f(const executionLoopType_ec executionLoopType_par_con);
