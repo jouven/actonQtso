@@ -106,7 +106,7 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
 {
     Q_OBJECT
     //the id is a, fast, means to map the row position with the checkData
-    int_fast64_t id_pri = 0;
+    int_fast64_t id_pri;
     //this QObject can live on the main thread or on a different thread
     baseCheckExecution_c* checkDataExecution_ptr_pri = nullptr;
     //this QObject will live always on the main thread
@@ -118,7 +118,7 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
     void deleteExecutionObjects_f();
     void deleteUsedPtrs_f();
 
-    void prepareToRun_f();
+    void prepareToExecute_f();
     void execute_f();
 
     bool isEditable_f() const;
@@ -131,11 +131,18 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
     virtual bool derivedIsValidCheck_f(textCompilation_c* errors_par = nullptr) const = 0;
 
     virtual check_c* derivedClone_f() const = 0;
-    virtual bool derivedUpdateStringIdDependencies_f(const QString& , const QString& );
-    virtual bool derivedHasStringIdAnyDependency_f(const QString& ) const;
-    virtual bool derivedUpdateStringTriggerDependecies_f(const QString& , const QString& );
-    virtual bool derivedHasStringTriggerAnyDependency_f(const QString& ) const;
-    virtual std::vector<QString> derivedStringTriggersInUse_f() const;
+
+    //returns the number of conflicts
+    virtual uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& ) const;
+    //these might not be always required
+    //return the number of updated items
+    //see public versions to know what the arguments are
+    virtual uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& );
+    virtual uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const;
+    virtual uint_fast64_t derivedUpdateStringTriggerDependecies_f(const QString& , const QString& );
+    virtual uint_fast64_t derivedStringTriggerDependencyCount_f(const QString& ) const;
+    virtual QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& ) const;
+    virtual QSet<QString> derivedStringTriggerCreationCollection_f() const;
 
     virtual baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) = 0;
 
@@ -169,7 +176,7 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     virtual checkType_ec type_f() const = 0;
-    virtual QString typeStr_f() const = 0;
+    QString typeStr_f() const;
 
     //FUTURE dates (creation, modification with the option of hide/show in the grid)
     int_fast64_t id_f() const;
@@ -200,14 +207,18 @@ public:
 
     //update all the actions/checks setting that depend on an actionStringId
     //returns true if a field was updated (did match with the oldStringId)
-    bool updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
-    bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+    uint_fast64_t updateActionStringIdDependencies_f(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
+    uint_fast64_t actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const;
 
+    uint_fast64_t stringTriggerCreationConflict_f(const QString& stringTrigger_par_con) const;
     //in the checkdatahub it's an int but here it's a bool because it can only be one dependency
-    bool updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const;
+    uint_fast64_t updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    uint_fast64_t sringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const;
+
+    //returns a collection of the stringTrigger than can be created dynamically on execution (20200128 right now only actionFinished does this)
+    QSet<QString> stringTriggerCreationCollection_f() const;
     //although the return value is a vector, it will only contain unique strings
-    std::vector<QString> stringTriggersInUse_f() const;
+    QSet<QString> stringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const;
 
     //can return nullptr, if the json type doesn't match anything expected
     static check_c* readCreateDerived_f(const checkType_ec checkType_par_con);

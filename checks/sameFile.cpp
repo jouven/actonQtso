@@ -3,6 +3,7 @@
 #include "../checkExecution/sameFileExecution.hpp"
 #include "../checkMappings/checkStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
 
@@ -132,16 +133,41 @@ checkType_ec sameFileCheck_c::type_f() const
     return checkType_ec::sameFile;
 }
 
-QString sameFileCheck_c::typeStr_f() const
+uint64_t sameFileCheck_c::derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
 {
-    return checkTypeToStrUMap_ext_con.at(type_f());
+    uint_fast64_t resultTmp(0);
+    resultTmp = resultTmp
+            + replaceSubString_f(fileAPath_pro, oldStringTrigger_par_con, newStringTrigger_par_con)
+            + replaceSubString_f(fileBPath_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+    return resultTmp;
+}
+
+uint64_t sameFileCheck_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+{
+    uint_fast64_t resultTmp(0);
+    resultTmp = resultTmp
+            + vectorQStringCountSubString_f(stringTrigger_par_con, {fileAPath_pro, fileBPath_pro});
+    return resultTmp;
+}
+
+QSet<QString> sameFileCheck_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const QString& searchValue_ite_con : searchValues_par_con)
+    {
+        if (vectorQStringCountSubString_f(searchValue_ite_con, {fileAPath_pro, fileBPath_pro}, true) > 0)
+        {
+            resultTmp.insert(searchValue_ite_con);
+        }
+    }
+    return resultTmp;
 }
 
 sameFileCheck_c::sameFileCheck_c(
         const checkData_c& checkData_par_con
-        , const sameFileData_c& sameFile_par_con)
+        , const sameFileData_c& sameFileData_par_con)
     : check_c(checkData_par_con)
-    , sameFileData_c(sameFile_par_con)
+    , sameFileData_c(sameFileData_par_con)
 {}
 
 void sameFileCheck_c::updateSameFileData_f(const sameFileData_c& sameFileData_par_con)

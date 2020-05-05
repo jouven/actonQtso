@@ -12,7 +12,7 @@ class actionFinishedCheckExecution_c : public baseCheckExecution_c
     Q_OBJECT
 
     const actionFinishedCheck_c* const actionFinishedCheckPtr_pri = nullptr;
-    int_fast64_t finishedCount_pri = 0;
+    uint_fast64_t finishedCount_pri = 0;
 protected:
     void derivedExecute_f() override;
     void derivedStop_f() override;

@@ -1,6 +1,7 @@
 #ifndef ACTONQTSO_SAMEFILEALGO_HPP
 #define ACTONQTSO_SAMEFILEALGO_HPP
 
+#include "crossPlatformMacros.hpp"
 #include "baseClassQtso/baseClassQt.hpp"
 
 #include <QObject>
@@ -10,7 +11,7 @@
 
 class text_c;
 
-class checkSameFile_c : public QObject, public baseClassQt_c
+class EXPIMP_ACTONQTSO checkSameFile_c : public QObject, public baseClassQt_c
 {
     Q_OBJECT
 public:

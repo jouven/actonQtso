@@ -15,6 +15,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QSet>
 
 #include <vector>
 
@@ -80,17 +81,6 @@ public:
 
     explicit actionData_c() = default;
 
-    //20191030 this below doesn't apply anymore since checkDataHub_pri has been moved to action_c
-    //now this class use default ctors (before actionData_c default ctor was manual i.e. explicit actionData_c();)
-
-    //explanation time
-    //why is this here? TLDR for derived classes
-    //this class is inherited from an abstract class, the abstract class can't be ctored
-    //what are ctored are the the derived classes,
-    //so to not increase the derived classes ctor this is done
-    //the variables here are the DATA part of what would/should? be in the abstract class
-    //explicit actionData_c(const actionData_c& source_par_con);
-
     explicit actionData_c(
             const QString& stringId_par_con
             , const QString& description_par_con
@@ -102,6 +92,8 @@ public:
     );
 
     bool isFieldsActionDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
+
+    QString stringId_f() const;
 };
 
 //an action or actionData is:
@@ -116,7 +108,7 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
     Q_OBJECT
 
     //the id is a, fast, means to map the row position with the action
-    int_fast64_t id_pri = 0;
+    int_fast64_t id_pri;
 
     //DATA
     checksDataHub_c checkDataHub_pri;
@@ -141,7 +133,7 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
 
     void execute_f();
 
-    void prepareToRunAction_f();
+    void prepareToExecuteAction_f();
 
     bool isKillingExecutionAfterTimeout_pri = false;
 
@@ -149,7 +141,7 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
     //must be called after tryStopExecution_f
     void kill_f();
 
-    bool isEditable_f() const;
+    //bool isEditable_f() const;
     //use only on set value functions
     bool tryClearResultsOnEdit_f();
 
@@ -157,11 +149,22 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
     virtual void derivedRead_f(const QJsonObject &json_par_con) = 0;
     //to be able to call isFieldsDataValid_f (from each derived class base "data" class, i.e. copyFileData_c::isFieldsDataValid_f) from action_c
     virtual bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const = 0;
+    //virtual int_fast64_t derivedUpdateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con) = 0;
 
     virtual action_c* derivedClone_f() const = 0;
 
-    virtual baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) = 0;
+    //these might not be always required
+    //return the number of updated items
+    //see public versions to know what the arguments are
+    virtual uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& );
+    virtual uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const;
+    virtual uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& ) const;
+    virtual uint_fast64_t derivedUpdateStringTriggerDependecies_f(const QString& , const QString& );
+    virtual uint_fast64_t derivedStringTriggerDependencyCount_f(const QString& ) const;
+    virtual QSet<QString> derivedStringTriggerCreationCollection_f() const;
+    virtual QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& ) const;
 
+    virtual baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) = 0;
 protected:
     explicit action_c();
     explicit action_c(
@@ -171,21 +174,22 @@ protected:
     //delete the pointer variables if they aren't nullptr
     ~action_c();
 public:
+
+
     void read_f(
             const QJsonObject &json_par_con
-            //validates the actions objects (and anything nested that can be validated)
-            //and only loads the valid ones in the actonHub object
+            //validates the check/s objects (and anything nested that can be validated)
+            //and only loads the valid ones in the checkDataHub object
             , const bool loadOnlyValid_par_con
-            //error text compilation to know why and which objects aren't valid
+            //error text compilation to know why and which check objects aren't valid
             , textCompilation_c* errors_par = nullptr
     );
     void write_f(QJsonObject &json_ref_par) const;
 
     virtual actionType_ec type_f() const = 0;
-    virtual QString typeStr_f() const = 0;
+    QString typeStr_f() const;
     //FUTURE dates (creation, modification with the option of hide/show in the grid)
     int_fast64_t id_f() const;
-    QString stringId_f() const;
     QString description_f() const;
     bool checkResultLogicAnd_f() const;
     bool checksEnabled_f() const;
@@ -203,7 +207,11 @@ public:
     bool lastCheckLogicResult_f() const;
     bool lastCheckLogicResultSet_f() const;
 
-    int_fast32_t setStringId_f(const QString& stringId_par_con, const bool updateFieldsThatUsedOldValue_par_con = false);
+    //returns number of updates, including this action action stringId update
+    uint_fast64_t setStringId_f(
+            const QString& stringId_par_con
+            , const bool updateObjectsThatUsedOldValue_par_con = false
+            , textCompilation_c* errorsPtr_par = nullptr);
     void setDescription_f(const QString& description_par_con);
     void setCheckResultLogicAnd_f(const bool checkResultLogicAnd_par_con);
     void setChecksEnabled_f(const bool checksEnabled_par_con);
@@ -228,14 +236,18 @@ public:
     actionDataExecutionResult_c* actionDataExecutionResult_ptr_f() const;
     //update all the actions/checks setting that depend on an actionStringId
     //returns the number of updated checks/action properties which did match with the oldStringId
-    int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
-    bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+    uint_fast64_t updateActionStringIdDependencies_f(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
+    uint_fast64_t actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const;
 
-    //below 3 functions, only used in actionFinished checks for now
-    int_fast32_t updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-    bool hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
-    //although the return value is a vector, it will only contain unique strings
-    std::vector<QString> stringTriggersInUse_f() const;
+    uint_fast64_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    //returns the ids of the first action-check that conflict, first = actionId, second = checkId, both id = 0 means no conflicts
+    std::pair<int_fast64_t, int_fast64_t> stringTriggerCreationConflict_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par = nullptr) const;
+    uint_fast64_t stringTriggerDependencyCount_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par = nullptr);
+
+    //returns a collection of the stringTrigger than can be created dynamically on execution (20200128 right now only actionFinished does this)
+    QSet<QString> stringTriggerCreationCollection_f() const;
+    //pass the above function + stringParserMap_c::stringTriggers_f to get what's in use
+    QSet<QString> stringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const;
 
     static action_c* readCreateDerived_f(const actionType_ec actionType_par_con);
     //aka the copy ctor alternative for polymorphic classes
@@ -243,7 +255,10 @@ public:
 
     bool isFieldsActionValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 
-    void updateActionData_f(const actionData_c& actionData_par_con);
+    //returns success, it can fail it the string id is already in use
+    void updateActionData_f(const actionData_c& actionData_par_con
+            , const bool updateObjectsThatUsedOldValue_par_con = false
+            , textCompilation_c* errorsPtr_par = nullptr);
 
 Q_SIGNALS:
     void actionStringIdChanged_signal(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);

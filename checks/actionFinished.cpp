@@ -3,6 +3,7 @@
 #include "../checkExecution/actionFinishedExecution.hpp"
 #include "../checkMappings/checkStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "textQtso/text.hpp"
@@ -42,10 +43,10 @@ QString actionFinishedData_c::actionStringId_f() const
     return actionStringId_pro;
 }
 
-QString actionFinishedData_c::actionStringIdParsed_f() const
-{
-    COPYPARSERETURNVAR(actionStringId_pro);
-}
+//QString actionFinishedData_c::actionStringIdParsed_f() const
+//{
+//    COPYPARSERETURNVAR(actionStringId_pro);
+//}
 
 void actionFinishedData_c::setActionStringId_f(const QString& actionStringId_par_con)
 {
@@ -62,15 +63,9 @@ bool actionFinishedData_c::mapActionResultToStringParserConfig_f(
     bool resultTmp(false);
     while (true)
     {
-        if (actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->stringTriggerIndex_f(stringTrigger_par_con) not_eq -1)
+        if (actonDataHub_ptr_ext->stringTriggerCreationConflict_f(stringTrigger_par_con).first not_eq -1)
         {
-            //something with this string trigger already exists on the parser configs, do nothing
-            break;
-        }
-
-        if (actonDataHub_ptr_ext->hasStringTriggerAnyDependency_f(stringTrigger_par_con, nullptr))
-        {
-            //other checks are already using this string trigger
+            //in use in stringParserMap or other actions/checks are already using this string trigger
             break;
         }
 
@@ -91,17 +86,32 @@ std::unordered_map<actionFinishedCheck_c::actionExecutionResultFields_ec, QStrin
     return actionExecutionResultFieldToStringTrigger_pro;
 }
 
+//std::unordered_map<actionFinishedData_c::actionExecutionResultFields_ec, QString> actionFinishedData_c::actionExecutionResultFieldToStringTriggerParsed_f() const
+//{
+//    std::unordered_map<actionFinishedData_c::actionExecutionResultFields_ec, QString> copyTmp(actionExecutionResultFieldToStringTrigger_pro);
+//    if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr)
+//    {
+//        for (auto& pair_ite : actionExecutionResultFieldToStringTrigger_pro)
+//        {
+//            QString strTmp(pair_ite.second);
+//            actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(strTmp));
+//            copyTmp.at(pair_ite.first) = strTmp;
+//        }
+//    }
+//    return actionExecutionResultFieldToStringTrigger_pro;
+//}
+
 void actionFinishedData_c::setActionExecutionResultFieldToStringTrigger_f(const std::unordered_map<actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringTrigger_par_con)
 {
     actionExecutionResultFieldToStringTrigger_pro = actionExecutionResultFieldToStringTrigger_par_con;
 }
 
-int_fast64_t actionFinishedData_c::finishedCount_f() const
+uint_fast64_t actionFinishedData_c::finishedCount_f() const
 {
     return finishedCount_pro;
 }
 
-void actionFinishedData_c::setFinishedCount_f(const int_fast64_t finishedCount_par_con)
+void actionFinishedData_c::setFinishedCount_f(const uint_fast64_t finishedCount_par_con)
 {
     finishedCount_pro = finishedCount_par_con;
 }
@@ -116,31 +126,21 @@ void actionFinishedData_c::setSuccessOnActionSuccess_f(const bool successOnActio
     successOnActionSuccess_pro = successOnActionSuccess_par_con;
 }
 
-bool actionFinishedData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
+bool actionFinishedData_c::isFieldsDataValid_f(
+        textCompilation_c* errorsPtr_par
+        , const void* const objectToIgnore_par) const
 {
     bool resultTmp(false);
     while (true)
     {
-        if (actionStringIdParsed_f().isEmpty())
+        if (actionStringId_pro.isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Action stringId is empty")
             break;
         }
-        //TODO-FUTURE(see last comment line) there needs to be a hard validation and a soft validation
-        //to deal with dynamic stuff like stringparser results used in a field
-        //before executing a hard validation should be done to check if the chain of parsing
-        //basically all fields that are stringParsed must be gathered and checked for against all possible actionExecutionResultFieldToStringPair_ite_con
-        //and what's inside the stringparser obj
-        //do it as a separate option because it can become pretty heavy?, parsing all the strings and for each one search all the possible string triggers
-
-        if (finishedCount_pro < 0)
-        {
-            text_c errorTextTmp("Wrong finished count value: {0}, value must be between 0 and INT64MAX", finishedCount_pro);
-            APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
-            break;
-        }
 
         bool emptyMappingFoundTmp(false);
+        QSet<QString> uniqueStringsTmp;
         for (const std::pair<const actionFinishedData_c::actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
         {
             if (actionExecutionResultFieldToStringPair_ite_con.second.isEmpty())
@@ -149,6 +149,34 @@ bool actionFinishedData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par)
                 text_c errorTextTmp("Action execution result field to empty string trigger mapping found: {0}"
                                     , actionExecutionResultFieldsToStrUMap_sta_con.at(actionExecutionResultFieldToStringPair_ite_con.first));
                 APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
+                continue;
+            }
+            if (uniqueStringsTmp.contains(actionExecutionResultFieldToStringPair_ite_con.second))
+            {
+                text_c errorTextTmp("Action execution result field to string trigger mapping not unique: {0}"
+                                    , actionExecutionResultFieldToStringPair_ite_con.second);
+                APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
+            }
+            else
+            {
+                uniqueStringsTmp.insert(actionExecutionResultFieldToStringPair_ite_con.second);
+            }
+
+            auto firstConflictTmp(actonDataHub_ptr_ext->stringTriggerCreationConflict_f(actionExecutionResultFieldToStringPair_ite_con.second, objectToIgnore_par));
+            if (firstConflictTmp.first not_eq -1)
+            {
+                if (firstConflictTmp.first > 0)
+                {
+                    text_c errorTextTmp("Action execution result field to string trigger already in use \"{0}\" in actionId \"{1}\" / checkId \"{2}\""
+                                        , actionExecutionResultFieldToStringPair_ite_con.second, firstConflictTmp.first, firstConflictTmp.second);
+                    APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
+                }
+                else
+                {
+                    text_c errorTextTmp("Action execution result field to string trigger already in use \"{0}\" in stringParserMap"
+                                        , actionExecutionResultFieldToStringPair_ite_con.second);
+                    APPENDTEXTPTR(errorsPtr_par, errorTextTmp)
+                }
             }
         }
         if (emptyMappingFoundTmp)
@@ -164,7 +192,7 @@ bool actionFinishedData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par)
 
 actionFinishedData_c::actionFinishedData_c(
         const QString& actionStringId_par_con
-        , const int_fast64_t finishedCount_par_con
+        , const uint_fast64_t finishedCount_par_con
         , const bool successOnActionSuccess_par_con
         , const std::unordered_map<actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringTrigger_par_con)
     : actionStringId_pro(actionStringId_par_con)
@@ -200,7 +228,12 @@ void actionFinishedCheck_c::derivedRead_f(const QJsonObject& json_par_con)
     }
     if (json_par_con["finishedCount"].isString())
     {
-        finishedCount_pro = json_par_con["finishedCount"].toString().toLongLong();
+        bool strTonumberConversionResultTmp(false);
+        auto resultTmp(json_par_con["finishedCount"].toString().toULongLong(std::addressof(strTonumberConversionResultTmp)));
+        if (strTonumberConversionResultTmp)
+        {
+            finishedCount_pro = resultTmp;
+        }
     }
     if (json_par_con["successOnActionSuccess"].isBool())
     {
@@ -251,68 +284,112 @@ checkType_ec actionFinishedCheck_c::type_f() const
     return checkType_ec::actionFinished;
 }
 
-QString actionFinishedCheck_c::typeStr_f() const
+uint_fast64_t actionFinishedCheck_c::derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const
 {
-    return checkTypeToStrUMap_ext_con.at(type_f());
-}
+    uint_fast64_t resultTmp(0);
 
-bool actionFinishedCheck_c::derivedUpdateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
-{
-    bool updatedTmp(false);
-    if (actionStringId_pro == oldStringId_par_con)
+    for (const std::pair<const actionFinishedData_c::actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
     {
-        actionStringId_pro = newStringId_par_con;
-        updatedTmp = true;
-    }
-    return updatedTmp;
-}
-
-bool actionFinishedCheck_c::derivedHasStringIdAnyDependency_f(const QString& stringId_par_con) const
-{
-    bool resultTmp(false);
-    if (actionStringId_pro == stringId_par_con)
-    {
-        resultTmp = true;
-    }
-    return resultTmp;
-}
-
-bool actionFinishedCheck_c::derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
-{
-    //int_fast32_t updateCountTmp(0);
-    bool somethingChangedTmp(false);
-    for (std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
-    {
-        if (pair_ite_con.second == oldStringTrigger_par_con)
+        if (actionExecutionResultFieldToStringPair_ite_con.second.isEmpty()
+            and actionExecutionResultFieldToStringPair_ite_con.second == stringTrigger_par_con)
         {
-            pair_ite_con.second = newStringTrigger_par_con;
-            somethingChangedTmp = true;
-            //updateCountTmp = updateCountTmp + 1;
-        }
-    }
-    return somethingChangedTmp;
-}
-
-bool actionFinishedCheck_c::derivedHasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const
-{
-    bool resultTmp(false);
-    for (const std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
-    {
-        if (pair_ite_con.second == stringTrigger_par_con)
-        {
-            resultTmp = true;
+            //mapped stringTriggers are unique, once found it can skip the rest
+            resultTmp = 1;// resultTmp + vectorQStringCountSubString_f(actionExecutionResultFieldToStringPair_ite_con.second, {stringTrigger_par_con});
             break;
         }
     }
+
     return resultTmp;
 }
 
-std::vector<QString> actionFinishedCheck_c::derivedStringTriggersInUse_f() const
+uint_fast64_t actionFinishedCheck_c::derivedUpdateActionStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
 {
-    std::vector<QString> keyStringsTmp;
-    for (const std::pair<const actionFinishedCheck_c::actionExecutionResultFields_ec, QString>& pair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+    uint_fast64_t resultTmp(0);
+    if (actionStringId_pro == oldStringId_par_con)
     {
-        keyStringsTmp.emplace_back(pair_ite_con.second);
+        actionStringId_pro = newStringId_par_con;
+        resultTmp = 1;
+    }
+    return resultTmp;
+}
+
+uint_fast64_t actionFinishedCheck_c::derivedActionStringIdDependencyCount_f(const QString& stringId_par_con) const
+{
+    uint_fast64_t resultTmp(0);
+    if (actionStringId_pro == stringId_par_con)
+    {
+        resultTmp = 1;
+    }
+    return resultTmp;
+}
+
+//uint64_t actionFinishedCheck_c::derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+//{
+//    uint_fast64_t resultTmp(0);
+
+//    for (auto& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+//    {
+//        if (actionExecutionResultFieldToStringPair_ite_con.second == oldStringTrigger_par_con)
+//        {
+//            actionExecutionResultFieldToStringPair_ite_con.second = newStringTrigger_par_con;
+//            resultTmp = resultTmp + 1;
+//        }
+//    }
+
+//    //resultTmp = resultTmp + replaceSubString_f(actionStringId_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+
+//    return resultTmp;
+//}
+
+//uint64_t actionFinishedCheck_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+//{
+//    uint_fast64_t resultTmp(0);
+//    for (auto& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+//    {
+//        if (actionExecutionResultFieldToStringPair_ite_con.second == stringTrigger_par_con)
+//        {
+//            resultTmp = resultTmp + 1;
+//        }
+//    }
+
+//    //resultTmp = resultTmp + vectorQStringCountSubString_f(actionStringId_pro, {stringTrigger_par_con});
+
+//    return resultTmp;
+//}
+
+//QSet<QString> actionFinishedCheck_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+//{
+//    QSet<QString> resultTmp;
+//    for (const QString& searchValue_ite_con : searchValues_par_con)
+//    {
+//        for (const auto& actionExecutionResultFieldToStringPair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+//        {
+//            if (actionExecutionResultFieldToStringPair_ite_con.second == searchValue_ite_con)
+//            {
+//                resultTmp.insert(actionExecutionResultFieldToStringPair_ite_con.second);
+//            }
+//        }
+////        if (vectorQStringCountSubString_f(actionStringId_pro, {searchValue_ite_con}, true) > 0)
+////        {
+////            resultTmp.insert(actionStringId_pro);
+////        }
+//    }
+
+//    return resultTmp;
+//}
+
+QSet<QString> actionFinishedCheck_c::derivedStringTriggerCreationCollection_f() const
+{
+    QSet<QString> keyStringsTmp;
+    for (const auto& pair_ite_con : actionExecutionResultFieldToStringTrigger_pro)
+    {
+        if (pair_ite_con.second.isEmpty())
+        {
+        }
+        else
+        {
+            keyStringsTmp.insert(pair_ite_con.second);
+        }
     }
     return keyStringsTmp;
 }
@@ -324,6 +401,9 @@ void actionFinishedCheck_c::updateActionFinishedData_f(
 {
     if (actonDataHubPtr_par not_eq nullptr)
     {
+        //when an actionFinished type is updated
+        //if a stringtrigger key changes search the actions/checks
+        //if they use this key and update it
         QObject::connect(this
                          , &actionFinishedCheck_c::stringTriggerChanged_signal
                          , actonDataHubPtr_par
@@ -346,8 +426,8 @@ void actionFinishedCheck_c::updateActionFinishedData_f(
 
 actionFinishedCheck_c::actionFinishedCheck_c(
         const checkData_c& checkData_par_con
-        , const actionFinishedData_c& actionFinished_par_con)
+        , const actionFinishedData_c& actionFinishedData_par_con)
     : check_c(checkData_par_con)
-    , actionFinishedData_c(actionFinished_par_con)
+    , actionFinishedData_c(actionFinishedData_par_con)
 {
 }

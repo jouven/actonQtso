@@ -23,6 +23,7 @@ void sameFileCheckExecution_c::derivedExecute_f()
 void sameFileCheckExecution_c::derivedStop_f()
 {
     checkSameFile_pri.stop_f();
+    Q_EMIT anyFinish_signal(false);
 }
 
 

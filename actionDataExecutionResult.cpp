@@ -120,7 +120,7 @@ void actionDataExecutionResult_c::appendOutput_f(const text_c& output_par_con)
     if (not finished_pri)
     {
         output_pri.append_f(output_par_con);
-        Q_EMIT outputUpdated_signal(parentAction_ptr_pri);
+        Q_EMIT outputUpdated_signal(parentAction_ptr_pri, output_par_con);
     }
 }
 
@@ -128,12 +128,10 @@ void actionDataExecutionResult_c::appendError_f(const text_c& error_par_con)
 {
     if (not finished_pri)
     {
+        MACRO_ADDACTONQTSOLOG(error_par_con, parentAction_ptr_pri, logItem_c::type_ec::warning);
         errors_pri.append_f(error_par_con);
         trySetExecutionState_f(actionExecutionState_ec::error);
-#ifdef DEBUGJOUVEN
-        MACRO_ADDACTONQTSOLOG(error_par_con, logItem_c::type_ec::debug);
-#endif
-        Q_EMIT error_signal(parentAction_ptr_pri);
+        Q_EMIT error_signal(parentAction_ptr_pri, error_par_con);
     }
 }
 
@@ -146,10 +144,10 @@ void actionDataExecutionResult_c::appendErrors_f(const textCompilation_c& errors
 #ifdef DEBUGJOUVEN
         for (int_fast32_t i = 0, l = errors_par_con.size_f(); i < l; ++i)
         {
-            MACRO_ADDACTONQTSOLOG(errors_par_con.text_f(i), logItem_c::type_ec::debug);
+            MACRO_ADDACTONQTSOLOG(errors_par_con.text_f(i), parentAction_ptr_pri, logItem_c::type_ec::debug);
         }
 #endif
-        Q_EMIT error_signal(parentAction_ptr_pri);
+        Q_EMIT errors_signal(parentAction_ptr_pri, errors_par_con);
     }
 }
 
@@ -158,7 +156,7 @@ void actionDataExecutionResult_c::appendExternalOutput_f(const QString& actionOu
     if (not finished_pri)
     {
         externalOutput_pri.append(actionOutput_par_con);
-        Q_EMIT externalOutputUpdated_signal(parentAction_ptr_pri);
+        Q_EMIT externalOutputUpdated_signal(parentAction_ptr_pri, actionOutput_par_con);
     }
 }
 
@@ -167,7 +165,7 @@ void actionDataExecutionResult_c::appendExternalError_f(const QString& actionErr
     if (not finished_pri)
     {
         externalErrorOutput_pri.append(actionError_par_con);
-        Q_EMIT externalErrorUpdated_signal(parentAction_ptr_pri);
+        Q_EMIT externalErrorUpdated_signal(parentAction_ptr_pri, actionError_par_con);
     }
 }
 
@@ -318,7 +316,7 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         //thread so the deletion should wait until the thread is back to its execution loop.
         //Still more stuff that can be signaled from the execution object might happen, more errors or info,
         //and finishing prevents any modification of the results
-        Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri);
+        Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri, actionExecutionState_par_con);
         if (emitPreparingTmp)
         {
             Q_EMIT preparing_signal(parentAction_ptr_pri);
@@ -395,25 +393,27 @@ void actionDataExecutionResult_c::trySetFinished_f()
                          , actionExecutionState_ec::executingChecks
                          ))
         {
+            actionExecutionState_ec finishedStateTmp;
             if (lastState_f() == actionExecutionState_ec::executing)
             {
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::success);
+                finishedStateTmp = actionExecutionState_ec::success;
             }
             if (lastState_f() == actionExecutionState_ec::stopping)
             {
                 stoppedByUser_pri = true;
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::stopped);
+                finishedStateTmp = actionExecutionState_ec::stopped;
             }
             if (lastState_f() == actionExecutionState_ec::killing)
             {
                 killedByUser_pri = true;
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::killed);
+                finishedStateTmp = actionExecutionState_ec::killed;
             }
             if (lastState_f() == actionExecutionState_ec::executingChecks)
             {
-                executionStateVector_pri.emplace_back(actionExecutionState_ec::checksFailed);
+                finishedStateTmp = actionExecutionState_ec::checksFailed;
             }
-            Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri);
+            executionStateVector_pri.emplace_back(finishedStateTmp);
+            Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri, finishedStateTmp);
             if (lastState_f() == actionExecutionState_ec::success)
             {
                 Q_EMIT success_signal(parentAction_ptr_pri);

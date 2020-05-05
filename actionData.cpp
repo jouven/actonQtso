@@ -6,6 +6,7 @@
 #include "actionDataExecutionResult.hpp"
 #include "actionMappings/actionMapping.hpp"
 #include "actionExecution/baseActionExecution.hpp"
+#include "actionMappings/actionStrMapping.hpp"
 
 #include "checkDataExecutionResult.hpp"
 #include "checksBaseSerialization.hpp"
@@ -71,7 +72,7 @@ QString action_c::description_f() const
 bool action_c::isExecuting_f() const
 {
     //if the result object exists
-    //and result state is one of the "executing" ones
+    //and last state is one of the "executing" ones
     //and the result object hasn't reached *any* finish (error, success, timeout...)
     return actionDataExecutionResult_ptr_pri not_eq nullptr
             and actionDataExecution_ptr_pri not_eq nullptr
@@ -79,7 +80,9 @@ bool action_c::isExecuting_f() const
                              , actionExecutionState_ec::preparing
                              , actionExecutionState_ec::executingChecks
                              , actionExecutionState_ec::executing)
-            and not actionDataExecutionResult_ptr_pri->finished_f();
+            and not actionDataExecutionResult_ptr_pri->finished_f()
+            //this is different than the above because it takes care of single check execution (without executing the action)
+            and not checkDataHub_pri.executingChecks_f();
 }
 
 bool action_c::checkResultLogicAnd_f() const
@@ -91,8 +94,7 @@ void action_c::setCheckResultLogicAnd_f(const bool checkResultLogicAnd_par_con)
 {
     if (isExecuting_f())
     {
-        text_c logMessageTmp("Action stringId: \"{0}\" is executing", static_cast<action_c*>(parent())->stringId_f());
-        MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Action is executing", this, logItem_c::type_ec::warning);
     }
     else
     {
@@ -100,22 +102,58 @@ void action_c::setCheckResultLogicAnd_f(const bool checkResultLogicAnd_par_con)
     }
 }
 
-bool action_c::isEditable_f() const
-{
-    return not isExecuting_f()
-            or (actionDataExecutionResult_ptr_pri == nullptr)
-            or (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::initial);
-}
+//bool action_c::isEditable_f() const
+//{
+//    return not isExecuting_f()
+//            or (actionDataExecutionResult_ptr_pri == nullptr)
+//            or actionDataExecutionResult_ptr_pri->finished_f()
+//            or (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::initial);
+//}
 
 //use only on set value functions
 bool action_c::tryClearResultsOnEdit_f()
 {
     bool resultTmp(true);
-    if (not isEditable_f())
+    if (not isExecuting_f() and actionDataExecutionResult_ptr_pri not_eq nullptr)
     {
         resultTmp = actionDataExecutionResult_ptr_pri->tryClear_f();
     }
     return resultTmp;
+}
+
+uint_fast64_t action_c::derivedUpdateActionStringIdDependencies_f(const QString&, const QString&)
+{
+    return 0;
+}
+
+uint_fast64_t action_c::derivedActionStringIdDependencyCount_f(const QString&) const
+{
+    return 0;
+}
+
+uint_fast64_t action_c::derivedStringTriggerCreationConflictCount_f(const QString&) const
+{
+    return 0;
+}
+
+uint_fast64_t action_c::derivedUpdateStringTriggerDependecies_f(const QString&, const QString&)
+{
+    return 0;
+}
+
+uint_fast64_t action_c::derivedStringTriggerDependencyCount_f(const QString&) const
+{
+    return 0;
+}
+
+QSet<QString> action_c::derivedStringTriggerCreationCollection_f() const
+{
+    return QSet<QString>();
+}
+
+QSet<QString> action_c::derivedStringTriggersInUse_f(const QSet<QString>&) const
+{
+    return QSet<QString>();
 }
 
 //void actionData_c::setType_f(const actionType_ec type_par_con)
@@ -155,10 +193,7 @@ void action_c::setDescription_f(const QString& description_par_con)
 
 void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
 {
-    {
-        text_c logTextTmp("Action stringId: \"{0}\" try stop execution", this->stringId_pro);
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
-    }
+    MACRO_ADDACTONQTSOLOG("Try stop execution", this, logItem_c::type_ec::debug);
     while (true)
     {
         if (not enabled_pro)
@@ -170,8 +205,7 @@ void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
             and actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::preparing)
         {
             actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::stopping);
-            text_c logTextTmp("Action stringId: \"{0}\" stopped while preparing", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Stopped while preparing", this, logItem_c::type_ec::info);
             break;
         }
 
@@ -180,8 +214,7 @@ void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
             actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::stopping);
             //this should be enough since it will "return" to preparing
             checkDataHub_pri.stopExecutingChecks_f();
-            text_c logTextTmp("Action stringId: \"{0}\" stopping while executing checks", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Stopping while executing checks", this, logItem_c::type_ec::info);
             break;
         }
 
@@ -189,8 +222,7 @@ void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
         {
             if (isKillingExecutionAfterTimeout_pri)
             {
-                text_c logTextTmp("Action stringId: \"{0}\" force killing execution", this->stringId_pro);
-                MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+                MACRO_ADDACTONQTSOLOG("Force killing execution", this, logItem_c::type_ec::info);
                 kill_f();
                 break;
             }
@@ -208,16 +240,15 @@ void action_c::tryStopExecution_f(const bool killAfterTimeout_par_con)
 //                }
 //                else
 //                {
-                text_c logTextTmp("Action stringId: \"{0}\" stopping execution", this->stringId_pro);
-                MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+                MACRO_ADDACTONQTSOLOG("Stopping execution", this, logItem_c::type_ec::info);
                 actionDataExecution_ptr_pri->stop_f();
 //                }
             }
 
             if (killAfterTimeout_par_con)
             {
-                text_c logTextTmp("Action stringId: \"{0}\" killing execution in {1} ms", this->stringId_pro, actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f());
-                MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+                text_c logTextTmp("Killing execution in {0} ms", actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f());
+                MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::info);
                 isKillingExecutionAfterTimeout_pri = true;
                 QTimer::singleShot(actonDataHub_ptr_ext->executionOptions_f().killTimeoutMilliseconds_f(), this, &action_c::kill_f);
             }
@@ -247,8 +278,7 @@ void action_c::kill_f()
             and (actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::stopping)
             )
         {
-            text_c logTextTmp("Action stringId: \"{0}\" killing execution", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Killing execution", this, logItem_c::type_ec::info);
             actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::killing);
             actionDataExecution_ptr_pri->kill_f();
         }
@@ -259,14 +289,13 @@ void action_c::kill_f()
 
 void action_c::examineCheckResults_f(const bool result_par_con)
 {
-    text_c logTextTmp("Action stringId: \"{0}\" examining checks results", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Examining checks results", this, logItem_c::type_ec::debug);
     if (result_par_con)
     {
         lastCheckLogicResult_pri = result_par_con;
         lastCheckLogicResultSet_pri = true;
         //checks result logic success
-        prepareToRunAction_f();
+        prepareToExecuteAction_f();
     }
     else
     {
@@ -277,17 +306,19 @@ void action_c::examineCheckResults_f(const bool result_par_con)
     }
 }
 
-void action_c::prepareToRunAction_f()
+void action_c::prepareToExecuteAction_f()
 {
-    text_c logTextTmp("Action stringId: \"{0}\" preparing to run", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+    MACRO_ADDACTONQTSOLOG("Preparing to execute", this, logItem_c::type_ec::info);
     actionDataExecutionResult_ptr_pri->trySetExecutionState_f(actionExecutionState_ec::preparing);
     if (equalOnce_ft(type_f()
                      , actionType_ec::metaEndExecutionCycle
                      , actionType_ec::closeActon
                      , actionType_ec::createDirectory
                      , actionType_ec::modifyEnvironment
-                     , actionType_ec::changeWorkingDirectory))
+                     , actionType_ec::changeWorkingDirectory
+                     //folderChangeReaction manages its threads and lives in the main thread because it can call self created actions (which spawn threads)
+                     //and spawning a thread from "not the main thread" is BIG NO in Qt
+                     , actionType_ec::folderChangeReaction))
     {
         execute_f();
     }
@@ -307,8 +338,7 @@ bool action_c::killingExecutionAfterTimeout_f() const
 
 void action_c::stopExecutingChecks_f()
 {
-    text_c logTextTmp("Action stringId: \"{0}\" stop executing checks", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Stop executing checks", this, logItem_c::type_ec::debug);
     while (true)
     {
         if (not enabled_pro)
@@ -340,20 +370,15 @@ void action_c::execute_f()
             or actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::killing)
         {
             actionDataExecutionResult_ptr_pri->trySetFinished_f();
-            text_c logTextTmp("Action stringId: \"{0}\" finished (stopped or \"killed\") before execute", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+            MACRO_ADDACTONQTSOLOG("Finished (stopped or \"killed\") before execute", this, logItem_c::type_ec::debug);
             break;
         }
 
-        {
-            text_c logTextTmp("Action stringId: \"{0}\" execute", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
-        }
+        MACRO_ADDACTONQTSOLOG("Execute", this, logItem_c::type_ec::debug);
 
         actionDataExecution_ptr_pri = createExecutionObj_f(actionDataExecutionResult_ptr_pri);
 
-        text_c logTextTmp("Action stringId: \"{0}\" execution object ctored", this->stringId_pro);
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Execution object ctored", this, logItem_c::type_ec::debug);
 
         QObject::connect(actionDataExecution_ptr_pri, &baseActionExecution_c::destroyed, this, &action_c::setActionDataExecutionNull_f);
 
@@ -373,23 +398,18 @@ void action_c::setExecutionStateExecutingChecks_f()
 
 void action_c::tryExecute_f()
 {
-    {
-        text_c logTextTmp("Action stringId: \"{0}\" try execute", this->stringId_pro);
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
-    }
+    MACRO_ADDACTONQTSOLOG("Try execute", this, logItem_c::type_ec::debug);
     while (true)
     {
         if (not enabled_pro)
         {
-            text_c logTextTmp("Action stringId: \"{0}\" can't execute a disabled Action", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Can't execute a disabled Action", this, logItem_c::type_ec::info);
             break;
         }
         //if it's executing already
         if (isExecuting_f())
         {
-            text_c logTextTmp("Action stringId: \"{0}\" already executing", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Already executing", this, logItem_c::type_ec::info);
             break;
         }
         else
@@ -434,7 +454,7 @@ void action_c::tryExecute_f()
         if (checkDataHub_pri.size_f() == 0 or not checksEnabled_pro)
         {
             //no checks path
-            prepareToRunAction_f();
+            prepareToExecuteAction_f();
         }
         else
         {
@@ -498,31 +518,60 @@ actionDataExecutionResult_c* action_c::actionDataExecutionResult_ptr_f() const
 }
 
 //the following two functions are "simple" now but if an action type starts using other actionIds they will become more complex
-int_fast32_t action_c::updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
+uint_fast64_t action_c::updateActionStringIdDependencies_f(
+        const QString& newActionStringId_par_con
+        , const QString& oldActionStringId_par_con)
 {
-    return checkDataHub_pri.updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
+    return derivedUpdateActionStringIdDependencies_f(newActionStringId_par_con, oldActionStringId_par_con)
+            + checkDataHub_pri.updateActionStringIdDependencies_f(newActionStringId_par_con, oldActionStringId_par_con);
 }
 
-bool action_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
+uint_fast64_t action_c::actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const
 {
-    return checkDataHub_pri.hasStringIdAnyDependency_f(stringId_par_con);
+    return derivedActionStringIdDependencyCount_f(actionStringId_par_con)
+            + checkDataHub_pri.actionStringIdDependencyCount_f(actionStringId_par_con);
 }
 
-int_fast32_t action_c::updateStringTriggerParserDependencies_f(
+uint_fast64_t action_c::updateStringTriggerDependencies_f(
         const QString& newStringTrigger_par_con
         , const QString& oldStringTrigger_par_con)
 {
-    return checkDataHub_pri.updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
+    return derivedUpdateStringTriggerDependecies_f(newStringTrigger_par_con, oldStringTrigger_par_con)
+            + checkDataHub_pri.updateStringTriggerDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
 }
 
-bool action_c::hasStringTriggerParserAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
+std::pair<int_fast64_t, int_fast64_t> action_c::stringTriggerCreationConflict_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
 {
-    return checkDataHub_pri.hasStringTriggerAnyDependency_f(stringTrigger_par_con, objectToIgnore_par);
+    int_fast64_t actionIdTmp(0);
+    if (derivedStringTriggerCreationConflictCount_f(stringTrigger_par_con) > 0)
+    {
+        actionIdTmp = id_pri;
+    }
+    return std::pair<int_fast64_t, int_fast64_t>(
+                actionIdTmp
+                , checkDataHub_pri.stringTriggerCreationConflict_f(stringTrigger_par_con, objectToIgnore_par));
 }
 
-std::vector<QString> action_c::stringTriggersInUse_f() const
+uint_fast64_t action_c::stringTriggerDependencyCount_f(
+        const QString& stringTrigger_par_con
+        , const void* const objectToIgnore_par)
 {
-    return checkDataHub_pri.stringTriggersInUseByChecks_f();
+    return derivedStringTriggerDependencyCount_f(stringTrigger_par_con)
+            + checkDataHub_pri.stringTriggerDependencyCount_f(stringTrigger_par_con, objectToIgnore_par);
+}
+
+QSet<QString> action_c::stringTriggerCreationCollection_f() const
+{
+    QSet<QString> resulTmp(derivedStringTriggerCreationCollection_f());
+    resulTmp.unite(checkDataHub_pri.stringTriggerCreationCollection_f());
+    return resulTmp;
+}
+
+QSet<QString> action_c::stringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resulTmp(derivedStringTriggersInUse_f(searchValues_par_con));
+    resulTmp.unite(checkDataHub_pri.stringTriggersInUseByChecks_f(searchValues_par_con));
+    return resulTmp;
 }
 
 action_c* action_c::readCreateDerived_f(const actionType_ec actionType_par_con)
@@ -550,6 +599,7 @@ action_c* action_c::clone_f() const
 
 bool action_c::isFieldsActionValid_f(textCompilation_c* errorsPtr_par) const
 {
+    //required to reorder the errors, see the if contents
     textCompilation_c errorsTmp;
     textCompilation_c* errorsTmpPtr(errorsPtr_par == nullptr ? nullptr : std::addressof(errorsTmp));
     bool isValidResultTmp(
@@ -558,16 +608,13 @@ bool action_c::isFieldsActionValid_f(textCompilation_c* errorsPtr_par) const
                 and checkDataHub_pri.areChecksValid_f(errorsTmpPtr));
     if (errorsPtr_par not_eq nullptr and not errorsTmp.empty_f())
     {
-        text_c errorTmp("Error/s found in action stringId {0}", this->stringId_pro);
-        errorsPtr_par->append_f(errorTmp);
         errorsPtr_par->append_f(errorsTmp);
     }
     else
     {
         if (not isValidResultTmp)
         {
-            text_c logTextTmp("Action stringId: \"{0}\" is not valid but also has no errors", this->stringId_pro);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::warning);
+            MACRO_ADDACTONQTSOLOG("Not valid but also has no errors", this, logItem_c::type_ec::warning);
         }
         else
         {
@@ -577,40 +624,123 @@ bool action_c::isFieldsActionValid_f(textCompilation_c* errorsPtr_par) const
     return isValidResultTmp;
 }
 
-void action_c::updateActionData_f(const actionData_c& actionData_par_con)
+void action_c::updateActionData_f(
+        const actionData_c& actionData_par_con
+        , const bool updateObjectsThatUsedOldValue_par_con
+        , textCompilation_c* errorsPtr_par)
 {
     const QString oldStringIdTmp(this->stringId_pro);
-    this->actionData_c::operator=(actionData_par_con);
-    if (oldStringIdTmp not_eq this->stringId_pro)
+    while (actionData_par_con.isFieldsActionDataValid_f(errorsPtr_par))
+    {
+        if (isExecuting_f())
+        {
+            text_c logTextTmp("Can't update action data while executing");
+            APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+            MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+            break;
+        }
+
+        if (actonDataHub_ptr_ext not_eq nullptr)
+        {
+            if (actionData_par_con.stringId_f() not_eq this->stringId_f()
+                and not actonDataHub_ptr_ext->validStringId_f(actionData_par_con.stringId_f()))
+            {
+                text_c logTextTmp("Can't update action data, stringId already in use");
+                APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+                MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+                break;
+            }
+
+            tryClearResultsOnEdit_f();
+
+            QString oldStringIdTmp(stringId_pro);
+            this->actionData_c::operator=(actionData_par_con);
+            if (updateObjectsThatUsedOldValue_par_con)
+            {
+                actonDataHub_ptr_ext->updateStringIdDependencies_f(actionData_par_con.stringId_f(), oldStringIdTmp);
+            }
+        }
+        else
+        {
+            tryClearResultsOnEdit_f();
+            this->actionData_c::operator=(actionData_par_con);
+        }
+        break;
+    }
+
+    if (oldStringIdTmp not_eq actionData_par_con.stringId_f())
     {
         Q_EMIT actionStringIdChanged_signal(this->stringId_pro, oldStringIdTmp);
     }
 }
 
-QString action_c::stringId_f() const
+QString actionData_c::stringId_f() const
 {
     return stringId_pro;
 }
 
-int_fast32_t action_c::setStringId_f(const QString& newStringId_par_con, const bool updateFieldsThatUsedOldValue_par_con)
+uint_fast64_t action_c::setStringId_f(
+        const QString& newStringId_par_con
+        , const bool updateObjectsThatUsedOldValue_par_con
+        , textCompilation_c* errorsPtr_par)
 {
-    int_fast32_t updateCountTmp(0);
-    if (isExecuting_f())
+    uint_fast64_t updateCountTmp(0);
+    QString oldActionStringIdTmp(this->stringId_pro);
+    while (true)
     {
-        text_c logTextTmp("Action stringId: \"{0}\" is executing", this->stringId_pro);
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
-    }
-    else
-    {
-        if (tryClearResultsOnEdit_f())
+        if (newStringId_par_con.isEmpty())
         {
+            text_c logTextTmp("New action stringId is empty");
+            APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+            MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+            break;
+        }
+        if (this->stringId_pro == newStringId_par_con)
+        {
+            text_c logTextTmp("New action stringId: \"{0}\" to update is the same", newStringId_par_con);
+            APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+            MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+            break;
+        }
+        if (isExecuting_f())
+        {
+            text_c logTextTmp("Can't update action stringId while executing");
+            APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+            MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+            break;
+        }
+
+        if (actonDataHub_ptr_ext not_eq nullptr)
+        {
+            if (not actonDataHub_ptr_ext->validStringId_f(newStringId_par_con))
+            {
+                text_c logTextTmp("Can't update action stringId: \"{0}\" is already in use", newStringId_par_con);
+                APPENDTEXTPTR(errorsPtr_par, logTextTmp)
+                MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::warning);
+                break;
+            }
+
+            tryClearResultsOnEdit_f();
+
             QString oldStringIdTmp(stringId_pro);
             stringId_pro = newStringId_par_con;
-            if (updateFieldsThatUsedOldValue_par_con)
+            updateCountTmp = 1;
+            if (updateObjectsThatUsedOldValue_par_con)
             {
                 updateCountTmp = updateCountTmp + actonDataHub_ptr_ext->updateStringIdDependencies_f(newStringId_par_con, oldStringIdTmp);
             }
         }
+        else
+        {
+            tryClearResultsOnEdit_f();
+            stringId_pro = newStringId_par_con;
+            updateCountTmp = 1;
+        }
+        break;
+    }
+    if (updateCountTmp > 0)
+    {
+        Q_EMIT actionStringIdChanged_signal(newStringId_par_con, oldActionStringIdTmp);
     }
     return updateCountTmp;
 }
@@ -624,15 +754,12 @@ void action_c::setChecksEnabled_f(const bool checksEnabled_par_con)
 {
     if (isExecuting_f())
     {
-        text_c logTextTmp("Action stringId: \"{0}\" is executing", this->stringId_pro);
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Can't enable/disable checks while executing", this, logItem_c::type_ec::warning);
     }
     else
     {
-        if (tryClearResultsOnEdit_f())
-        {
-            checksEnabled_pro = checksEnabled_par_con;
-        }
+        tryClearResultsOnEdit_f();
+        checksEnabled_pro = checksEnabled_par_con;
     }
 }
 
@@ -647,6 +774,12 @@ const checksDataHub_c& action_c::checkDataHub_f() const
     return checkDataHub_pri;
 }
 
+bool action_c::isStoppingExecution_f() const
+{
+    return actionDataExecutionResult_ptr_pri not_eq nullptr
+            and actionDataExecutionResult_ptr_pri->lastState_f() == actionExecutionState_ec::stopping;
+}
+
 bool action_c::enabled_f() const
 {
     return enabled_pro;
@@ -656,8 +789,7 @@ void action_c::setEnabled_f(const bool enabled_par_con)
 {
     if (isExecuting_f())
     {
-        text_c logTextTmp("Action stringId: \"{0}\" is executing: {1}", this->stringId_pro, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Can't enable/disable this action while executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -705,8 +837,8 @@ void action_c::deleteActionDataExecutionResultObject_f()
     }
     else
     {
-        text_c logTextTmp("Action stringId: \"{0}\" actionDataExecutionResult_ptr_pri null? {1}", this->stringId_pro, QSTRINGBOOL((actionDataExecutionResult_ptr_pri == nullptr)));
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        text_c logTextTmp("actionDataExecutionResult_ptr_pri null? {0}", QSTRINGBOOL((actionDataExecutionResult_ptr_pri == nullptr)));
+        MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::debug);
         actionDataExecutionResult_ptr_pri->deleteLater();
         actionDataExecutionResult_ptr_pri = nullptr;
     }
@@ -718,8 +850,8 @@ action_c::action_c(
     , id_pri(nextActionDataId_f())
     , checkDataHub_pri(this)
 {
-    text_c logTextTmp("Action stringId: \"{0}\" constructed, enabled = {1}", this->stringId_pro, QSTRINGBOOL(enabled_pro));
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    text_c logTextTmp("Action constructed, enabled = {0}", QSTRINGBOOL(enabled_pro));
+    MACRO_ADDACTONQTSOLOG(logTextTmp, this, logItem_c::type_ec::debug);
 }
 
 void action_c::deleteExecutionObjects_f()
@@ -735,16 +867,19 @@ void action_c::deleteUsedPtrs_f()
 
 action_c::~action_c()
 {
-    text_c textTmp("Action Id: {0} destroyed", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action destroyed", this, logItem_c::type_ec::debug);
     deleteUsedPtrs_f();
+}
+
+QString action_c::typeStr_f() const
+{
+    return actionTypeToStrUMap_ext_con.at(type_f());
 }
 
 action_c::action_c()
     : action_c(actionData_c())
 {
-    text_c logTextTmp("Action stringId: \"{0}\" constructed (empty constructor)", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action constructed (empty constructor)", this, logItem_c::type_ec::debug);
 }
 
 
@@ -763,8 +898,7 @@ void action_c::write_f(QJsonObject& json_ref_par) const
     json_ref_par["repeatExecution"] = repeatExecution_pro;
 
     copyFromChecksDataHubAndSerialize_f(checkDataHub_pri, json_ref_par);
-    text_c logTextTmp("Action stringId: \"{0}\" serialized", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action serialized", this, logItem_c::type_ec::debug);
 }
 
 void action_c::read_f(
@@ -806,8 +940,7 @@ void action_c::read_f(
     }
 
     derivedRead_f(json_par_con["actionTypeData"].toObject());
-    text_c logTextTmp("Action stringId: \"{0}\" deserialized", this->stringId_pro);
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Action deserialized", this, logItem_c::type_ec::debug);
 }
 
 //actionData_c::actionData_c(
@@ -832,8 +965,7 @@ void action_c::setStopAllExecutionOnError_f(const bool stopAllExecutionOnError_p
 {
     if (isExecuting_f())
     {
-        text_c logTextTmp("Action stringId: \"{0}\" is executing = {1}", this->stringId_pro, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Can't set stopAllExecutionOnError while executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -850,8 +982,7 @@ void action_c::setRepeatExecution_f(const bool repeatExecution_par_con)
 {
     if (isExecuting_f())
     {
-        text_c logTextTmp("Action stringId: \"{0}\" is executing = {1}", this->stringId_pro, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Can't set repeatExecution while executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -880,7 +1011,7 @@ actionData_c::actionData_c(
     , repeatExecution_pro(repeatExecution_par_con)
     //, checkDataHub_pro(nullptr)
 {
-    MACRO_ADDACTONQTSOLOG("ActionData, constructed (regular constructor)", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("ActionData_c constructed (regular constructor)", logItem_c::type_ec::debug);
 }
 
 bool actionData_c::isFieldsActionDataValid_f(textCompilation_c* errorsPtr_par) const

@@ -1031,12 +1031,12 @@ void copyFileActionExecution_c::executeSinglePath_f(
 
         {
             text_c logTextTmp("\nSource: {0} is dir {1} is file {2}", sourceFileInfoTmp.filePath(), QSTRINGBOOL(sourceIsDirTmp), QSTRINGBOOL(sourceIsFileTmp));
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+            MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::debug);
         }
 
         {
             text_c logTextTmp("\nDestination: {0} is dir {1} is file {2}", destinationFileInfoTmp.filePath(), QSTRINGBOOL(destinationIsDirTmp), QSTRINGBOOL(destinationIsFileTmp));
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+            MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::debug);
         }
 
         //case 1 source directory, destination file case
@@ -1093,7 +1093,7 @@ void copyFileActionExecution_c::executeSinglePath_f(
                                                      )
                 );
                 text_c logTextTmp("FileList size {0}", fileListTmp.size());
-                MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::info);
+                MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::info);
                 if (errorsPtr_par->empty_f())
                 {
                     //good
@@ -1163,7 +1163,7 @@ void copyFileActionExecution_c::executeSinglePath_f(
 
 void copyFileActionExecution_c::derivedExecute_f()
 {
-    MACRO_ADDACTONQTSOLOG("Begin copy file action execution", logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Begin copy file action execution", copyFileActionPtr_pri, logItem_c::type_ec::debug);
     textCompilation_c errorsTmp;
     while (copyFileActionPtr_pri->isFieldsDataValid_f(std::addressof(errorsTmp)))
     {

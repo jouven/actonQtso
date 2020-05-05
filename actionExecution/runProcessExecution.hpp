@@ -53,7 +53,6 @@ private Q_SLOTS:
     void readStderr_f();
     void readStdout_f();
     void readProcessState_f(QProcess::ProcessState newState_par);
-
 };
 
 #endif // ACTONQTSO_RUNPROCESSEXECUTION_HPP

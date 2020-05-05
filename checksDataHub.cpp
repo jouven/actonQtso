@@ -19,13 +19,14 @@ bool checksDataHub_c::moveCheckRow_f(
     bool resultTmp(false);
 
     int_fast64_t checkDataIdTmp(rowToCheckDataId_f(sourceRow_par_con));
+    check_c* checkCopyTmp(nullptr);
     //qInfo() << "actionDataIdTmp " << actionDataIdTmp << endl;
     if (checkDataIdTmp > 0)
     {
         //save the actionData stuff that is going to get moved
         //no ref because... first it's removed (removeActionDataUsingRow_f)
         //so copy
-        check_c* checkCopyTmp(check_ptr_f(checkDataIdTmp));
+        checkCopyTmp = check_ptr_f(checkDataIdTmp);
 
         //qInfo() << "sourceActionDataTmp.id_f() " << sourceActionDataTmp.id_f() << endl;
 
@@ -43,16 +44,16 @@ bool checksDataHub_c::moveCheckRow_f(
         }
     }
 
-    text_c textTmp("Check moved? {0}",  QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    text_c textTmp("Check moved from row {0} to row {1} result: {2}", sourceRow_par_con, destinationRow_par_con, QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(textTmp, checkCopyTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
 void checksDataHub_c::verifyCheckResults_f()
 {
     action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
-    text_c logMessageTmp("Action stringId: \"{0}\" examining checks results", parentActionPtrTmp->stringId_f());
-    MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::debug);
+
+    MACRO_ADDACTONQTSOLOG("Examining checks results", parentActionPtrTmp, logItem_c::type_ec::debug);
 
     bool somethingStoppedTmp(false);
     bool allFinishedTmp(true);
@@ -140,10 +141,10 @@ void checksDataHub_c::verifyCheckResults_f()
             if (stoppingChecksExecution_pri)
             {
                 stoppingChecksExecution_pri = false;
-                MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", logItem_c::type_ec::info);
+                MACRO_ADDACTONQTSOLOG("Execution finished, after stopping", parentActionPtrTmp, logItem_c::type_ec::info);
                 if (somethingStoppedTmp)
                 {
-                    MACRO_ADDACTONQTSOLOG("Execution finished, one or more checks were stopped", logItem_c::type_ec::info);
+                    MACRO_ADDACTONQTSOLOG("Execution finished, one or more checks were stopped", parentActionPtrTmp, logItem_c::type_ec::info);
                     checksExecutionStopped_pri = true;
                     Q_EMIT checksExecutionStopped_signal();
                 }
@@ -152,8 +153,8 @@ void checksDataHub_c::verifyCheckResults_f()
             {
 
             }
-            text_c logMessageTmp("Action stringId: \"{0}\" checks result is {1}", parentActionPtrTmp->stringId_f(), QSTRINGBOOL(resultTmp));
-            MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::info);
+            text_c logMessageTmp("Checks result is {1}", QSTRINGBOOL(resultTmp));
+            MACRO_ADDACTONQTSOLOG(logMessageTmp, parentActionPtrTmp, logItem_c::type_ec::info);
             Q_EMIT checksExecutionFinished_signal(resultTmp);
         }
         else
@@ -171,7 +172,8 @@ void checksDataHub_c::verifyCheckResults_f()
 
 std::vector<check_c*> checksDataHub_c::executeCheckDataRows_f(std::vector<int> rows_par)
 {
-	MACRO_ADDACTONQTSOLOG("Execute Checks from rows", logItem_c::type_ec::debug);
+	action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
+	MACRO_ADDACTONQTSOLOG("Execute Checks from rows", parentActionPtrTmp, logItem_c::type_ec::debug);
 	if (executingChecks_pri)
 	{
 		//do nothing if already executing
@@ -201,21 +203,18 @@ std::vector<check_c*> checksDataHub_c::executeCheckDataRows_f(std::vector<int> r
 				check_c* checkPtrTmp(check_ptr_f(checkDataIdTmp));
 				if (checkPtrTmp->isExecuting_f())
 				{
-					text_c errorTmp("Check is executing, id: {0}", checkPtrTmp->id_f());
-					MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::warning);
+					MACRO_ADDACTONQTSOLOG("Check is executing", parentActionPtrTmp, logItem_c::type_ec::warning);
 					somethingIsExecuting = true;
 					break;
 				}
 				if (not checkPtrTmp->enabled_f())
 				{
-					text_c errorTmp("Check is not enabled, id: {0}", checkPtrTmp->id_f());
-					MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::warning);
+					MACRO_ADDACTONQTSOLOG("Check is not enabled", parentActionPtrTmp, logItem_c::type_ec::warning);
 					continue;
 				}
 				if (not checkPtrTmp->isFieldsCheckValid_f())
 				{
-					text_c errorTmp("Check to execute is not valid, id: {0}", checkPtrTmp->id_f());
-					MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::error);
+					MACRO_ADDACTONQTSOLOG("Check to execute is not valid", parentActionPtrTmp, logItem_c::type_ec::error);
 					checksToRunValidTmp = false;
 					continue;
 				}
@@ -259,8 +258,8 @@ void checksDataHub_c::stopExecutingChecks_f()
 
 void checksDataHub_c::executeNextSeqCheck_f()
 {
-    MACRO_ADDACTONQTSOLOG("Execute next check", logItem_c::type_ec::debug);
     check_c* checkDataTmp(checksToRunSeq_pri.front());
+    MACRO_ADDACTONQTSOLOG("Execute next check", checkDataTmp, logItem_c::type_ec::debug);
     checksToRunSeq_pri.pop_front();
     //if there are >0 checks to run, make it so when checkDataTmp finishes,
     //calls this function again to run the next one
@@ -375,14 +374,14 @@ void checksDataHub_c::setParentAction_f(action_c* parentAction_par)
 //    return parentAction_pri;
 //}
 
-int_fast32_t checksDataHub_c::updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
+uint_fast64_t checksDataHub_c::updateActionStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
 {
     text_c logMessageTmp("ChecksDataHub update stringId dependencies, old: {0} new: {1}", oldStringId_par_con, newStringId_par_con);
     MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::debug);
-    int_fast32_t updateCountTmp(0);
+    uint_fast64_t updateCountTmp(0);
     for (std::pair<const int_fast64_t, check_c*>& pair_ite : checkDataIdToCheckUMap_pri)
     {
-        if (pair_ite.second->updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con))
+        if (pair_ite.second->updateActionStringIdDependencies_f(newStringId_par_con, oldStringId_par_con))
         {
             updateCountTmp = updateCountTmp + 1;
         }
@@ -390,25 +389,35 @@ int_fast32_t checksDataHub_c::updateStringIdDependencies_f(const QString& newStr
     return updateCountTmp;
 }
 
-bool checksDataHub_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
+uint_fast64_t checksDataHub_c::actionStringIdDependencyCount_f(const QString& stringId_par_con) const
 {
-    bool resultTmp(false);
+    uint_fast64_t resultTmp(0);
     for (const std::pair<const int_fast64_t, check_c*>& pair_ite_con : checkDataIdToCheckUMap_pri)
     {
-        if (pair_ite_con.second->hasStringIdAnyDependency_f(stringId_par_con))
-        {
-            resultTmp = true;
-            break;
-        }
+        resultTmp = resultTmp + pair_ite_con.second->actionStringIdDependencyCount_f(stringId_par_con);
     }
     return resultTmp;
 }
 
-int_fast32_t checksDataHub_c::updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+int_fast64_t checksDataHub_c::stringTriggerCreationConflict_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
+{
+    uint_fast64_t resultTmp(0);
+    for (const std::pair<const int_fast64_t, check_c*>& pair_ite_con : checkDataIdToCheckUMap_pri)
+    {
+        if (pair_ite_con.second == objectToIgnore_par)
+        {
+            continue;
+        }
+        resultTmp = resultTmp + pair_ite_con.second->stringTriggerCreationConflict_f(stringTrigger_par_con);
+    }
+    return resultTmp;
+}
+
+uint_fast64_t checksDataHub_c::updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
 {
     text_c logMessageTmp("ChecksDataHub update string trigger parser dependencies, old: {0} new: {1}", oldStringTrigger_par_con, newStringTrigger_par_con);
     MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::debug);
-    int_fast32_t updateCountTmp(0);
+    uint_fast64_t updateCountTmp(0);
     for (std::pair<const int_fast64_t, check_c*>& pair_ite : checkDataIdToCheckUMap_pri)
     {
         if (pair_ite.second->updateStringTriggerDependecies_f(newStringTrigger_par_con, oldStringTrigger_par_con))
@@ -419,31 +428,40 @@ int_fast32_t checksDataHub_c::updateStringTriggerParserDependencies_f(const QStr
     return updateCountTmp;
 }
 
-bool checksDataHub_c::hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
+uint_fast64_t checksDataHub_c::stringTriggerDependencyCount_f(
+        const QString& stringTrigger_par_con
+        , const void* const objectToIgnore_par) const
 {
-    bool resultTmp(false);
+    uint_fast64_t resultTmp(0);
     for (const std::pair<const int_fast64_t, check_c*>& pair_ite_con : checkDataIdToCheckUMap_pri)
     {
         if (pair_ite_con.second == objectToIgnore_par)
         {
             continue;
         }
-        if (pair_ite_con.second->hasStringTriggerAnyDependency_f(stringTrigger_par_con))
-        {
-            resultTmp = true;
-            break;
-        }
+        resultTmp = resultTmp + pair_ite_con.second->sringTriggerDependencyCount_f(stringTrigger_par_con);
     }
     return resultTmp;
 }
 
-std::vector<QString> checksDataHub_c::stringTriggersInUseByChecks_f() const
+QSet<QString> checksDataHub_c::stringTriggerCreationCollection_f() const
 {
-    std::vector<QString> resultTmp;
+    QSet<QString> resultTmp;
     for (const std::pair<const int_fast64_t, check_c*>& pair_ite_con : checkDataIdToCheckUMap_pri)
     {
-        std::vector<QString> vectorTmp(pair_ite_con.second->stringTriggersInUse_f());
-        resultTmp.insert(resultTmp.end(), vectorTmp.begin(), vectorTmp.end());
+        QSet<QString> setTmp(pair_ite_con.second->stringTriggerCreationCollection_f());
+        resultTmp.unite(setTmp);
+    }
+    return resultTmp;
+}
+
+QSet<QString> checksDataHub_c::stringTriggersInUseByChecks_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const std::pair<const int_fast64_t, check_c*>& pair_ite_con : checkDataIdToCheckUMap_pri)
+    {
+        QSet<QString> setTmp(pair_ite_con.second->stringTriggersInUse_f(searchValues_par_con));
+        resultTmp.unite(setTmp);
     }
     return resultTmp;
 }
@@ -547,9 +565,9 @@ bool checksDataHub_c::insertCheck_f(
         , const row_t row_par_con)
 {
     bool resultTmp(false);
+    action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
     while (true)
     {
-        action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
         if (parentActionPtrTmp not_eq nullptr and parentActionPtrTmp->isExecuting_f())
         {
             break;
@@ -613,7 +631,7 @@ bool checksDataHub_c::insertCheck_f(
         break;
     }
     text_c textTmp("Check inserted? {0}",  QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(textTmp, parentActionPtrTmp, logItem_c::type_ec::info);
     return resultTmp;
 }
 
@@ -702,9 +720,9 @@ bool checksDataHub_c::removeCheckUsingRow_f(
         , const int_fast64_t checkDataId_par_con)
 {
     bool resultTmp(false);
+    action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
     while (true)
     {
-        action_c* parentActionPtrTmp(static_cast<action_c*>(parent()));
         if (parentActionPtrTmp not_eq nullptr and parentActionPtrTmp->isExecuting_f())
         {
             break;
@@ -768,7 +786,7 @@ bool checksDataHub_c::removeCheckUsingRow_f(
     }
 
     text_c textTmp("Check in row {0} removed: {1}", row_par_con, QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(textTmp, parentActionPtrTmp, logItem_c::type_ec::info);
     return resultTmp;
 }
 

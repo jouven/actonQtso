@@ -4,6 +4,7 @@
 #include "crossPlatformMacros.hpp"
 
 #include <QObject>
+#include <QSet>
 
 #include <unordered_map>
 #include <vector>
@@ -53,7 +54,7 @@ class EXPIMP_ACTONQTSO checksDataHub_c : public QObject
 public:
     explicit checksDataHub_c(action_c* parentAction_par);
 
-    //DON'T use the regular constructors to explicitly copy the object, use clone (because pointers)
+    //DON'T use the regular constructors to explicitly copy a checksDataHub_c object, use clone (because pointers)
 
     checksDataHub_c(const checksDataHub_c& from_par_con);
     //needed to allow parent action object to set a new parent of this object when copying an action,
@@ -115,13 +116,16 @@ public:
     //action_c* parentAction_f() const;
     //update all the checks setting that depend on an actionStringId
     //returns the number of updated checks which did match with the oldStringId
-    int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
-    bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+    uint_fast64_t updateActionStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
+    uint_fast64_t actionStringIdDependencyCount_f(const QString& stringId_par_con) const;
 
-    int_fast32_t updateStringTriggerParserDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
-    //although the return value is a vector, it will only contain unique strings
-    std::vector<QString> stringTriggersInUseByChecks_f() const;
+    //return the first check id that conflicts, 0 = no conflict
+    int_fast64_t stringTriggerCreationConflict_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par = nullptr) const;
+    uint_fast64_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    uint_fast64_t stringTriggerDependencyCount_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par = nullptr) const;
+
+    QSet<QString> stringTriggerCreationCollection_f() const;
+    QSet<QString> stringTriggersInUseByChecks_f(const QSet<QString>& searchValues_par_con) const;
 
     //verifies if ALL the checks are valid
     //a more optimized version of this could be made, i.e. get the first invalid one...

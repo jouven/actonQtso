@@ -5,6 +5,8 @@
 #include "checkMappings/checkStrMapping.hpp"
 #include "actonDataHub.hpp"
 
+#include "essentialQtso/macros.hpp"
+
 #include <QJsonObject>
 #include <QJsonArray>
 
@@ -78,7 +80,8 @@ void deserializeAndCopyToChecksDataHub_f(
             else
             {
                 text_c deserializeErrorTmp("Failed to deserialize check JSON: type {0} description {1}", checkDataJsonObject["type"].toString().toLower(), checkDataJsonObject["description"].toString().toLower());
-                MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
+                MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, checkDataPtrTmp, logItem_c::type_ec::error);
+                APPENDTEXTPTR(errors_par, deserializeErrorTmp);
             }
         }
 

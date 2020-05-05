@@ -34,7 +34,7 @@ void actionFinishedCheckExecution_c::derivedExecute_f()
     //bool anyErrorTmp(false);
     while (true)
     {
-        QString actionStringIdTmp(actionFinishedCheckPtr_pri->actionStringIdParsed_f());
+        QString actionStringIdTmp(actionFinishedCheckPtr_pri->actionStringId_f());
         int_fast64_t actionDataIdTmp(actonDataHub_ptr_ext->actionDataStringIdToActionDataId_f(actionStringIdTmp));
         if (actionDataIdTmp <= 0)
         {
@@ -97,8 +97,11 @@ void actionFinishedCheckExecution_c::actionFinished_f(action_c* const action_par
         {
             finishedCount_pri = finishedCount_pri + 1;
         }
-        text_c textTmp("(Check) Action stringId \"{0}\" finished result: {1}, count: {2}", action_par_ptr_con->stringId_f(), QSTRINGBOOL(finishComputedResultTmp), finishedCount_pri);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+        text_c textTmp("(Check) Action stringId \"{0}\" finished result: {1}, count: {2}"
+                       , action_par_ptr_con->stringId_f()
+                       , QSTRINGBOOL(finishComputedResultTmp)
+                       , finishedCount_pri);
+        MACRO_ADDACTONQTSOLOG(textTmp, actionFinishedCheckPtr_pri, logItem_c::type_ec::info);
         if (finishedCount_pri >= actionFinishedCheckPtr_pri->finishedCount_f())
         {
             //finish

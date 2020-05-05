@@ -32,13 +32,14 @@ protected:
     QString actionStringId_pro;
     //how many times the action has to finish successfully (which depends on successOnActionSuccess_pro)
     //to end this check (otherwise it will keep "executing")
-    int_fast64_t finishedCount_pro = 1;
+    uint_fast64_t finishedCount_pro = 1;
     //controls if this checks success depends on the action succcess or otherwise any action finished state
     bool successOnActionSuccess_pro = true;
 
-    //TODO add, in the actionData_c, "checktimeout" field, if x time passes without the checks finishing finish the action with checks failed
-
-    //type of result mapped to a string trigger
+    //type of result mapped to a string trigger, the value or stringTrigger will be parsed when creating the new stringTrigger,
+    //it can be another existing stringTrigger, BUT in the end a new stringTrigger will, try to, be created with whatever results of the parsing
+    //and the value of the execution result (no matter the type, error, info, return code...)
+    //also the value-stringTringger-whateverResultsFromTheParsing must be unique from the other value-stringTrigger-... of this container (it will be validated)
     std::unordered_map<actionExecutionResultFields_ec, QString> actionExecutionResultFieldToStringTrigger_pro;
 
     //prevent public assignments
@@ -55,13 +56,13 @@ public:
     actionFinishedData_c() = default;
     explicit actionFinishedData_c(
             const QString& actionStringId_par_con
-            , const int_fast64_t finishedCount_par_con = 1
+            , const uint_fast64_t finishedCount_par_con = 1
             , const bool successOnActionSuccess_par_con = true
             , const std::unordered_map<actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringTrigger_par_con = std::unordered_map<actionExecutionResultFields_ec, QString>()
     );
 
     QString actionStringId_f() const;
-    QString actionStringIdParsed_f() const;
+    //QString actionStringIdParsed_f() const;
     void setActionStringId_f(const QString& actionStringId_par_con);
 
     //keys are lower-case
@@ -74,20 +75,21 @@ public:
     //won't replace existing keys in the parser configs
     //won't allow the use of keys already used in another checks because parser keys are unique
     //returns true if the mapping is added
-    //use bool actonDataHub_c::hasStringKeyParserAnyDependency_f(const QString& stringKey_par_con) const; to check and warn
+    //use bool actonDataHub_c::stringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const; to check and warn
     //that a key is already used in another check
     bool mapActionResultToStringParserConfig_f(const actionExecutionResultFields_ec actionExecutionResultField_par_con, const QString& stringTrigger_par_con);
     void removeMapActionResultToStringParserConfig_f(const actionExecutionResultFields_ec actionExecutionResultField_par_con);
 
     std::unordered_map<actionExecutionResultFields_ec, QString> actionExecutionResultFieldToStringTrigger_f() const;
+    //std::unordered_map<actionExecutionResultFields_ec, QString> actionExecutionResultFieldToStringTriggerParsed_f() const;
     void setActionExecutionResultFieldToStringTrigger_f(const std::unordered_map<actionExecutionResultFields_ec, QString>& actionExecutionResultFieldToStringTrigger_par_con);
 
-    int_fast64_t finishedCount_f() const;
-    void setFinishedCount_f(const int_fast64_t finishedCount_par_con);
+    uint_fast64_t finishedCount_f() const;
+    void setFinishedCount_f(const uint_fast64_t finishedCount_par_con);
     bool successOnActionSuccess_f() const;
     void setSuccessOnActionSuccess_f(const bool successOnActionSuccess_par_con);
 
-    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
+    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr, const void* const objectToIgnore_par = nullptr) const;
 };
 
 //this only "supports" one actionStringId because an action can have multiple
@@ -105,17 +107,18 @@ class EXPIMP_ACTONQTSO actionFinishedCheck_c : public check_c, public actionFini
 
     baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
-    QString typeStr_f() const override;
 
-    bool derivedUpdateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con) override;
-    bool derivedHasStringIdAnyDependency_f(const QString& stringId_par_con) const override;
-    bool derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con) override;
-    bool derivedHasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const override;
-    std::vector<QString> derivedStringTriggersInUse_f() const override;
+    uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
+    uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con) override;
+    uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& stringId_par_con) const override;
+    //uint64_t derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con) override;
+    //uint64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
+    //QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
+    QSet<QString> derivedStringTriggerCreationCollection_f() const override;
 
 public:
     actionFinishedCheck_c() = default;
-    actionFinishedCheck_c(const checkData_c& checkData_par_con, const actionFinishedData_c& actionFinished_par_con);
+    actionFinishedCheck_c(const checkData_c& checkData_par_con, const actionFinishedData_c& actionFinishedData_par_con);
 
     //updating certain action/checks objects might require to update other objects depending
     //if they have some kind of field dependency, i.e. stringId for actions, string trigger for actionFinished checks
@@ -125,7 +128,6 @@ public:
 
 Q_SIGNALS:
     void stringTriggerChanged_signal(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
-
 };
 
 #endif // ACTONQTSO_ACTIONFINISHED_HPP

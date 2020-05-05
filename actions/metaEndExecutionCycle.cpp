@@ -87,9 +87,9 @@ void metaEndExecutionCycleAction_c::derivedRead_f(const QJsonObject& json_par_co
     //    }
 }
 
-bool metaEndExecutionCycleAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) const
+bool metaEndExecutionCycleAction_c::derivedIsValidAction_f(textCompilation_c* ) const
 {
-    return isFieldsDataValid_f(errors_par);
+    return true; //isFieldsDataValid_f(errors_par);
 }
 
 action_c* metaEndExecutionCycleAction_c::derivedClone_f() const
@@ -110,10 +110,10 @@ actionType_ec metaEndExecutionCycleAction_c::type_f() const
     return actionType_ec::metaEndExecutionCycle;
 }
 
-QString metaEndExecutionCycleAction_c::typeStr_f() const
-{
-    return actionTypeToStrUMap_ext_con.at(type_f());
-}
+//QString metaEndExecutionCycleAction_c::typeStr_f() const
+//{
+//    return actionTypeToStrUMap_ext_con.at(type_f());
+//}
 
 metaEndExecutionCycleAction_c::metaEndExecutionCycleAction_c(
         const actionData_c& actionData_par_con

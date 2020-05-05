@@ -9,6 +9,7 @@ const QMap<QString, actionType_ec> strToActionTypeMap_ext_con(
     , {	"copyfile", actionType_ec::copyFile}
     , {	"deletefiledir", actionType_ec::deleteFileDir}
     , {	"metaendexecutioncycle", actionType_ec::metaEndExecutionCycle}
+    , {	"folderchangereaction", actionType_ec::folderChangeReaction}
     //, {	"metadelay", actionType_ec::metaDelay}
     //, {	"closeacton", actionType_ec::closeActon}
     //, {	"modifyenvironment", actionType_ec::modifyEnvironment}
@@ -29,6 +30,7 @@ const std::unordered_map<actionType_ec, QString> actionTypeToStrUMap_ext_con(
     //, {	actionType_ec::modifyEnvironment, "modifyEnvironment" }
     , {	actionType_ec::copyFile, "copyFile" }
     , {	actionType_ec::metaEndExecutionCycle, "metaEndExecutionCycle" }
+    , {	actionType_ec::folderChangeReaction, "folderChangeReaction" }
     //, {	actionType_ec::metaDelay, "metaDelay" }
 });
 

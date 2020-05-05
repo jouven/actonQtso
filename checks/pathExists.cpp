@@ -3,6 +3,7 @@
 #include "../checkExecution/pathExistsExecution.hpp"
 #include "../checkMappings/checkStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "essentialQtso/macros.hpp"
@@ -91,15 +92,38 @@ checkType_ec pathExistsCheck_c::type_f() const
     return checkType_ec::pathExists;
 }
 
-QString pathExistsCheck_c::typeStr_f() const
+uint64_t pathExistsCheck_c::derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
 {
-    return checkTypeToStrUMap_ext_con.at(type_f());
+    uint_fast64_t resultTmp(0);
+    resultTmp = resultTmp + replaceSubString_f(path_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+    return resultTmp;
 }
 
-pathExistsCheck_c::pathExistsCheck_c(const checkData_c& checkData_par_con
-        , const pathExistsData_c& pathExists_par_con)
+uint64_t pathExistsCheck_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+{
+    uint_fast64_t resultTmp(0);
+    resultTmp = resultTmp + vectorQStringCountSubString_f(path_pro, {stringTrigger_par_con});
+    return resultTmp;
+}
+
+QSet<QString> pathExistsCheck_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const QString& searchValue_ite_con : searchValues_par_con)
+    {
+        if (vectorQStringCountSubString_f(searchValue_ite_con, {path_pro}, true) > 0)
+        {
+            resultTmp.insert(searchValue_ite_con);
+        }
+    }
+    return resultTmp;
+}
+
+pathExistsCheck_c::pathExistsCheck_c(
+        const checkData_c& checkData_par_con
+        , const pathExistsData_c& pathExistsData_par_con)
     : check_c(checkData_par_con)
-    , pathExistsData_c(pathExists_par_con)
+    , pathExistsData_c(pathExistsData_par_con)
 {}
 
 void pathExistsCheck_c::updatePathExistsData_f(const pathExistsData_c& pathExistsData_par_con)

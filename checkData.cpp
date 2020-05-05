@@ -4,6 +4,7 @@
 
 #include "checkDataExecutionResult.hpp"
 
+#include "checkMappings/checkStrMapping.hpp"
 #include "checkMappings/checkMapping.hpp"
 #include "checkExecution/actionFinishedExecution.hpp"
 #include "checkExecution/sameFileExecution.hpp"
@@ -92,29 +93,39 @@ bool check_c::tryClearResultsOnEdit_f()
     return resultTmp;
 }
 
-bool check_c::derivedUpdateStringIdDependencies_f(const QString&, const QString&)
+uint_fast64_t check_c::derivedStringTriggerCreationConflictCount_f(const QString&) const
 {
-    return false;
+    return 0;
 }
 
-bool check_c::derivedHasStringIdAnyDependency_f(const QString&) const
+uint_fast64_t check_c::derivedUpdateActionStringIdDependencies_f(const QString&, const QString&)
 {
-    return false;
+    return 0;
 }
 
-bool check_c::derivedUpdateStringTriggerDependecies_f(const QString&, const QString&)
+uint_fast64_t check_c::derivedActionStringIdDependencyCount_f(const QString&) const
 {
-    return false;
+    return 0;
 }
 
-bool check_c::derivedHasStringTriggerAnyDependency_f(const QString& ) const
+uint_fast64_t check_c::derivedUpdateStringTriggerDependecies_f(const QString&, const QString&)
 {
-    return false;
+    return 0;
 }
 
-std::vector<QString> check_c::derivedStringTriggersInUse_f() const
+uint_fast64_t check_c::derivedStringTriggerDependencyCount_f(const QString& ) const
 {
-    return std::vector<QString>();
+    return 0;
+}
+
+QSet<QString> check_c::derivedStringTriggersInUse_f(const QSet<QString>&) const
+{
+    return QSet<QString>();
+}
+
+QSet<QString> check_c::derivedStringTriggerCreationCollection_f() const
+{
+    return QSet<QString>();
 }
 
 void check_c::setDescription_f(const QString& description_par_con)
@@ -122,12 +133,11 @@ void check_c::setDescription_f(const QString& description_par_con)
     description_pro = description_par_con;
 }
 
-void check_c::prepareToRun_f()
+void check_c::prepareToExecute_f()
 {
     //IMPORTANT no stop checking here, like an action does, because checks don't run something else like an action with checks,
     //so it's not necessary, since the function uses the main-thread, which blocks the GUI, it's not possible to execute and immediately stop
-    text_c textTmp("Check id: {0} preparing to run", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Preparing to run", this, logItem_c::type_ec::debug);
     //checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::preparing);
 
     //IMPORTANT some check types barely use resources or their execution
@@ -147,9 +157,12 @@ void check_c::prepareToRun_f()
     //IT'S IMPORTANT TO GATE-ORDER ACTION EXECUTION USING actionFinished checks
     //ROW ORDER doesn't guarantee execution order
     if (equalOnce_ft(type_f()
+                     //TODO??? create a virtual function for actions/checks that returns if the check/action the execution lives in the main thread or not
+                     //I'm not sure since this moves the logic out of here and it's less clear (same with the action_c class)
                      , checkType_ec::actionFinished
                      , checkType_ec::timer
-                     , checkType_ec::pathExists))
+                     , checkType_ec::pathExists
+                     , checkType_ec::actionStartedExecuting))
     {
         execute_f();
     }
@@ -179,17 +192,11 @@ void check_c::execute_f()
             break;
         }
 
-        {
-            text_c textTmp("Check Id: {0} execute", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
-        }
+        MACRO_ADDACTONQTSOLOG("Execute", this, logItem_c::type_ec::info);
 
         checkDataExecution_ptr_pri = createExecutionObj_f(checkDataExecutionResult_ptr_pri);
 
-        {
-            text_c textTmp("Check Id: {0} execution object ctored", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
-        }
+        MACRO_ADDACTONQTSOLOG("Check execution object ctored", this, logItem_c::type_ec::info);
 
         QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::destroyed, this, &check_c::setCheckDataExecutionNull_f );
 
@@ -201,17 +208,13 @@ void check_c::execute_f()
 
 void check_c::tryExecute_f()
 {
-    {
-        text_c textTmp("Check Id: {0} try execute", this->id_pri);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
-    }
+    MACRO_ADDACTONQTSOLOG("Try execute", this, logItem_c::type_ec::debug);
     while (true)
     {
         //not enabled
         if (not enabled_pro)
         {
-            text_c textTmp("Check Id: {0} can't run a not enabled Check", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Can't run a disabled Check", this, logItem_c::type_ec::info);
             break;
         }
         else
@@ -221,8 +224,7 @@ void check_c::tryExecute_f()
         //something is executing
         if (isExecuting_f())
         {
-            text_c textTmp("Check Id: {0} already executing", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Already executing", this, logItem_c::type_ec::info);
             break;
         }
         else
@@ -261,17 +263,14 @@ void check_c::tryExecute_f()
             deleteCheckDataExecutionObject_f();
         }
 
-        prepareToRun_f();
+        prepareToExecute_f();
         break;
     }
 }
 
 void check_c::stopExecution_f()
 {
-    {
-        text_c textTmp("Check Id: {0} try stop execution", this->id_pri);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
-    }
+    MACRO_ADDACTONQTSOLOG("Try stop execution", this, logItem_c::type_ec::debug);
     while (true)
     {
         if (not enabled_pro)
@@ -288,15 +287,13 @@ void check_c::stopExecution_f()
             and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::preparing)
         {
             checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
-            text_c textTmp("Check Id: {0} stopped while preparing", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Stopped while preparing", this, logItem_c::type_ec::info);
             break;
         }
 
         if (isExecuting_f())
         {
-            text_c textTmp("Check Id: {0} stopping execution", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG("Stopping execution", this, logItem_c::type_ec::info);
             checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
             checkDataExecution_ptr_pri->stop_f();
         }
@@ -343,8 +340,7 @@ void check_c::setThreaded_f(const bool threaded_par_con)
        isExecuting_f()
         )
     {
-        text_c textTmp("Check Id: {0} is executing = {1}", this->id_pri, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -366,8 +362,7 @@ void check_c::setEnabled_f(const bool enabled_par_con)
        isExecuting_f()
         )
     {
-        text_c textTmp("Check Id: {0} is executing = {1}", this->id_pri, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -388,37 +383,42 @@ void check_c::setEnabled_f(const bool enabled_par_con)
 //    return parentAction_pri;
 //}
 
-bool check_c::updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con)
+uint_fast64_t check_c::updateActionStringIdDependencies_f(
+        const QString& newActionStringId_par_con
+        , const QString& oldActionStringId_par_con)
 {
-    bool updatedTmp(false);
+    uint_fast64_t resultTmp(0);
     if (
         isExecuting_f()
         )
     {
-        text_c textTmp("Check Id: {0} is executing = {1}", this->id_pri, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
     }
     else
     {
-        updatedTmp = derivedUpdateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
+        resultTmp = derivedUpdateActionStringIdDependencies_f(newActionStringId_par_con, oldActionStringId_par_con);
     }
-    return updatedTmp;
+    return resultTmp;
 }
 
-bool check_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
+uint_fast64_t check_c::actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const
 {
-    return derivedHasStringIdAnyDependency_f(stringId_par_con);
+    return derivedActionStringIdDependencyCount_f(actionStringId_par_con);
 }
 
-bool check_c::updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+uint_fast64_t check_c::stringTriggerCreationConflict_f(const QString& stringTrigger_par_con) const
 {
-    bool resultTmp(false);
+    return derivedStringTriggerCreationConflictCount_f(stringTrigger_par_con);
+}
+
+uint_fast64_t check_c::updateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)
+{
+    uint_fast64_t resultTmp(0);
     if (
         isExecuting_f()
         )
     {
-        text_c textTmp("Check Id: {0} is executing = {1}", this->id_pri, QSTRINGBOOL(isExecuting_f()));
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
     }
     else
     {
@@ -427,14 +427,19 @@ bool check_c::updateStringTriggerDependecies_f(const QString& newStringTrigger_p
     return resultTmp;
 }
 
-bool check_c::hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con) const
+uint_fast64_t check_c::sringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
 {
-    return derivedHasStringTriggerAnyDependency_f(stringTrigger_par_con);
+    return derivedStringTriggerDependencyCount_f(stringTrigger_par_con);
 }
 
-std::vector<QString> check_c::stringTriggersInUse_f() const
+QSet<QString> check_c::stringTriggerCreationCollection_f() const
 {
-    return derivedStringTriggersInUse_f();
+    return derivedStringTriggerCreationCollection_f();
+}
+
+QSet<QString> check_c::stringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    return derivedStringTriggersInUse_f(searchValues_par_con);
 }
 
 check_c* check_c::readCreateDerived_f(const checkType_ec checkType_par_con)
@@ -466,16 +471,14 @@ bool check_c::isFieldsCheckValid_f(textCompilation_c* errorsPtr_par) const
                 and derivedIsValidCheck_f(errorsTmpPtr));
     if (errorsPtr_par not_eq nullptr and not errorsTmp.empty_f())
     {
-        text_c errorTmp("Error/s found in check Id {0}", this->id_pri);
-        errorsPtr_par->append_f(errorTmp);
         errorsPtr_par->append_f(errorsTmp);
     }
     else
     {
+        //really rare case? if some error implementation is missed
         if (not isValidResultTmp)
         {
-            text_c logTextTmp("Check Id: \"{0}\" is not valid but also has no errors", this->id_pri);
-            MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::warning);
+            MACRO_ADDACTONQTSOLOG("Check is not valid but also has no errors", this, logItem_c::type_ec::warning);
         }
         else
         {
@@ -550,15 +553,13 @@ check_c::check_c(
     : checkData_c(checkData_par_con)
     , id_pri(nextCheckDataId_f())
 {
-    text_c textTmp("Check Id: {0} constructed", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Check constructed", this, logItem_c::type_ec::debug);
 }
 
 check_c::check_c()
     : check_c(checkData_c())
 {
-    text_c textTmp("Check Id: {0} constructed (empty constructor)", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Constructed (empty constructor)", this, logItem_c::type_ec::debug);
 }
 
 
@@ -661,8 +662,7 @@ check_c::check_c()
 
 check_c::~check_c()
 {
-    text_c textTmp("Check Id: {0} destroyed", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Check destroyed", logItem_c::type_ec::debug);
     deleteUsedPtrs_f();
 }
 
@@ -677,8 +677,7 @@ void check_c::write_f(QJsonObject& json_ref_par) const
     derivedWrite_f(derivedObjTmp);
     json_ref_par["checkTypeData"] = derivedObjTmp;
 
-    text_c textTmp("Check Id: {0} serialized", this->id_pri);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG("Check serialized", this, logItem_c::type_ec::debug);
 }
 
 void check_c::read_f(const QJsonObject& json_par_con)
@@ -705,9 +704,13 @@ void check_c::read_f(const QJsonObject& json_par_con)
         }
         derivedRead_f(json_par_con["checkTypeData"].toObject());
 
-        text_c textTmp("Check Id: {0} deserialized", this->id_pri);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
-//    }
+        MACRO_ADDACTONQTSOLOG("Check deserialized", this, logItem_c::type_ec::debug);
+        //    }
+}
+
+QString check_c::typeStr_f() const
+{
+     return checkTypeToStrUMap_ext_con.at(type_f());
 }
 
 //QString check_c::uniqueIdString_f() const

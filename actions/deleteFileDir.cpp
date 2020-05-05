@@ -3,6 +3,7 @@
 #include "../actionExecution/deleteFileDirExecution.hpp"
 #include "../actionMappings/actionStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "textQtso/text.hpp"
@@ -106,6 +107,29 @@ bool deleteFileDirAction_c::derivedIsValidAction_f(textCompilation_c* errors_par
     return isFieldsDataValid_f(errors_par);
 }
 
+uint_fast64_t deleteFileDirAction_c::derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con)
+{
+    return replaceSubString_f(path_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+}
+
+uint_fast64_t deleteFileDirAction_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+{
+    return vectorQStringCountSubString_f(stringTrigger_par_con, {path_pro});
+}
+
+QSet<QString> deleteFileDirAction_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const QString& searchValue_ite_con : searchValues_par_con)
+    {
+        if (vectorQStringCountSubString_f(searchValue_ite_con, {path_pro}, true) > 0)
+        {
+            resultTmp.insert(searchValue_ite_con);
+        }
+    }
+    return resultTmp;
+}
+
 action_c* deleteFileDirAction_c::derivedClone_f() const
 {
     //slice and dice
@@ -124,10 +148,10 @@ actionType_ec deleteFileDirAction_c::type_f() const
     return actionType_ec::deleteFileDir;
 }
 
-QString deleteFileDirAction_c::typeStr_f() const
-{
-    return actionTypeToStrUMap_ext_con.at(type_f());
-}
+//QString deleteFileDirAction_c::typeStr_f() const
+//{
+//    return actionTypeToStrUMap_ext_con.at(type_f());
+//}
 
 deleteFileDirAction_c::deleteFileDirAction_c(
         const actionData_c& actionData_par_con

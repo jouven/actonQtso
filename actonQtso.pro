@@ -26,14 +26,17 @@ DEFINES += ACTONQTSO_LIB
 HEADERS += \
     actionData.hpp \
     actionExecution/createDirectoryExecution.hpp \
+    actionExecution/folderChangeReactionExecution.hpp \
     actionExecution/runProcessExecution.hpp \
     actionMappings/actionMapping.hpp \
     actions/createDirectory.hpp \
+    actions/folderChangeReaction.hpp \
     actions/runProcess.hpp \
     actionMappings/actionExecutionStates.hpp \
     actionMappings/actionExecutionStateStrMapping.hpp \
     actionMappings/actions.hpp \
     actionMappings/actionStrMapping.hpp \
+    checkExecution/actionStartedExecutingExecution.hpp \
     checkMappings/checkMapping.hpp \
     checkMappings/checks.hpp \
     actionDataExecutionResult.hpp \
@@ -42,6 +45,7 @@ HEADERS += \
     checkMappings/checkExecutionStateStrMapping.hpp \
     checkMappings/checkStrMapping.hpp \
     checkDataExecutionResult.hpp \
+    checks/actionStartedExecuting.hpp \
     checks/sameFile.hpp \
     checkExecution/actionFinishedExecution.hpp \
     checkExecution/sameFileExecution.hpp \
@@ -65,23 +69,28 @@ HEADERS += \
     checkExecution/pathExistsExecution.hpp \
     actionExecution/metaEndExecutionCycleExecution.hpp \
     actions/metaEndExecutionCycle.hpp \
-    checkExecution/timerExecution.hpp
+    checkExecution/timerExecution.hpp \
+    reused/stringAlgo.hpp
 
 SOURCES += \
     actionData.cpp \
     actionExecution/createDirectoryExecution.cpp \
+    actionExecution/folderChangeReactionExecution.cpp \
     actionExecution/runProcessExecution.cpp \
     actionMappings/actionMapping.cpp \
     actions/createDirectory.cpp \
+    actions/folderChangeReaction.cpp \
     actions/runProcess.cpp \
     actionMappings/actionExecutionStateStrMapping.cpp \
     actionMappings/actionStrMapping.cpp \
     actionDataExecutionResult.cpp \
     checkData.cpp \
+    checkExecution/actionStartedExecutingExecution.cpp \
     checkMappings/checkExecutionStateStrMapping.cpp \
     checkMappings/checkMapping.cpp \
     checkMappings/checkStrMapping.cpp \
     checkDataExecutionResult.cpp \
+    checks/actionStartedExecuting.cpp \
     checks/sameFile.cpp \
     checkExecution/actionFinishedExecution.cpp \
     checkExecution/sameFileExecution.cpp \
@@ -104,7 +113,8 @@ SOURCES += \
     checkExecution/pathExistsExecution.cpp \
     actionExecution/metaEndExecutionCycleExecution.cpp \
     actions/metaEndExecutionCycle.cpp \
-    checkExecution/timerExecution.cpp
+    checkExecution/timerExecution.cpp \
+    reused/stringAlgo.cpp
 
 !win32:MYPATH = "/"
 win32:MYPATH = "H:/veryuseddata/portable/msys64/"
@@ -150,7 +160,7 @@ CONFIG(debug, debug|release){
 
 LIBS += -lbaseClassQtso -lthreadedFunctionQtso -llogsinJSONQtso \
     -lessentialQtso -lfilterDirectoryQtso -lstringParserMapQtso \
-    -ltextQtso
+    -ltextQtso -lcryptoQtso
 
 QMAKE_CXXFLAGS_DEBUG -= -g
 QMAKE_CXXFLAGS_DEBUG += -pedantic -Wall -Wextra -g3

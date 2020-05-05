@@ -8,6 +8,7 @@ const QMap<QString, checkType_ec> strToCheckTypeMap_ext_con(
     , {	"samefile", checkType_ec::sameFile}
     , {	"pathexists", checkType_ec::pathExists}
     , {	"timer", checkType_ec::timer}
+    , {	"actionstartedexecuting", checkType_ec::actionStartedExecuting}
 });
 
 const std::unordered_map<checkType_ec, QString> checkTypeToStrUMap_ext_con(
@@ -16,5 +17,5 @@ const std::unordered_map<checkType_ec, QString> checkTypeToStrUMap_ext_con(
     , {	checkType_ec::sameFile, "sameFile" }
     , {	checkType_ec::pathExists, "pathExists" }
     , {	checkType_ec::timer, "timer" }
-
+    , {	checkType_ec::actionStartedExecuting, "actionStartedExecuting" }
 });

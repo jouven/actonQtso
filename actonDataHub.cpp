@@ -25,6 +25,7 @@ bool actonDataHub_c::moveRowActionData_f(
 {
     bool resultTmp(false);
     int_fast64_t actionDataIdTmp(rowToActionDataId_f(sourceRow_par_con));
+    action_c* actionPtrTmp(nullptr);
     //qInfo() << "actionDataIdTmp " << actionDataIdTmp << endl;
     while (actionDataIdTmp > 0)
     {
@@ -33,7 +34,7 @@ bool actonDataHub_c::moveRowActionData_f(
             break;
         }
         //save the actionData ptr that is going to be moved
-        action_c* actionPtrTmp(action_ptr_f(actionDataIdTmp));
+        actionPtrTmp = action_ptr_f(actionDataIdTmp);
 
         //qInfo() << "sourceActionDataTmp.id_f() " << sourceActionDataTmp.id_f() << endl;
 
@@ -51,8 +52,8 @@ bool actonDataHub_c::moveRowActionData_f(
         }
         break;
     }
-    text_c logTextTmp("Action moved? ", QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(logTextTmp, logItem_c::type_ec::debug);
+    text_c logTextTmp("Action moved from row {0} to row {1} result: {2}", sourceRow_par_con, destinationRow_par_con, QSTRINGBOOL(resultTmp));
+    MACRO_ADDACTONQTSOLOG(logTextTmp, actionPtrTmp, logItem_c::type_ec::debug);
     return resultTmp;
 }
 
@@ -161,29 +162,26 @@ void actonDataHub_c::executeActionDataRows_f(std::vector<int> rows_par)
 			removeNegative_ft(rows_par);
 			removeDuplicates_ft(rows_par);
 		}
-		for (const int rows_ite_con : rows_par)
+		for (const int row_ite_con : rows_par)
 		{
-			int_fast64_t actionIdTmp(rowToActionDataId_f(rows_ite_con));
+			int_fast64_t actionIdTmp(rowToActionDataId_f(row_ite_con));
 			if (actionIdTmp not_eq -1)
 			{
 				action_c* actionPtrTmp(action_ptr_f(actionIdTmp));
 				if (actionPtrTmp->isExecuting_f())
 				{
-					text_c textTmp("Action is executing, stringId: {0}", actionPtrTmp->stringId_f());
-					MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::warning);
+					MACRO_ADDACTONQTSOLOG("Already Executing", actionPtrTmp, logItem_c::type_ec::warning);
 					somethingIsExecuting = true;
 					break;
 				}
 				if (not actionPtrTmp->enabled_f())
 				{
-					text_c textTmp("Action is not enabled, stringId: {0}", actionPtrTmp->stringId_f());
-					MACRO_ADDACTONQTSOLOG(textTmp , logItem_c::type_ec::warning);
+					MACRO_ADDACTONQTSOLOG("Action is not enabled", actionPtrTmp, logItem_c::type_ec::warning);
 					continue;
 				}
 				if (not actionPtrTmp->isFieldsActionValid_f())
 				{
-					text_c textTmp("Action to execute is not valid, stringId: {0}", actionPtrTmp->stringId_f());
-					MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::error);
+					MACRO_ADDACTONQTSOLOG("Action to execute is not valid", actionPtrTmp, logItem_c::type_ec::error);
 					actionsToRunValidTmp = false;
 					continue;
 				}
@@ -315,7 +313,7 @@ void actonDataHub_c::verifyExecutionFinished_f(action_c* actionPtr_par)
         {
             MACRO_ADDACTONQTSOLOG("All actions finished executing", logItem_c::type_ec::info);
             //remove parser configs created during execution
-            for (const QString& str_ite_con : stringTriggersInUseByActionsOrChecks_f())
+            for (const QString& str_ite_con : stringTriggerCreationCollection_f())
             {
                 executionOptions_pri.stringParserMap_f()->removeParser_f(executionOptions_pri.stringParserMap_f()->stringTriggerIndex_f(str_ite_con));
             }
@@ -352,7 +350,7 @@ void actonDataHub_c::verifyExecutionFinished_f(action_c* actionPtr_par)
             if (not actionsExecutionKilled_pri and not actionsExecutionStopped_pri)
             {
                 {
-                    text_c textTmp("Execution finished, stop on this execution cycle: {0}", QSTRINGBOOL(stopWhenCurrentExecutionCycleFinishes_pri));
+                    text_c textTmp("Execution cycle finished, stop on this execution cycle? {0}", QSTRINGBOOL(stopWhenCurrentExecutionCycleFinishes_pri));
                     MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
                 }
                 //niche case, if the last action "errors", all actions have finished and they can't be stopped,
@@ -397,7 +395,7 @@ void actonDataHub_c::killingStarted_f()
 {
     if (killingActionsExecution_pri)
     {
-        MACRO_ADDACTONQTSOLOG("Killing execution while already killing", logItem_c::type_ec::info);
+        MACRO_ADDACTONQTSOLOG("Killing execution while already killing", logItem_c::type_ec::debug);
     }
     else
     {
@@ -414,7 +412,7 @@ void actonDataHub_c::tryStopExecutingActions_f(const bool killAfterTimeout_par_c
         stoppingActionsExecution_pri = true;
         Q_EMIT stoppingActionsExecution_signal();
         text_c textTmp("Stopping {0} actions", actionsToRun_pri.size());
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
         for (action_c* action_ite_ptr : actionsToRun_pri)
         {
             action_ite_ptr->tryStopExecution_f(killAfterTimeout_par_con);
@@ -496,21 +494,22 @@ bool actonDataHub_c::executingActions_f() const
 //    }
 //}
 
-QString actonDataHub_c::actionStringIdExecutingChecks_f() const
-{
-    QString resultTmp;
-    for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
-    {
-        if (actionIdObjectPair_ite_con.second->checkDataHub_f().executingChecks_f())
-        {
-            text_c textTmp("An action is executing checks, action stringId: ", actionIdObjectPair_ite_con.second->stringId_f());
-            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
-            resultTmp = actionIdObjectPair_ite_con.second->stringId_f();
-            break;
-        }
-    }
-    return resultTmp;
-}
+//checked now in executeActionDataRows_f when each action is checked for is executing_f
+//QString actonDataHub_c::actionStringIdExecutingChecks_f() const
+//{
+//    QString resultTmp;
+//    for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
+//    {
+//        if (actionIdObjectPair_ite_con.second->checkDataHub_f().executingChecks_f())
+//        {
+//            text_c textTmp("An action is executing checks, action stringId: ", actionIdObjectPair_ite_con.second->stringId_f());
+//            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+//            resultTmp = actionIdObjectPair_ite_con.second->stringId_f();
+//            break;
+//        }
+//    }
+//    return resultTmp;
+//}
 
 bool actonDataHub_c::stoppingActionsExecution_f() const
 {
@@ -522,12 +521,12 @@ bool actonDataHub_c::actionsExecutionStopped_f() const
     return actionsExecutionStopped_pri;
 }
 
-int_fast32_t actonDataHub_c::updateStringIdDependencies_f(
-        const QString& newStringId_par_con
-        , const QString& oldStringId_par_con)
+uint_fast64_t actonDataHub_c::updateStringIdDependencies_f(
+        const QString& newActionStringId_par_con
+        , const QString& oldActionStringId_par_con)
 {
-    int_fast32_t updateCountTmp(0);
-    if (executingActions_pri)
+    uint_fast64_t updateCountTmp(0);
+    if (executingActions_pri or (newActionStringId_par_con == oldActionStringId_par_con))
     {
         //don't update stringId dependencies while executing
     }
@@ -535,79 +534,149 @@ int_fast32_t actonDataHub_c::updateStringIdDependencies_f(
     {
         for (std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite : actionDataIdToActionPtrUMap_pri)
         {
-            updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateStringIdDependencies_f(newStringId_par_con, oldStringId_par_con);
+            updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateActionStringIdDependencies_f(newActionStringId_par_con, oldActionStringId_par_con);
         }
-        text_c textTmp("Updated {0} action/checks with action stringId dependencies", updateCountTmp);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        if (updateCountTmp > 0)
+        {
+            text_c textTmp("Updated {0} action/checks with action stringId dependencies", updateCountTmp);
+            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+        }
     }
     return updateCountTmp;
 }
 
-bool actonDataHub_c::hasStringIdAnyDependency_f(const QString& stringId_par_con) const
+uint_fast64_t actonDataHub_c::actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const
 {
-    bool resultTmp(false);
+    uint_fast64_t resultTmp(0);
     for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
     {
-        if (actionIdObjectPair_ite_con.second->hasStringIdAnyDependency_f(stringId_par_con))
-        {
-            resultTmp = true;
-            break;
-        }
+        resultTmp = resultTmp + actionIdObjectPair_ite_con.second->actionStringIdDependencyCount_f(actionStringId_par_con);
     }
-    text_c textTmp("Action stringId {0} has dependencies: ", stringId_par_con, QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    if (resultTmp > 0)
+    {
+        text_c textTmp("Action stringId \"{0}\" has dependencies: {1}", actionStringId_par_con, resultTmp);
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+    }
     return resultTmp;
 }
 
-int_fast32_t actonDataHub_c::updateStringTriggerDependencies_f(
+uint_fast64_t actonDataHub_c::updateStringTriggerDependencies_f(
         const QString& newStringTrigger_par_con
         , const QString& oldStringTrigger_par_con)
 {
     int_fast32_t updateCountTmp(0);
-    if (executingActions_pri)
+    if (executingActions_pri or (newStringTrigger_par_con == oldStringTrigger_par_con))
     {
-        //don't while executing
+        //don't while executing or it's the same
     }
     else
     {
         for (std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite : actionDataIdToActionPtrUMap_pri)
         {
-            //TODO modify-replace possible stringtrigger use in string fields in action/checks (and derived)
-            updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateStringTriggerParserDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
+            updateCountTmp = updateCountTmp + actionIdObjectPair_ite.second->updateStringTriggerDependencies_f(newStringTrigger_par_con, oldStringTrigger_par_con);
         }
-        text_c textTmp("Updated {0} checks with action key string parser dependencies", updateCountTmp);
-        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+        if (updateCountTmp > 0)
+        {
+            text_c textTmp("Updated {0} checks with action key string parser dependencies", updateCountTmp);
+            MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+        }
     }
     return updateCountTmp;
 }
 
-bool actonDataHub_c::hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const
+bool actonDataHub_c::changeActionStringId_f(const QString& oldActionStringId_par_con, const QString& newActionStringId_par_con)
 {
-    bool resultTmp(false);
+    bool resulTmp(false);
+    if (executingActions_pri or (oldActionStringId_par_con == newActionStringId_par_con))
+    {
+        //don't while executing or it's the same
+    }
+    else
+    {
+        int_fast64_t actionIdTmp(actionDataStringIdToActionDataId_pri.value(oldActionStringId_par_con));
+        if (actionIdTmp > 0)
+        {
+            actionDataStringIdToActionDataId_pri.remove(oldActionStringId_par_con);
+            actionDataStringIdToActionDataId_pri.insert(newActionStringId_par_con, actionIdTmp);
+            resulTmp = true;
+        }
+    }
+    return resulTmp;
+}
+
+std::pair<int_fast64_t, int_fast64_t> actonDataHub_c::stringTriggerCreationConflict_f(
+        const QString& stringTrigger_par_con
+        , const void* const objectToIgnore_par
+        , const bool includeStringParserMap_par_con) const
+{
+    std::pair<int_fast64_t, int_fast64_t> resultTmp(-1,-1);
     for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
     {
         if (actionIdObjectPair_ite_con.second == objectToIgnore_par)
         {
             continue;
         }
-        if (actionIdObjectPair_ite_con.second->hasStringTriggerParserAnyDependency_f(stringTrigger_par_con, objectToIgnore_par))
+        resultTmp = actionIdObjectPair_ite_con.second->stringTriggerCreationConflict_f(stringTrigger_par_con, objectToIgnore_par);
+    }
+    if (includeStringParserMap_par_con and executionOptions_pri.stringParserMap_f() not_eq nullptr)
+    {
+        if (executionOptions_pri.stringParserMap_f()->stringTriggerIndex_f(stringTrigger_par_con) > -1)
         {
-            resultTmp = true;
-            break;
+            resultTmp = std::pair<int_fast64_t, int_fast64_t>(0,0);
         }
     }
-    text_c textTmp("Action key string parser {0} has dependencies: {1}", stringTrigger_par_con, QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    if (resultTmp.first > -1)
+    {
+        text_c textTmp("Action key string parser {0} first dependency actionId {1}, checkId {2}", stringTrigger_par_con, resultTmp.first, resultTmp.second);
+        MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
+    }
     return resultTmp;
 }
 
-std::vector<QString> actonDataHub_c::stringTriggersInUseByActionsOrChecks_f() const
+uint_fast64_t actonDataHub_c::stringTriggerDependencyCount_f(
+        const QString& stringId_par_con
+        , const void* const objectToIgnore_par) const
 {
-    std::vector<QString> resultTmp;
+    uint_fast64_t resultTmp(0);
     for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
     {
-        std::vector<QString> vectorTmp(actionIdObjectPair_ite_con.second->stringTriggersInUse_f());
-        resultTmp.insert(resultTmp.end(), vectorTmp.begin(), vectorTmp.end());
+        if (actionIdObjectPair_ite_con.second == objectToIgnore_par)
+        {
+            continue;
+        }
+        resultTmp = resultTmp + actionIdObjectPair_ite_con.second->stringTriggerDependencyCount_f(stringId_par_con, objectToIgnore_par);
+    }
+    return resultTmp;
+}
+
+QSet<QString> actonDataHub_c::stringTriggerCreationCollection_f() const
+{
+    QSet<QString> resultTmp;
+    for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
+    {
+        QSet<QString> setTmp(actionIdObjectPair_ite_con.second->stringTriggerCreationCollection_f());
+        resultTmp.unite(setTmp);
+    }
+    return resultTmp;
+}
+
+QSet<QString> actonDataHub_c::stringTriggersInUseByActionsOrChecks_f() const
+{
+    QSet<QString> resultTmp;
+    QSet<QString> stringTriggersToSearchTmp;
+    if (executionOptions_pri.stringParserMap_f() not_eq nullptr)
+    {
+        std::vector<QString> stringTriggerInParserMapTmp(executionOptions_pri.stringParserMap_f()->stringTriggers_f());
+        for (const QString& stringTrigger_ite_con : stringTriggerInParserMapTmp)
+        {
+            stringTriggersToSearchTmp.insert(stringTrigger_ite_con);
+        }
+    }
+    stringTriggersToSearchTmp.unite(stringTriggerCreationCollection_f());
+    for (const std::pair<const int_fast64_t, action_c*>& actionIdObjectPair_ite_con : actionDataIdToActionPtrUMap_pri)
+    {
+        QSet<QString> setTmp(actionIdObjectPair_ite_con.second->stringTriggersInUse_f(stringTriggersToSearchTmp));
+        resultTmp.unite(setTmp);
     }
     return resultTmp;
 }
@@ -722,11 +791,11 @@ bool actonDataHub_c::insertActionData_f(
         actionPtr_par->setParent(this);
         resultTmp = true;
 
-        QObject::connect(actionPtr_par, &action_c::actionStringIdChanged_signal, this, &actonDataHub_c::updateStringIdDependencies_f, Qt::UniqueConnection);
+        QObject::connect(actionPtr_par, &action_c::actionStringIdChanged_signal, this, &actonDataHub_c::changeActionStringId_f, Qt::UniqueConnection);
         break;
     }
     text_c textTmp("Action inserted? {0}", QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
     return resultTmp;
 }
 
@@ -766,7 +835,7 @@ int_fast64_t actonDataHub_c::rowToActionDataId_f(const int row_par_con) const
 
 int_fast64_t actonDataHub_c::actionDataStringIdToActionDataId_f(const QString& actionDataStringId_par_con) const
 {
-    int_fast64_t resultTmp(-1);
+    int_fast64_t resultTmp(0);
     QHash<QString, int_fast64_t>::const_iterator findResult(actionDataStringIdToActionDataId_pri.find(actionDataStringId_par_con));
     if (findResult not_eq actionDataStringIdToActionDataId_pri.end())
     {
@@ -949,7 +1018,7 @@ bool actonDataHub_c::removeActionDataUsingRow_f(
         break;
     }
     text_c textTmp("Action in row {0} removed: {1}", row_par_con, QSTRINGBOOL(resultTmp));
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::info);
     return resultTmp;
 }
 
@@ -976,6 +1045,54 @@ bool actonDataHub_c::addLogMessage_f(
     if (logDataHub_pri not_eq nullptr)
     {
         resultTmp = logDataHub_pri->addMessage_f(message_par_con, logType_par_con, sourceFile_par_con, sourceFunction_par_con, line_par_con);
+    }
+    return resultTmp;
+}
+
+bool actonDataHub_c::addLogMessage_f(
+        const text_c& message_par_con
+        , const action_c* actionPtr_par
+        , const logItem_c::type_ec logType_par_con
+        , const QString& sourceFile_par_con
+        , const QString& sourceFunction_par_con
+        , const int_fast32_t line_par_con
+)
+{
+    bool resultTmp(false);
+    if (logDataHub_pri not_eq nullptr)
+    {
+        QString referenceTmp;
+        if (actionPtr_par not_eq nullptr)
+        {
+            referenceTmp = "ActionId " + QString::number(actionPtr_par->id_f());
+        }
+        resultTmp = logDataHub_pri->addMessage_f(message_par_con, referenceTmp, logType_par_con, sourceFile_par_con, sourceFunction_par_con, line_par_con);
+    }
+    return resultTmp;
+}
+
+bool actonDataHub_c::addLogMessage_f(
+        const text_c& message_par_con
+        , const check_c* checkPtr_par
+        , const logItem_c::type_ec logType_par_con
+        , const QString& sourceFile_par_con
+        , const QString& sourceFunction_par_con
+        , const int_fast32_t line_par_con)
+{
+    bool resultTmp(false);
+    if (logDataHub_pri not_eq nullptr)
+    {
+        QString referenceTmp;
+        if (checkPtr_par not_eq nullptr)
+        {
+            if (checkPtr_par->parent() not_eq nullptr)
+            {
+                action_c* actionPtrTmp(static_cast<action_c*>(checkPtr_par->parent()));
+                referenceTmp = "ActionId " + QString::number(actionPtrTmp->id_f()) + ", ";
+            }
+            referenceTmp.append("CheckId " + QString::number(checkPtr_par->id_f()));
+        }
+        resultTmp = logDataHub_pri->addMessage_f(message_par_con, referenceTmp, logType_par_con, sourceFile_par_con, sourceFunction_par_con, line_par_con);
     }
     return resultTmp;
 }

@@ -68,11 +68,11 @@ void runProcessActionExecution_c::derivedExecute_f()
 
         //if a "clear" environment must be used OR there is something to append to the environment
         //THEN modify the environment
-        const bool envModified(not runProcessActionPtr_pri->useActonEnvironment_f() or not runProcessActionPtr_pri->environmentToAdd_f().isEmpty());
+        const bool envModified(not runProcessActionPtr_pri->useProgramEnvironment_f() or not runProcessActionPtr_pri->environmentToAdd_f().isEmpty());
         if (envModified)
         {
             QProcessEnvironment processEnvironmentTmp(QProcessEnvironment::systemEnvironment());
-            if (not runProcessActionPtr_pri->useActonEnvironment_f())
+            if (not runProcessActionPtr_pri->useProgramEnvironment_f())
             {
                 processEnvironmentTmp.clear();
 #ifdef DEBUGJOUVEN
@@ -83,16 +83,17 @@ void runProcessActionExecution_c::derivedExecute_f()
 
             if (not runProcessActionPtr_pri->environmentToAdd_f().isEmpty())
             {
-                const QHash<QString, environmentPairConfig_c> environmentToAddTmp_con(runProcessActionPtr_pri->environmentToAdd_f());
+                const QHash<QString, environmentPairConfig_c> environmentToAddTmp_con(runProcessActionPtr_pri->environmentToAddParsed_f());
                 QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAddTmp_con.constBegin());
                 while (iteratorTmp not_eq environmentToAddTmp_con.constEnd())
                 {
                     if (iteratorTmp.value().enabled_f())
                     {
 #ifdef DEBUGJOUVEN
-                        qDebug() << "iteratorTmp.key() " << iteratorTmp.key() << "iteratorTmp.value_f() " << iteratorTmp.value().environmentValue()  << endl;
+                        qDebug() << "iteratorTmp.keyParsed() " << iteratorTmp.key()
+                                 << "iteratorTmp.valueParsed_f() " << iteratorTmp.value().environmentValueParsed_f()  << endl;
 #endif
-                        processEnvironmentTmp.insert(iteratorTmp.key(), iteratorTmp.value().environmentValue());
+                        processEnvironmentTmp.insert(iteratorTmp.key(), iteratorTmp.value().environmentValueParsed_f());
                     }
                     ++iteratorTmp;
                 }
@@ -134,7 +135,7 @@ void runProcessActionExecution_c::derivedExecute_f()
         actionProcess_pri.start(runProcessActionPtr_pri->processPathParsed_f(), argumentsTmp);
         {
             text_c logMessageTmp("Process {0} started", runProcessActionPtr_pri->processPathParsed_f());
-            MACRO_ADDACTONQTSOLOG(logMessageTmp, logItem_c::type_ec::info);
+            MACRO_ADDACTONQTSOLOG(logMessageTmp, runProcessActionPtr_pri, logItem_c::type_ec::info);
         }
         break;
     }
@@ -158,7 +159,7 @@ void runProcessActionExecution_c::terminateExecution_f()
 {
     if (actionProcess_pri.state() == QProcess::Running)
     {
-        MACRO_ADDACTONQTSOLOG("Terminate while running, this is SIGTERM(Linux) or WM_CLOSE(Windows)", logItem_c::type_ec::debug);
+        MACRO_ADDACTONQTSOLOG("Terminate while executing, this is SIGTERM(Linux) or WM_CLOSE(Windows)", runProcessActionPtr_pri, logItem_c::type_ec::info);
         actionProcess_pri.terminate();
     }
 }
@@ -220,21 +221,21 @@ void runProcessActionExecution_c::readError_f(QProcess::ProcessError error_par)
             //I don't know if this happens when the one at fault is the process or the callee
         case QProcess::UnknownError:
         {
-            MACRO_ADDACTONQTSOLOG("QProcess::UnknownError", logItem_c::type_ec::debug);
+            MACRO_ADDACTONQTSOLOG("QProcess::UnknownError", runProcessActionPtr_pri, logItem_c::type_ec::warning);
             errorStrTmp.append(actionProcess_pri.errorString());
         }
         break;
         default:
         {
-            errorStrTmp.append("switch case default");
+            errorStrTmp.append("runProcess QProcess error switch case default");
             //theoretically it shouldn't enter here ever, default is QProcess::UnknownError
         }
     }
 
     //MACRO_ADDACTONQTSOLOG("same thread as main " + QSTRINGBOOL(QThread::currentThread() == QCoreApplication::instance()->thread()), logItem_c::type_ec::debug);
-    MACRO_ADDACTONQTSOLOG(errorStrTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(errorStrTmp, runProcessActionPtr_pri, logItem_c::type_ec::warning);
     text_c errorTmp("Callee error {0}", QSTRINGBOOL(calleeErrorTmp));
-    MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(errorTmp, runProcessActionPtr_pri, logItem_c::type_ec::warning);
     //if QProcess error messages are fixed, it should be translatable
     Q_EMIT addError_signal({errorStrTmp});
     if (calleeErrorTmp)
@@ -266,7 +267,7 @@ void runProcessActionExecution_c::setFinished_f(int exitCode_par, QProcess::Exit
     setFinishedCalled_pri = true;
     Q_EMIT setReturnCode_signal(exitCode_par);
     text_c textTmp("Exit code {0}", exitCode_par);
-    MACRO_ADDACTONQTSOLOG(textTmp, logItem_c::type_ec::debug);
+    MACRO_ADDACTONQTSOLOG(textTmp, runProcessActionPtr_pri, logItem_c::type_ec::info);
     if (exitStatus_par == QProcess::ExitStatus::CrashExit)
     {
         //MACRO_ADDACTONQTSOLOG("Crash exit, shoudn't? enter here", logItem_c::type_ec::debug);

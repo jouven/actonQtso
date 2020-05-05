@@ -3,6 +3,7 @@
 #include "../actionExecution/createDirectoryExecution.hpp"
 #include "../actionMappings/actionStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "essentialQtso/macros.hpp"
 #include "textQtso/text.hpp"
@@ -108,6 +109,29 @@ bool createDirectoryAction_c::derivedIsValidAction_f(textCompilation_c* errors_p
     return isFieldsDataValid_f(errors_par);
 }
 
+uint_fast64_t createDirectoryAction_c::derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con)
+{
+    return replaceSubString_f(directoryPath_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+}
+
+uint_fast64_t createDirectoryAction_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+{
+    return vectorQStringCountSubString_f(stringTrigger_par_con, {directoryPath_pro});
+}
+
+QSet<QString> createDirectoryAction_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const QString& searchValue_ite_con : searchValues_par_con)
+    {
+        if (vectorQStringCountSubString_f(searchValue_ite_con, {directoryPath_pro}, true) > 0)
+        {
+            resultTmp.insert(searchValue_ite_con);
+        }
+    }
+    return resultTmp;
+}
+
 action_c* createDirectoryAction_c::derivedClone_f() const
 {
     //slice and dice
@@ -126,10 +150,10 @@ actionType_ec createDirectoryAction_c::type_f() const
     return actionType_ec::createDirectory;
 }
 
-QString createDirectoryAction_c::typeStr_f() const
-{
-    return actionTypeToStrUMap_ext_con.at(type_f());
-}
+//QString createDirectoryAction_c::typeStr_f() const
+//{
+//    return actionTypeToStrUMap_ext_con.at(type_f());
+//}
 
 createDirectoryAction_c::createDirectoryAction_c(
         const actionData_c& actionData_par_con

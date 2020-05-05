@@ -13,11 +13,14 @@
 #include <QStringList>
 
 #include <unordered_map>
+#include <QSet>
 #include <vector>
 
 //this macro should only be used inside this library: actonQtso
-//don't use in actonDataHub_c ctors
-#define MACRO_ADDACTONQTSOLOG(MESSAGE, TYPE) actonDataHub_ptr_ext->addLogMessage_f(MESSAGE, TYPE, MACRO_FILENAME, __func__, __LINE__)
+//don't use in actonDataHub_c ctor/s
+#define MACRO_FILEMETA MACRO_FILENAME, __func__, __LINE__
+#define MACRO_ADDACTONQTSOLOG(...) actonDataHub_ptr_ext->addLogMessage_f(__VA_ARGS__, MACRO_FILEMETA)
+
 
 //the 2 macro bellow are used in getter of string functions, the return is intended
 
@@ -165,13 +168,24 @@ public:
     //so the user can be hinted to which action has check/s executing
     //in theory multiple checks of diferent action could be executing at the same time
     //since they won't conflict, but in actonQtg this won't be allowed
-    QString actionStringIdExecutingChecks_f() const;
+    //QString actionStringIdExecutingChecks_f() const;
     bool stoppingActionsExecution_f() const;
     bool actionsExecutionStopped_f() const;
     bool actionsExecutionFinished_f() const;
 
-//public Q_SLOTS:
+
     //FUTURE add try to stop for a selection of actions
+    //TODOIMPORTANT about threading and stopping action execution
+    //what happens when a stop occurs just when an action, that uses a thread for execution, finishes executing?:
+    //1 that the threaded code encounters a "stop check" and the action execution stops
+    //2 that it has "no effect" on the execution because no "stop check" is encountered, this has two "sub-ends"
+    //2a the action execution has finished doing w/e was doing but when it finishes it ends "stopped" because the previous/last state was stopping
+    //2b finishes in success/error (if an error happened) because
+    //the action finished before the state change to stopping happened (really small window of time for this to happen)
+
+    //the IMPORTANT fact here is: action stopping code and action finishing-deletion code execute in the main thread,
+    //they can't happen at the same time
+
     void tryStopExecutingActions_f(const bool killAfterTimeout_par_con = false);
     //because otherwise when executing loops the only way to stop them is using tryStopExecutingActions_f
     //and that leaves some actions finished, some executing-stopped and some not executed at all
@@ -180,13 +194,25 @@ public:
     //will stop keepExecuting_pro = true actions too
     void stopWhenCurrentExecutionCycleFinishes_f();
 
-    bool hasStringIdAnyDependency_f(const QString& stringId_par_con) const;
+    //returns the amount of dependencies found for the stringId (it might not be in use by any action)
+    uint_fast64_t actionStringIdDependencyCount_f(const QString& actionStringId_par_con) const;
 
-    //objectToIgnore_par can be nullptr, this argument is to ignore the current
-    //object being edited when checking for string trigger dependencies
-    bool hasStringTriggerAnyDependency_f(const QString& stringTrigger_par_con, const void* const objectToIgnore_par) const;
-    //although the return value is a vector, it will only contain unique strings
-    std::vector<QString> stringTriggersInUseByActionsOrChecks_f() const;
+    //objectToIgnore_par can be nullptr, this argument is to ignore a possible
+    //object (action/check pointer as of 20200122) being edited when checking for string trigger creation conflicts
+    //A conflict can happen when more than one object create the same stringTrigger (one will try to replace the other and will error when trying to)
+    //return value possible values: ids > 0, action/check conflict (first = actionId, second = checkId) | ids = 0, stringParserMap conflict | ids = -1, no ids conflict
+    std::pair<int_fast64_t, int_fast64_t> stringTriggerCreationConflict_f(
+            const QString& stringTrigger_par_con
+            , const void* const objectToIgnore_par = nullptr
+            //this only affects if a stringParserMap is set in the executing options, otherwise it will be ignored
+            , const bool includeStringParserMap_par_con = true) const;
+    //returns the number of references for a stringTrigger (the stringTrigger might not exist/be created anywhere)
+    uint_fast64_t stringTriggerDependencyCount_f(const QString& stringId_par_con, const void* const objectToIgnore_par = nullptr) const;
+
+    //returns a collection of the stringTrigger than can be created dynamically on execution (20200128 right now only actionFinished does this)
+    QSet<QString> stringTriggerCreationCollection_f() const;
+    //same as stringTriggerDependencyCount_f but returning the stringTrigger/s in use
+    QSet<QString> stringTriggersInUseByActionsOrChecks_f() const;
 
     bool killingActionsExecution_f() const;
     bool actionsExecutionKilled_f() const;
@@ -197,6 +223,21 @@ public:
     //will do nothing if logDataHub_pri hasn't been set
     bool addLogMessage_f(
             const text_c& message_par_con
+            , const logItem_c::type_ec logType_par_con
+            , const QString& sourceFile_par_con
+            , const QString& sourceFunction_par_con
+            , const int_fast32_t line_par_con
+    );
+    bool addLogMessage_f(
+            const text_c& message_par_con
+            , const action_c* actionPtr_par
+            , const logItem_c::type_ec logType_par_con
+            , const QString& sourceFile_par_con
+            , const QString& sourceFunction_par_con
+            , const int_fast32_t line_par_con
+    );
+    bool addLogMessage_f(const text_c& message_par_con
+            , const check_c* checkPtr_par
             , const logItem_c::type_ec logType_par_con
             , const QString& sourceFile_par_con
             , const QString& sourceFunction_par_con
@@ -214,15 +255,20 @@ Q_SIGNALS:
     void killingActionsExecution_signal();
     void actionsExecutionKilled_signal();
     void actionsExecutionFinished_signal(std::vector<action_c*> lastRunActions_par);
-    void anyExecutingChecksStopped_signal();
+    //void anyExecutingChecksStopped_signal();
 private Q_SLOTS:
     void verifyExecutionFinished_f(action_c* actionPtr_par);
     void killingStarted_f();
 public Q_SLOTS:
-    //update all the actions/checks setting that depend on an actionStringId
+    //update all the actions/checks fields that reference/depend on an actionStringId (not the actionStringId field of an action object)
     //returns the number of updated checks/action properties which did match with the oldStringId
-    int_fast32_t updateStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con);
-    int_fast32_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    //this call should be optional when changing an action of this actonDataHub_c with a different actionStringId
+    uint_fast64_t updateStringIdDependencies_f(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
+    //update the string fields (those that have a "parsed" variant) that use the string trigger in all the actions/checks in the actonDataHuc_c object
+    uint_fast64_t updateStringTriggerDependencies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con);
+    //doesn't modify any action it only updates actionDataStringIdToActionDataId_pri
+    //it's automatically called when an action of this actonDataHub_c is updated with a different actionStringId
+    bool changeActionStringId_f(const QString& oldActionStringId_par_con, const QString& newActionStringId_par_con);
 };
 
 extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;

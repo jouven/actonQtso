@@ -18,13 +18,13 @@ void metaEndExecutionCycleActionExecution_c::derivedExecute_f()
     {
         if (metaEndExecutionCycleActionPtr_pri->endType_f() == metaEndExecutionCycleAction_c::endType_ec::stop)
         {
-            MACRO_ADDACTONQTSOLOG("Try stop execution", logItem_c::type_ec::warning);
+            MACRO_ADDACTONQTSOLOG("Try stop execution", metaEndExecutionCycleActionPtr_pri, logItem_c::type_ec::warning);
             actonDataHub_ptr_ext->tryStopExecutingActions_f(metaEndExecutionCycleActionPtr_pri->killAfterTimeout_f());
             break;
         }
         if (metaEndExecutionCycleActionPtr_pri->endType_f() == metaEndExecutionCycleAction_c::endType_ec::waitToFinish)
         {
-            MACRO_ADDACTONQTSOLOG("Stop after current execution cycle finishes", logItem_c::type_ec::warning);
+            MACRO_ADDACTONQTSOLOG("Stop after current execution cycle finishes", metaEndExecutionCycleActionPtr_pri, logItem_c::type_ec::warning);
             actonDataHub_ptr_ext->stopWhenCurrentExecutionCycleFinishes_f();
             break;
         }

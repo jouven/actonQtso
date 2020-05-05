@@ -7,6 +7,7 @@
 #include "../actions/copyFile.hpp"
 #include "../actions/deleteFileDir.hpp"
 #include "../actions/metaEndExecutionCycle.hpp"
+#include "../actions/folderChangeReaction.hpp"
 
 const std::unordered_map<actionType_ec, std::function<action_c*()>> actionTypeToActionCreationFunctionMap_ext_con(
 {
@@ -15,5 +16,5 @@ const std::unordered_map<actionType_ec, std::function<action_c*()>> actionTypeTo
     , {	actionType_ec::copyFile, []() -> action_c* { return new copyFileAction_c;}}
     , {	actionType_ec::deleteFileDir, []() -> action_c* { return new deleteFileDirAction_c;}}
     , {	actionType_ec::metaEndExecutionCycle, []() -> action_c* { return new metaEndExecutionCycleAction_c;}}
-
+    , {	actionType_ec::folderChangeReaction, []() -> action_c* { return new folderChangeReactionAction_c;}}
 });

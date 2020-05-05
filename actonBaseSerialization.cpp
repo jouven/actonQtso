@@ -83,6 +83,14 @@ void deserializeActonDataHub_f(
 #ifdef DEBUGJOUVEN
                 //qDebug() << "actionData_c* actionDataPtrTmp(actionData_c::readCreateDerived_f(actionTypeTmp));" << endl;
 #endif
+                if (actionTypeTmp == actionType_ec::empty)
+                {
+                    text_c deserializeErrorTmp("Invalid action type {0}"
+                            , actionDataJsonObject["type"].toString().toLower());
+                    MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
+                    break;
+                }
+
                 action_c* actionPtrTmp(action_c::readCreateDerived_f(actionTypeTmp));
 
                 if (actionPtrTmp not_eq nullptr)
@@ -108,7 +116,9 @@ void deserializeActonDataHub_f(
                 }
                 else
                 {
-                    text_c deserializeErrorTmp("Failed to deserialize action JSON: type {0} description {1}", actionDataJsonObject["type"].toString().toLower(), actionDataJsonObject["description"].toString().toLower());
+                    text_c deserializeErrorTmp("Failed to deserialize action JSON: type {0} description {1}"
+                            , actionDataJsonObject["type"].toString().toLower()
+                            , actionDataJsonObject["description"].toString().toLower());
                     MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
                 }
             }

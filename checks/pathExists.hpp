@@ -55,10 +55,17 @@ class EXPIMP_ACTONQTSO pathExistsCheck_c : public check_c, public pathExistsData
 
     baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
-    QString typeStr_f() const override;
+
+    //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
+    //uint64_t derivedUpdateActionStringIdDependencies_f(const QString& newStringId_par_con, const QString& oldStringId_par_con) override;
+    //uint64_t derivedActionStringIdDependencyCount_f(const QString& stringId_par_con) const override;
+    uint64_t derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con) override;
+    uint64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
+    QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
+    //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
 public:
     pathExistsCheck_c() = default;
-    pathExistsCheck_c(const checkData_c& checkData_par_con, const pathExistsData_c& pathExists_par_con);
+    pathExistsCheck_c(const checkData_c& checkData_par_con, const pathExistsData_c& pathExistsData_par_con);
 
     void updatePathExistsData_f(const pathExistsData_c& pathExistsData_par_con);
 };

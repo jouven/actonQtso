@@ -43,6 +43,7 @@ public:
 
         //TODO? a way to mark which file transfers have been left midway, this might signal the need for a greater thing called
         //"storing execution state (controlled)interruption-proof"
+
         //DONTDO add an option to truncate while the read is in RAM still (which can be dangerous,
         //but will make this transfer technique use 0 extra space)
 
@@ -251,6 +252,7 @@ public:
     //in actonQtg copyFile editor to do dry runs of what will be copied
     static std::vector<QString> testSourceFileList_f(
             const copyFileData_c* const copyFileDataPtr_par
+            //this should be null because it will be asigned a value for the duration of the file list generation
             , directoryFilter_c*& directoryFilterPtrRef_par
             , textCompilation_c* errors_ptr = nullptr
             , QMutex* directoryFilterPtrMutexPtr_par = nullptr);
@@ -268,11 +270,19 @@ class EXPIMP_ACTONQTSO copyFileAction_c : public action_c, public copyFileData_c
     void derivedRead_f(const QJsonObject &json_par_con) override;
     bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
+    //uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& ) override;
+    //uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const override;
+    //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& ) const override;
+    uint_fast64_t derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con) override;
+    uint_fast64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
+    //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+    QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
+
     action_c* derivedClone_f() const override;
 
     baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
-    QString typeStr_f() const override;
+    //QString typeStr_f() const override;
 
 public:
     copyFileAction_c() = default;

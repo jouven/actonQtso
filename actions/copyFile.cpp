@@ -3,6 +3,7 @@
 #include "../actionExecution/copyFileExecution.hpp"
 #include "../actionMappings/actionStrMapping.hpp"
 #include "../actonDataHub.hpp"
+#include "../reused/stringAlgo.hpp"
 
 #include "stringParserMapQtso/stringParserMap.hpp"
 #include "essentialQtso/macros.hpp"
@@ -200,6 +201,7 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
             {
                 directoryFilterPtrRef_par = std::addressof(directoryFilterTmp);
                 resultTmp = directoryFilterTmp.filter_f();
+                directoryFilterPtrRef_par = nullptr;
                 if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
                 {
                     errors_ptr->append_f(directoryFilterTmp.getErrors_f());
@@ -628,6 +630,35 @@ bool copyFileAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) con
     return isFieldsDataValid_f(errors_par);
 }
 
+uint_fast64_t copyFileAction_c::derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con)
+{
+    return replaceSubString_f(sourcePath_pro, oldStringTrigger_par_con, newStringTrigger_par_con)
+            + replaceSubString_f(destinationPath_pro, oldStringTrigger_par_con, newStringTrigger_par_con)
+            + replaceSubString_f(sourcePath_pro, oldStringTrigger_par_con, newStringTrigger_par_con);
+}
+
+uint_fast64_t copyFileAction_c::derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const
+{
+    return vectorQStringCountSubString_f(stringTrigger_par_con, {sourcePath_pro, destinationPath_pro})
+            + qStringListCountSubString_f(stringTrigger_par_con, sourceFilenameRegexFilters_pro)
+            + qStringListCountSubString_f(stringTrigger_par_con, sourceFilenameFullExtensions_pro);
+}
+
+QSet<QString> copyFileAction_c::derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const
+{
+    QSet<QString> resultTmp;
+    for (const QString& searchValue_ite_con : searchValues_par_con)
+    {
+        if (vectorQStringCountSubString_f(searchValue_ite_con, {sourcePath_pro, destinationPath_pro}, true) > 0
+                    or qStringListCountSubString_f(searchValue_ite_con, sourceFilenameRegexFilters_pro, true) > 0
+                    or qStringListCountSubString_f(searchValue_ite_con, sourceFilenameFullExtensions_pro, true) > 0)
+        {
+            resultTmp.insert(searchValue_ite_con);
+        }
+    }
+    return resultTmp;
+}
+
 action_c* copyFileAction_c::derivedClone_f() const
 {
     //slice and dice
@@ -646,10 +677,10 @@ actionType_ec copyFileAction_c::type_f() const
     return actionType_ec::copyFile;
 }
 
-QString copyFileAction_c::typeStr_f() const
-{
-    return actionTypeToStrUMap_ext_con.at(type_f());
-}
+//QString copyFileAction_c::typeStr_f() const
+//{
+//    return actionTypeToStrUMap_ext_con.at(type_f());
+//}
 
 bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
 {

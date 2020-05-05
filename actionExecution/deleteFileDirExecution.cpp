@@ -37,7 +37,7 @@ void deleteFiledirActionExecution_c::derivedExecute_f()
                     if (itemCountTmp > 0)
                     {
                         text_c errorTmp("Path to delete {0} ignored, it contains {1} items" , deleteFileDirActionPtr_pri->pathParsed_f(), itemCountTmp);
-                        MACRO_ADDACTONQTSOLOG(errorTmp, logItem_c::type_ec::warning);
+                        MACRO_ADDACTONQTSOLOG(errorTmp, deleteFileDirActionPtr_pri, logItem_c::type_ec::warning);
                     }
                     //ignore, see onlyIfEmpty_f private variable description
                     //Q_EMIT addError_signal({"Can't delete {0}, directory is not empty", deleteFileDirActionPtr_pri->pathParsed_f()});

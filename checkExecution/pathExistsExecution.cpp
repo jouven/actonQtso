@@ -15,7 +15,7 @@ pathExistsCheckExecution_c::pathExistsCheckExecution_c(
 void pathExistsCheckExecution_c::derivedExecute_f()
 {
     bool existsTmp(false);
-    Q_EMIT executionStateChange_signal(checkExecutionState_ec::executing);
+    //Q_EMIT executionStateChange_signal(checkExecutionState_ec::executing);
     QFileInfo fileInfoPathTmp(pathExistsCheckPtr_pri->pathParsed_f());
     existsTmp = fileInfoPathTmp.exists();
     Q_EMIT anyFinish_signal(existsTmp);
@@ -23,7 +23,7 @@ void pathExistsCheckExecution_c::derivedExecute_f()
 
 void pathExistsCheckExecution_c::derivedStop_f()
 {
-    //no need
+    //no need, too fast
 }
 
 

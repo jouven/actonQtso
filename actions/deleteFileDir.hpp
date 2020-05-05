@@ -61,11 +61,19 @@ class EXPIMP_ACTONQTSO deleteFileDirAction_c : public action_c, public deleteFil
     void derivedRead_f(const QJsonObject &json_par_con) override;
     bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
+    //uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& ) override;
+    //uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const override;
+    //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& ) const override;
+    uint_fast64_t derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con) override;
+    uint_fast64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
+    //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+    QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
+
     action_c* derivedClone_f() const override;
 
     baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
-    QString typeStr_f() const override;
+    //QString typeStr_f() const override;
 public:
     deleteFileDirAction_c() = default;
     deleteFileDirAction_c(const actionData_c& actionData_par_con, const deleteFileDirData_c& deleteFileDirData_par_con);

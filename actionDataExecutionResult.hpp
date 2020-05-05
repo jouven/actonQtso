@@ -76,6 +76,7 @@ public:
     bool killedByUser_f() const;
 
     //start time begins when the execution state changes from initial to executingChecks or preparing
+    //milliseconds since epoch
     qint64 startTime_f() const;
     qint64 finishedTime_f() const;
 
@@ -83,13 +84,13 @@ public:
     bool tryClear_f();
 
 Q_SIGNALS:
-    void outputUpdated_signal(action_c* action_ptr_par_con);
+    void outputUpdated_signal(action_c* action_ptr_par_con, const text_c& output_par_con);
 
-    void externalOutputUpdated_signal(action_c* action_ptr_par_con);
-    void externalErrorUpdated_signal(action_c* action_ptr_par_con);
+    void externalOutputUpdated_signal(action_c* action_ptr_par_con, const text_c& externalOutput_par_con);
+    void externalErrorUpdated_signal(action_c* action_ptr_par_con, const text_c& externalError_par_con);
 
     void returnCodeSet_signal(action_c* action_ptr_par_con);
-    void executionStateUpdated_signal(action_c* action_ptr_par_con);
+    void executionStateUpdated_signal(action_c* action_ptr_par_con, actionExecutionState_ec executionState_par_con);
 
     void started_signal(action_c* action_ptr_par_con);
     void finished_signal(action_c* action_ptr_par_con);
@@ -106,14 +107,15 @@ Q_SIGNALS:
     void executing_signal(action_c* action_ptr_par_con);
     void success_signal(action_c* action_ptr_par_con);
 
-    void error_signal(action_c* action_ptr_par_con);
+    void error_signal(action_c* action_ptr_par_con, const text_c& error_par_con);
+    void errors_signal(action_c* action_ptr_par_con, const textCompilation_c& errors_par_con);
 
     void resultsCleared_signal(action_c* action_ptr_par_con);
     //the slots should only be used by the action/execution object
 public Q_SLOTS:
-    //some of the actionExecutionState are final, like success, after they been set the object can't be modified anymore
-    //final states: success, killed, stopped and error, except error the others can't be set,
-    //they'll be set when trySetFinished_f is called
+    //some of the actionExecutionState are final, like success, after they been set the object can't be modified anymore (without clearing it first)
+    //final states: success, killed, stopped and error, except error the other states can't be set,
+    //they are set when trySetFinished_f is called
     bool trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con);
 
     void appendOutput_f(const text_c& output_par_con);

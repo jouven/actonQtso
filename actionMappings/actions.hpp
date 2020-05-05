@@ -25,6 +25,7 @@ enum class actionType_ec
     , findFilesDirectories = 6
     //FUTURE
     , modifyEnvironment = 7
+    //move too
     , copyFile = 8
     //this is a meta action to stop-end the execution cycle
     //it ends actions with keepExecuting_pro = true
@@ -32,6 +33,13 @@ enum class actionType_ec
     //"stop": regular stop
     //"wait to finish": already executing actions/checks will keep executing till they finish but no new check/action will execute (keepExecuting_pro = true included)
     , metaEndExecutionCycle = 9
+    //action that monitors a  directory and if a "change criteria" is met it does something
+    //i.e. checks for new files and when a new file is found it moves/copies/calls a program with the new file as the first argument...
+    , folderChangeReaction = 10
+    //if anything modify folderChangeReaction to work on a single file (add a check that the path is a file and if it's not error)
+//    //action that monitors a file and if a "change criteria" is met it does something
+//    //i.e. if the date/size/hash changes move/copie/call a program with the file as the first argument...
+//    , fileChangeReaction = 11
 };
 
 #endif // ACTONQTSO_ACTIONS_HPP

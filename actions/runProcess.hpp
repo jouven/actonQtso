@@ -51,8 +51,8 @@ public:
     void write_f(QJsonObject &json_par) const;
     void read_f(const QJsonObject &json_par_con);
 
-    QString environmentValue() const;
-    QString environmentValueParsed() const;
+    QString environmentValue_f() const;
+    QString environmentValueParsed_f() const;
     void setEnvironmentValue_f(const QString& environmentValue_par_con);
 
     bool enabled_f() const;
@@ -68,11 +68,11 @@ protected:
     QString workingDirectory_pro;
     //enviroment requires some extra options
 
-    //copy acton environment as a base
+    //copy the main program (i.e. actonQtg) environment
+    //when executing the QProcess (see runProcessActionExecution_c class)
     //otherwise use an empty one
-    bool useActonEnvironment_pro = true;
+    bool useProgramEnvironment_pro = true;
     //specific environment to add to the "base" one
-    //keys must be unique
     QHash<QString, environmentPairConfig_c> environmentToAdd_pro;
 
     //prevent public assignments
@@ -99,6 +99,7 @@ public:
     QString processPathParsed_f() const;
     void setProcessPath_f(const QString& processPath_par_con);
     std::vector<argument_c> arguments_f() const;
+    std::vector<argument_c> argumentsParsed_f() const;
     void setArguments_f(const std::vector<argument_c>& arguments_par_con);
     QString workingDirectory_f() const;
     QString workingDirectoryParsed_f() const;
@@ -106,8 +107,8 @@ public:
     QHash<QString, environmentPairConfig_c> environmentToAdd_f() const;
     QHash<QString, environmentPairConfig_c> environmentToAddParsed_f() const;
     void setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con);
-    bool useActonEnvironment_f() const;
-    void setUseActonEnvironment_f(const bool useActonEnvironment_par_con);
+    bool useProgramEnvironment_f() const;
+    void setUseProgramEnvironment_f(const bool useProgramEnvironment_par_con);
 
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
@@ -120,11 +121,19 @@ class EXPIMP_ACTONQTSO runProcessAction_c : public action_c, public runProcessDa
     void derivedRead_f(const QJsonObject &json_par_con) override;
     bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
+    //uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& ) override;
+    //uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const override;
+    //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
+    uint_fast64_t derivedUpdateStringTriggerDependecies_f(const QString& oldStringTrigger_par_con, const QString& newStringTrigger_par_con) override;
+    uint_fast64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
+    //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+    QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
+
     action_c* derivedClone_f() const override;
 
     baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
-    QString typeStr_f() const override;
+    //QString typeStr_f() const override;
 public:
     runProcessAction_c() = default;
     runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con);

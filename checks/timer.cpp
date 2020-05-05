@@ -95,7 +95,12 @@ void timerCheck_c::derivedRead_f(const QJsonObject& json_par_con)
     }
     if (json_par_con["value"].isString())
     {
-        value_pro = json_par_con["value"].toString().toLongLong();
+        bool strTonumberConversionResultTmp(false);
+        auto resultTmp(json_par_con["value"].toString().toLongLong(std::addressof(strTonumberConversionResultTmp)));
+        if (strTonumberConversionResultTmp)
+        {
+            value_pro = resultTmp;
+        }
     }
     if (json_par_con["errorOnPastDatetimeValue"].isBool())
     {
@@ -127,16 +132,11 @@ checkType_ec timerCheck_c::type_f() const
     return checkType_ec::timer;
 }
 
-QString timerCheck_c::typeStr_f() const
-{
-    return checkTypeToStrUMap_ext_con.at(type_f());
-}
-
 timerCheck_c::timerCheck_c(
         const checkData_c& checkData_par_con
-        , const timerData_c& timer_par_con)
+        , const timerData_c& timerData_par_con)
     : check_c(checkData_par_con)
-    , timerData_c(timer_par_con)
+    , timerData_c(timerData_par_con)
 {
 }
 
