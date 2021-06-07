@@ -19,7 +19,7 @@ protected:
 public:
     createDirectoryActionExecution_c() = delete;
     explicit createDirectoryActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            actionExecutionResult_c* actionExecutionResultObj_par_con
             , createDirectoryAction_c* createDirectoryActionPtr_par
     );
 };

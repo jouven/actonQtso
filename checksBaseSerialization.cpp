@@ -12,6 +12,13 @@
 
 #include <vector>
 
+#define MACRO_ADDLOG(...) \
+if (checkDataHub_par_ref.actionParent_f() not_eq nullptr and checkDataHub_par_ref.actionParent_f()->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(checkDataHub_par_ref.actionParent_f()->actonDataHubParent_f(),__VA_ARGS__); \
+}
+
+
 void copyFromChecksDataHubAndSerialize_f(
         const checksDataHub_c& checkDataHub_par_con
         , QJsonObject& json_ref_par
@@ -80,7 +87,7 @@ void deserializeAndCopyToChecksDataHub_f(
             else
             {
                 text_c deserializeErrorTmp("Failed to deserialize check JSON: type {0} description {1}", checkDataJsonObject["type"].toString().toLower(), checkDataJsonObject["description"].toString().toLower());
-                MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, checkDataPtrTmp, logItem_c::type_ec::error);
+                MACRO_ADDLOG(deserializeErrorTmp, checkDataPtrTmp, messageType_ec::error);
                 APPENDTEXTPTR(errors_par, deserializeErrorTmp);
             }
         }

@@ -117,9 +117,28 @@ bool fileState_c::contentChanged_f() const
     return contentChangedResultTmp;
 }
 
+const QString* fileState_c::rootPath_f() const
+{
+    return rootPath_pri;
+}
+
+QString fileState_c::fullFilePAth_f() const
+{
+    QString resultTmp;
+    if (rootPath_pri not_eq nullptr)
+    {
+        resultTmp = *rootPath_pri + "/" + filePath_pri;
+    }
+    else
+    {
+        resultTmp = filePath_pri;
+    }
+    return resultTmp;
+}
+
 void fileState_c::updateCurrentValues_f()
 {
-    QFileInfo fileTmp(filePath_pri);
+    QFileInfo fileTmp(fullFilePAth_f());
     if (fileTmp.exists())
     {
         exists_pri = true;
@@ -163,13 +182,24 @@ void fileState_c::copyCurrentToOld_f()
 
 fileState_c::fileState_c(
         const QString& filePath_par_con
+        , const QString* rootPath_par
         , const bool requiresHash_par_con
         )
     : filePath_pri(filePath_par_con)
+    , rootPath_pri(rootPath_par)
     , requiresHash_pri(requiresHash_par_con)
     , initialized_pri(true)
 {
+
     updateCurrentValues_f();
+#ifdef DEBUGJOUVEN
+//    qDebug() << "filePath_pri " << filePath_pri << Qt::endl
+//             << "rootPath_par " << (rootPath_par == nullptr ? "nullptr" : *rootPath_par) << Qt::endl
+//             << "currentFileSize_pri " << currentFileSize_pri << Qt::endl
+//             << "exists_pri " << exists_pri << Qt::endl
+//             << "oldExists_pri " << oldExists_pri << Qt::endl
+//             << "oldIinitalized_pri " << oldIinitalized_pri << Qt::endl;
+#endif
 }
 
 void fileState_c::updateFileValues_f()
@@ -177,16 +207,16 @@ void fileState_c::updateFileValues_f()
     copyCurrentToOld_f();
     updateCurrentValues_f();
 #ifdef DEBUGJOUVEN
-    qDebug() << "filePath_pri " << filePath_pri << endl
-             << "currentFileSize_pri " << currentFileSize_pri << endl
-             << "exists_pri " << exists_pri << endl
-             << "oldExists_pri " << oldExists_pri << endl
-             << "oldIinitalized_pri " << oldIinitalized_pri << endl;
+//    qDebug() << "filePath_pri " << filePath_pri << Qt::endl
+//             << "currentFileSize_pri " << currentFileSize_pri << Qt::endl
+//             << "exists_pri " << exists_pri << Qt::endl
+//             << "oldExists_pri " << oldExists_pri << Qt::endl
+//             << "oldIinitalized_pri " << oldIinitalized_pri << Qt::endl;
 #endif
 }
 
 folderChangeReactionActionExecution_c::folderChangeReactionActionExecution_c(
-        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        actionExecutionResult_c* actionExecutionResultObj_par_con
         , folderChangeReactionAction_c* folderChangeReactionActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
@@ -217,7 +247,7 @@ bool folderChangeReactionActionExecution_c::anyChangeToReact_f(const fileState_c
             {
                 resultTmp = fileStateObj_par_con.isNew_f();
 #ifdef DEBUGJOUVEN
-                //qDebug() << "fileStateObj_par_con.isNew_f() " << resultTmp << endl;
+                //qDebug() << "fileStateObj_par_con.isNew_f() " << (resultTmp ? "1" : "0") << Qt::endl;
 #endif
                 continue;
             }
@@ -282,7 +312,7 @@ bool folderChangeReactionActionExecution_c::anyChangeToReact_f(const fileState_c
         }
     }
 #ifdef DEBUGJOUVEN
-    //qDebug() << "any change to react resultTmp " << resultTmp << endl;
+    //qDebug() << "any change to react resultTmp " << resultTmp << Qt::endl;
 #endif
     return resultTmp;
 }
@@ -300,13 +330,13 @@ action_c* folderChangeReactionActionExecution_c::getActionForReaction_f(const QS
     while (true)
     {
         //fetch the action using the actionStringId
-        int_fast64_t reactionActionIdTmp(actonDataHub_ptr_ext->actionDataStringIdToActionDataId_f(folderChangeReactionActionPtr_pri->reactionActionStringId_f()));
+        int_fast64_t reactionActionIdTmp(folderChangeReactionActionPtr_pri->actonDataHubParent_f()->actionDataStringIdToActionDataId_f(folderChangeReactionActionPtr_pri->reactionActionStringId_f()));
 
         {
 #ifdef DEBUGJOUVEN
-            //qDebug() << "reactionActionIdTmp " << reactionActionIdTmp << endl;
+            //qDebug() << "reactionActionIdTmp " << reactionActionIdTmp << Qt::endl;
 #endif
-            originalActionTmp = actonDataHub_ptr_ext->action_ptr_f(reactionActionIdTmp);
+            originalActionTmp = folderChangeReactionActionPtr_pri->actonDataHubParent_f()->action_ptr_f(reactionActionIdTmp);
             if (originalActionTmp == nullptr)
             {
                 actionNotFoundTmp = true;
@@ -332,40 +362,47 @@ action_c* folderChangeReactionActionExecution_c::getActionForReaction_f(const QS
         }
 
         //clone
-        clonedActionTmp = actonDataHub_ptr_ext->action_ptr_f(reactionActionIdTmp)->clone_f();
+        clonedActionTmp = folderChangeReactionActionPtr_pri->actonDataHubParent_f()->action_ptr_f(reactionActionIdTmp)->clone_f();
         //enable the cloned action
         clonedActionTmp->setEnabled_f(true);
-        //change parent of the clonced action
-        clonedActionTmp->setParent(this);
-
-        if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::execute)
+        //set the parent of the cloned action, because the qobject "parts" are not copied
+        clonedActionTmp->setParent(folderChangeReactionActionPtr_pri->actonDataHubParent_f()->action_ptr_f(reactionActionIdTmp)->actonDataHubParent_f());
+        //when an action is cloned two actions have the same stringId, but here the original action was not enabled
+        //also the new action will have the same stringId but not the same id and it won't be in the
+        //mapping containers so it can't be reached anyway (it's not inside actonDataHub containers)
+        //TODO?¿ modify stringId? not really since the original action won't be enabled and
+        //other actions can't interact with it if it's not enabled from the start
+        if (clonedActionTmp->type_f() == actionType_ec::runProcess)
         {
             runProcessAction_c* runProcessPtrTmp(static_cast<runProcessAction_c*>(clonedActionTmp));
-            //modify execute path
-            runProcessPtrTmp->setProcessPath_f(filePath_par_con);
-            break;
-        }
-
-        if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::runProcess)
-        {
-            runProcessAction_c* runProcessPtrTmp(static_cast<runProcessAction_c*>(clonedActionTmp));
-            //optional replace an argument/s
-            if (not folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f().isEmpty())
+            if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::execute)
             {
-                for (argument_c& argument_ite : runProcessPtrTmp->arguments_f())
+                //modify execute path
+                runProcessPtrTmp->setProcessPath_f(filePath_par_con);
+                break;
+            }
+
+            if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::runProcess)
+            {
+                //optional replace an argument/s
+                if (not folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f().isEmpty())
                 {
-                    if (argument_ite.argumentParsed_f().contains(folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f()))
+                    for (argument_c& argument_ite : runProcessPtrTmp->arguments_f())
                     {
-                        QString argumentToReplaceTmp(argument_ite.argumentParsed_f());
-                        argumentToReplaceTmp.replace(folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f(), filePath_par_con);
-                        argument_ite.setArgument_f(argumentToReplaceTmp);
+                        if (argument_ite.argumentParsed_f(folderChangeReactionActionPtr_pri->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()).contains(folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f()))
+                        {
+                            QString argumentToReplaceTmp(argument_ite.argumentParsed_f(folderChangeReactionActionPtr_pri->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()));
+                            argumentToReplaceTmp.replace(folderChangeReactionActionPtr_pri->argumentPlaceHolderToReplaceWithChangedFilePathParsed_f(), filePath_par_con);
+                            argument_ite.setArgument_f(argumentToReplaceTmp);
+                        }
                     }
                 }
+                break;
             }
-            break;
         }
 
-        if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::remove)
+        if (clonedActionTmp->type_f() == actionType_ec::deleteFileDir
+            and folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::remove)
         {
             deleteFileDirAction_c* deleteFileDirPtrTmp(static_cast<deleteFileDirAction_c*>(clonedActionTmp));
             //modify delete path
@@ -373,7 +410,8 @@ action_c* folderChangeReactionActionExecution_c::getActionForReaction_f(const QS
             break;
         }
 
-        if (folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::copyMove)
+        if (clonedActionTmp->type_f() == actionType_ec::copyFile
+            and folderChangeReactionActionPtr_pri->reactionType_f() == folderChangeReactionData_c::reactionType_ec::copyMove)
         {
             copyFileAction_c* copyFilePtrTmp(static_cast<copyFileAction_c*>(clonedActionTmp));
             //modify source path
@@ -388,29 +426,29 @@ action_c* folderChangeReactionActionExecution_c::getActionForReaction_f(const QS
     {
         if (actionNotFoundTmp)
         {
-            Q_EMIT addError_signal(
+            emitExecutionMessage_f(
             {
                             "Action with stringId {0} not found"
                             , folderChangeReactionActionPtr_pri->reactionActionStringId_f()
-            });
+            }, executionMessage_c::type_ec::error);
         }
         if (actionWasEnabledTmp)
         {
-            Q_EMIT addError_signal(
+            emitExecutionMessage_f(
             {
                             "Action stringId {0} was enabled"
                             , originalActionTmp->stringId_f()
-            });
+            }, executionMessage_c::type_ec::error);
         }
         if (reactionTypeActionTypeMismatchTmp)
         {
-            Q_EMIT addError_signal(
+            emitExecutionMessage_f(
             {
                             "Action stringId {0}, wrong action type {1} for this reaction type {2}"
                             , originalActionTmp->stringId_f()
                             , originalActionTmp->typeStr_f()
                             , folderChangeReactionData_c::reactionTypeToStrUMap_sta_con.at(folderChangeReactionActionPtr_pri->reactionType_f())
-            });
+            }, executionMessage_c::type_ec::error);
         }
 
         //cloned action is deleted in monitoringCheckReactionPhaseEnded_f
@@ -431,7 +469,7 @@ action_c* folderChangeReactionActionExecution_c::getActionForReaction_f(const QS
             text_c errorTmp("Error/s found in action stringId \"{0}\"", clonedActionTmp->stringId_f());
             errors1Tmp.append_f(errorTmp);
             errors1Tmp.append_f(errors2Tmp);
-            Q_EMIT addErrors_signal(errors1Tmp);
+            emitExecutionMessage_f(errors1Tmp, executionMessage_c::type_ec::error);
         }
     }
 
@@ -445,17 +483,24 @@ void folderChangeReactionActionExecution_c::executeReaction_f(
     fileState_c fileStateTmp(monitoredFiles_pri.value(monitoredFile_par_con));
     if (anyChangeToReact_f(fileStateTmp))
     {
-
 #ifdef DEBUGJOUVEN
-        qDebug() << "afer anyChangeToReact_f" << endl;
+        //qDebug() << "1 after anyChangeToReact_f" << Qt::endl;
 #endif
         action_c* clonedActionTmp(getActionForReaction_f(monitoredFile_par_con));
         if (clonedActionTmp not_eq nullptr)
         {
-            actionDataExecutionResult_c* clonedActionDataExecutionResultTmp(clonedActionTmp->createGetActionDataExecutionResult_ptr_f());
+            actionExecutionResult_c* clonedActionDataExecutionResultTmp(clonedActionTmp->createGetActionDataExecutionResult_ptr_f());
+
+            //add execution results messages to the actonDataHub
             QObject::connect(
                         clonedActionDataExecutionResultTmp
-                        , &actionDataExecutionResult_c::finished_signal
+                        , &actionExecutionResult_c::messageAdded_signal
+                        , folderChangeReactionActionPtr_pri->actonDataHubParent_f()
+                        , &actonDataHub_c::addActionExecutionResultMessage_f);
+            folderChangeReactionActionPtr_pri->actonDataHubParent_f()->addExecutionResult_f(clonedActionDataExecutionResultTmp);
+            QObject::connect(
+                        clonedActionDataExecutionResultTmp
+                        , &actionExecutionResult_c::finished_signal
                         , this
                         , &folderChangeReactionActionExecution_c::monitoringCheckReactionPhaseEnded_f
                         //            , Qt::UniqueConnection
@@ -464,28 +509,14 @@ void folderChangeReactionActionExecution_c::executeReaction_f(
             {
                 QObject::connect(
                             clonedActionDataExecutionResultTmp
-                            , &actionDataExecutionResult_c::finished_signal
+                            , &actionExecutionResult_c::finished_signal
                             , this
                             , &folderChangeReactionActionExecution_c::monitoringReact_f
                             //            , Qt::UniqueConnection
                             );
             }
-            actionDataExecutionResult_c* actionDataExecutionResultTmp(folderChangeReactionActionPtr_pri->actionDataExecutionResult_ptr_f());
-            //"link" the error/s signals of the reaction actions to this action error/s signal
-            QObject::connect(
-                        clonedActionDataExecutionResultTmp
-                        , &actionDataExecutionResult_c::error_signal
-                        , actionDataExecutionResultTmp
-                        , &actionDataExecutionResult_c::error_signal);
-            QObject::connect(
-                        clonedActionDataExecutionResultTmp
-                        , &actionDataExecutionResult_c::errors_signal
-                        , actionDataExecutionResultTmp
-                        , &actionDataExecutionResult_c::errors_signal);
             executingReactionActions_pri.emplace_back(clonedActionTmp);
             clonedActionTmp->tryExecute_f();
-            //TODO action results class, serialize results so they can be logged, since the reaction action results can't be read
-            //because the action is created and destroyed
         }
         else
         {
@@ -494,7 +525,14 @@ void folderChangeReactionActionExecution_c::executeReaction_f(
     }
     else
     {
-        monitoringCheckReactionPhaseEnded_f(nullptr);
+        if (sequentialReaction_par_con and not monitoredFilesSorted_pri.empty())
+        {
+            monitoringReact_f();
+        }
+        else
+        {
+            monitoringCheckReactionPhaseEnded_f(nullptr);
+        }
     }
 }
 
@@ -511,7 +549,7 @@ void folderChangeReactionActionExecution_c::monitoringReact_f()
         //the monitored folder is empty from the start or has been for the previous monitoring cycle and the current one
         if (monitoredFilesSorted_pri.empty())
         {
-            monitoringScheduler_f();
+            monitoringCycleEnd_f();
             break;
         }
 
@@ -545,16 +583,28 @@ void folderChangeReactionActionExecution_c::monitoringCycleEnd_f()
     monitoringScheduler_f();
 }
 
-void folderChangeReactionActionExecution_c::monitoringCheckReactionPhaseEnded_f(action_c* action_par)
+void folderChangeReactionActionExecution_c::monitoringCheckReactionPhaseEnded_f(executionResult_c* executionResult_par)
 {
-    if (action_par not_eq nullptr)
+    if (executionResult_par not_eq nullptr)
     {
-        auto findResultTmp(std::find(executingReactionActions_pri.begin(), executingReactionActions_pri.end(), action_par));
+        actionExecutionResult_c* actionExecutionResultPtrTmp(static_cast<actionExecutionResult_c*>(executionResult_par));
+        action_c* actionPtrTmp(actionExecutionResultPtrTmp->action_ptr_f());
+        auto findResultTmp(std::find(executingReactionActions_pri.begin(), executingReactionActions_pri.end(), actionPtrTmp));
         if (findResultTmp not_eq executingReactionActions_pri.end())
         {
             executingReactionActions_pri.erase(findResultTmp);
+            //commented because execution result will still exist and does reference the action so... parent the cloned action to the execution result
+            //if the execution result gets deleted... delete the action
             //delete the cloned action
-            (*findResultTmp)->deleteLater();
+            //action_par->deleteLater();
+            if (actionPtrTmp->actionDataExecutionResult_ptr_f() not_eq nullptr)
+            {
+                executionResult_par->setParent(actionPtrTmp->actionDataExecutionResult_ptr_f());
+            }
+            else
+            {
+                actionPtrTmp->deleteLater();
+            }
         }
     }
     if (executingReactionActions_pri.empty())
@@ -570,30 +620,56 @@ void folderChangeReactionActionExecution_c::monitoringCheckReactionPhaseEnded_f(
     }
 }
 
+//void pathMonitifierExecution_c::addClonedError_f(action_c* action_ptr_par_con, const text_c error_par_con)
+//{
+    //Q_EMIT addError_signal(action_ptr_par_con);
+//}
+
+//void pathMonitifierExecution_c::addClonedErrors_f(action_c* action_ptr_par_con, const textCompilation_c errors_par_con)
+//{
+    //The issue is that signal chaining doesn't work when argument passing is involved (the arguments aren't passed)
+    //also there is the problem that output/errors/X from different actions/checks will end in the same place (the parent action execution details)
+    //What I'm gonna dOOOOO?:
+    //1 not chain signals and use proxy functions (signal-slot twice in a row) and output the errors/output/X together (ignoring the second issue)
+    //2 output the cloned action-checks exeucution details to the logs?
+    //3 invent something?
+    //3.1 create a hub that collects messages from the current execution? the current details window would just have to filter per action
+    //3.1.1 make execution details (for actions and checks) polymorphic and the actionDataExecutionResult_c and checkDataExecutionResult_c inherit a parent class
+    //3.1.2 make a new class (QObject inherit) for any kind of execution message containing: message text + message type + timestamp
+    //     + identifier string (create new virtual functions for actions and checks that return somekind of unique descriptive string)
+    //3.1.3 use a container of ptrs this new class in the executionResults classes to store the messages, remove the other ones (error, output... etc)
+    //3.1.4 make a execution results message hub inside actonDataHub with the 3.1.2 something like 3.1.3 but "global"
+    //3.1.5 make a execution results hub inside actonDataHub with 3.1.1
+
+    //all the above would solve the problem
+
+    //TODO¿ all the isValid functions from actions/checks need an optional bool that does extra validations for runtime (before starting any execution)
+    //i.e. actionFinished checks needs to check if the action "finished" is valid and enabled
+    //I was wrong, what I need is a dependency examination, execution validations are already being done, and execution validations can only be done at execution
+    //at the moment the actions execute because those validations might depend on prior actions/checks executing just before.
+    //from the example I gave it is clear, the thing that it needs to be done must separated from the action/check editing phase
+    //and what it needs to check is for actionFinished, actionStartedExecuting and folderChangeReaction if the dependency/s requirements are met
+
+//}
+
 void folderChangeReactionActionExecution_c::monitoringGatherFiles_f()
 {
+#ifdef DEBUGJOUVEN
+    //qDebug() << "folderChangeReactionActionExecution_c " << Qt::endl;
+#endif
     //FUTURE --> 0 read from the state file
     //1 do an initial read of the folder and fill the new fields
     //2 start the loop, wait the interval, update the old fields values with the previous new fields,
     //update the new fields with the current file values and finally compare to check the monitored changes
-
     if (directoryFilter_pri == nullptr)
     {
-        filterOptions_s filterOptionsTmp;
-        filterOptionsTmp.navigateSubdirectories_pub = folderChangeReactionActionPtr_pri->recurseFolders_f();
-        filterOptionsTmp.useAbsolutePaths_pub = false;
-        filterOptionsTmp.listFiles_pub = true;
-        filterOptionsTmp.listHidden_pub = true;
-        filterOptionsTmp.navigateHiddenDirectories_pub = true;
-        filterOptionsTmp.listDirectories_pub = false;
-        filterOptionsTmp.listEmptyDirectories_pub = false;
-
-        directoryFilter_pri = new directoryFilter_c(folderChangeReactionActionPtr_pri->folderPathParsed_f(), filterOptionsTmp);
-        QObject::connect(this, &folderChangeReactionActionExecution_c::destroyed, directoryFilter_pri, &directoryFilter_c::deleteLater);
+        Q_EMIT monitoringGatherFilesFinished_signal();
+        return;
     }
+
     std::vector<QString> fileListResultTmp(directoryFilter_pri->filter_f());
 #ifdef DEBUGJOUVEN
-    qDebug() << "fileListResultTmp.size() " << fileListResultTmp.size() << endl;
+    //qDebug() << "fileListResultTmp.size() " << fileListResultTmp.size() << Qt::endl;
 #endif
 
     //update existing files details
@@ -617,38 +693,44 @@ void folderChangeReactionActionExecution_c::monitoringGatherFiles_f()
         }
         else
         {
-            monitoredFiles_pri.insert(filePath_ite_con, fileState_c(filePath_ite_con, hashRequired_pri));
+            monitoredFiles_pri.insert(filePath_ite_con, fileState_c(filePath_ite_con, std::addressof(directoryRoot_pri),  hashRequired_pri));
         }
     }
 
-    std::vector<QString> monitoredFilesSortedTmp(monitoredFiles_pri.keys().toVector().toStdVector());
+    std::vector<QString> monitoredFilesSortedTmp;
     if (not monitoredFiles_pri.empty())
     {
+        monitoredFilesSortedTmp.reserve(monitoredFiles_pri.size());
+        for (auto ite = monitoredFiles_pri.keyBegin(); ite not_eq monitoredFiles_pri.keyEnd(); ++ite)
+        {
+            monitoredFilesSortedTmp.emplace_back(*ite);
+        }
+
         //sort files by reactionOrder
         QCollator collatorTmp;
         collatorTmp.setNumericMode(true);
 
         std::sort(monitoredFilesSortedTmp.begin(), monitoredFilesSortedTmp.end(),
-                  [this, &collatorTmp](const fileState_c& a_par_con, const fileState_c& b_par_con) -> bool
+                  [this, &collatorTmp](const QString& a_par_con, const QString& b_par_con) -> bool
         {
             bool resultTmp(false);
             while (true)
             {
                 if (folderChangeReactionActionPtr_pri->reactionOrder_f() == folderChangeReactionData_c::reactionOrder_ec::newestFirst)
                 {
-                    resultTmp = a_par_con.currentLastModificationDatetimeMs_f() > b_par_con.currentLastModificationDatetimeMs_f();
+                    resultTmp = monitoredFiles_pri.value(a_par_con).currentLastModificationDatetimeMs_f() > monitoredFiles_pri.value(b_par_con).currentLastModificationDatetimeMs_f();
                     break;
                 }
 
                 if (folderChangeReactionActionPtr_pri->reactionOrder_f() == folderChangeReactionData_c::reactionOrder_ec::alphabetical)
                 {
-                    resultTmp = collatorTmp.compare(a_par_con.filePath_f(), b_par_con.filePath_f()) < 0;
+                    resultTmp = collatorTmp.compare(a_par_con, b_par_con) < 0;
                     break;
                 }
 
                 if (folderChangeReactionActionPtr_pri->reactionOrder_f() == folderChangeReactionData_c::reactionOrder_ec::smallerFirst)
                 {
-                    resultTmp = a_par_con.currentFileSize_f() < b_par_con.currentFileSize_f();
+                    resultTmp = monitoredFiles_pri.value(a_par_con).currentFileSize_f() < monitoredFiles_pri.value(b_par_con).currentFileSize_f();
                     break;
                 }
 
@@ -670,7 +752,13 @@ void folderChangeReactionActionExecution_c::monitoringGatherFiles_f()
 
 void folderChangeReactionActionExecution_c::launchMonitoringGatherFilesThread_f()
 {
-    threadedFunction_c* threadedFunction_ptr(new threadedFunction_c(std::bind(&folderChangeReactionActionExecution_c::monitoringGatherFiles_f, this), true));
+    threadedFunction_c* threadedFunction_ptr(new threadedFunction_c([lambdaThis = this]
+    {
+#ifdef DEBUGJOUVEN
+    //qDebug() << "launchMonitoringGatherFilesThread_f threadedFunction_ptr lambda" << Qt::endl;
+#endif
+        lambdaThis->monitoringGatherFiles_f();
+    }, true));
     QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &threadedFunction_c::deleteLater);
     QObject::connect(this, &folderChangeReactionActionExecution_c::monitoringGatherFilesFinished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
     threadedFunction_ptr->start();
@@ -702,16 +790,47 @@ void folderChangeReactionActionExecution_c::monitoringScheduler_f()
     }
 }
 
+void folderChangeReactionActionExecution_c::setupDirectoryFilter_f()
+{
+    if (directoryFilter_pri == nullptr)
+    {
+        filterOptions_s filterOptionsTmp;
+        filterOptionsTmp.navigateSubdirectories_pub = folderChangeReactionActionPtr_pri->recurseFolders_f();
+        filterOptionsTmp.useAbsolutePaths_pub = false;
+        filterOptionsTmp.listFiles_pub = true;
+        filterOptionsTmp.listHidden_pub = true;
+        filterOptionsTmp.navigateHiddenDirectories_pub = true;
+        filterOptionsTmp.listDirectories_pub = false;
+        filterOptionsTmp.listEmptyDirectories_pub = false;
+
+        directoryRoot_pri = folderChangeReactionActionPtr_pri->folderPathParsed_f();
+        directoryFilter_pri = new directoryFilter_c(this, folderChangeReactionActionPtr_pri->folderPathParsed_f(), filterOptionsTmp);
+        QObject::connect(this, &folderChangeReactionActionExecution_c::destroyed, directoryFilter_pri, &directoryFilter_c::deleteLater);
+    }
+}
+
 void folderChangeReactionActionExecution_c::derivedExecute_f()
 {
-    hashRequired_pri = folderChangeReactionActionPtr_pri->changesToMonitor_f().count(folderChangeReactionData_c::changeType_ec::fileContentsChanged) == 1;
-
-    QObject::connect(
-                this
-                , &folderChangeReactionActionExecution_c::monitoringGatherFilesFinished_signal
-                , this
-                , &folderChangeReactionActionExecution_c::monitoringReact_f);
-    QTimer::singleShot(0, this, &folderChangeReactionActionExecution_c::monitoringScheduler_f);
+    if (not folderChangeReactionActionPtr_pri->parentIsActonDataHubObj_f())
+    {
+        emitExecutionMessage_f(
+        {
+                        "FolderChangeReaction action with stringId {0} has no actonDataHub parent object"
+                        , folderChangeReactionActionPtr_pri->stringId_f()
+        }, executionMessage_c::type_ec::error);
+        Q_EMIT anyFinish_signal();
+    }
+    else
+    {
+        hashRequired_pri = folderChangeReactionActionPtr_pri->changesToMonitor_f().count(folderChangeReactionData_c::changeType_ec::fileContentsChanged) == 1;
+        setupDirectoryFilter_f();
+        QObject::connect(
+                    this
+                    , &folderChangeReactionActionExecution_c::monitoringGatherFilesFinished_signal
+                    , this
+                    , &folderChangeReactionActionExecution_c::monitoringReact_f);
+        QTimer::singleShot(0, this, &folderChangeReactionActionExecution_c::monitoringScheduler_f);
+    }
 }
 
 void folderChangeReactionActionExecution_c::derivedStop_f()
@@ -722,15 +841,14 @@ void folderChangeReactionActionExecution_c::derivedStop_f()
     }
     for (action_c* const actionPtr_ite_con : executingReactionActions_pri)
     {
-        actionPtr_ite_con->tryStopExecution_f(folderChangeReactionActionPtr_pri->killingExecutionAfterTimeout_f());
+        actionPtr_ite_con->tryStopExecution_f(false);
     }
 }
 
 void folderChangeReactionActionExecution_c::derivedKill_f()
 {
-    //not required
-    //it can always be stopped (it's not like runProcess)
+    for (action_c* const actionPtr_ite_con : executingReactionActions_pri)
+    {
+        actionPtr_ite_con->tryStopExecution_f(true);
+    }
 }
-
-
-

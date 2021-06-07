@@ -22,6 +22,12 @@
 #include <QDebug>
 #endif
 
+#define MACRO_ADDLOG(...) \
+if (parentAction_f()->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(parentAction_f()->actonDataHubParent_f(),__VA_ARGS__); \
+}
+
 int_fast64_t nextCheckDataId_f()
 {
     static int_fast64_t rootId(0);
@@ -69,29 +75,24 @@ QString check_c::description_f() const
 
 bool check_c::isExecuting_f() const
 {
-    return checkDataExecutionResult_ptr_pri not_eq nullptr
-            and checkDataExecution_ptr_pri not_eq nullptr
-            and equalOnce_ft(checkDataExecutionResult_ptr_pri->lastState_f()
-                            , checkExecutionState_ec::preparing
-                            , checkExecutionState_ec::executing)
-            and not checkDataExecutionResult_ptr_pri->finished_f();
-}
-
-bool check_c::isEditable_f() const
-{
-    return not isExecuting_f() or checkDataExecutionResult_ptr_pri == nullptr or checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::initial;
+    //if the execution object exists
+    //if the execution result exists and is not finished
+    return checkDataExecution_ptr_pri not_eq nullptr
+            and (checkDataExecutionResult_ptr_pri not_eq nullptr
+                 and checkDataExecutionResult_ptr_pri->started_f()
+                 and not checkDataExecutionResult_ptr_pri->finished_f());
 }
 
 //use only on sets
-bool check_c::tryClearResultsOnEdit_f()
-{
-    bool resultTmp(true);
-    if (not isEditable_f())
-    {
-        resultTmp = checkDataExecutionResult_ptr_pri->tryClear_f();
-    }
-    return resultTmp;
-}
+//bool check_c::tryClearResultsOnEdit_f()
+//{
+//    bool resultTmp(true);
+//    if (not isEditable_f())
+//    {
+//        resultTmp = checkDataExecutionResult_ptr_pri->tryClear_f();
+//    }
+//    return resultTmp;
+//}
 
 uint_fast64_t check_c::derivedStringTriggerCreationConflictCount_f(const QString&) const
 {
@@ -137,7 +138,7 @@ void check_c::prepareToExecute_f()
 {
     //IMPORTANT no stop checking here, like an action does, because checks don't run something else like an action with checks,
     //so it's not necessary, since the function uses the main-thread, which blocks the GUI, it's not possible to execute and immediately stop
-    MACRO_ADDACTONQTSOLOG("Preparing to run", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Preparing to run", this, messageType_ec::debug);
     //checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::preparing);
 
     //IMPORTANT some check types barely use resources or their execution
@@ -170,7 +171,7 @@ void check_c::prepareToExecute_f()
     {
         threadedFunction_c* threadedFunction_ptr = new threadedFunction_c(std::bind(&check_c::execute_f, this), true);
         QObject::connect(threadedFunction_ptr, &threadedFunction_c::finished, threadedFunction_ptr, &QObject::deleteLater);
-        QObject::connect(checkDataExecutionResult_ptr_pri, &checkDataExecutionResult_c::finished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
+        QObject::connect(checkDataExecutionResult_ptr_pri, &checkExecutionResult_c::finished_signal, threadedFunction_ptr, &threadedFunction_c::quit);
         threadedFunction_ptr->start();
     }
 }
@@ -186,17 +187,18 @@ void check_c::execute_f()
     {
         //this only affects sequential checks and thread-queued checks, checks that "started" but are waiting for a thread,
         //then something stopped the execution, then when a thread is available they will enter here
-        if (checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stoppingByUser)
+        if (checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stopping)
         {
-            checkDataExecutionResult_ptr_pri->trySetFinished_f(false);
+            checkDataExecutionResult_ptr_pri->setResult_f(false);
+            checkDataExecutionResult_ptr_pri->trySetFinished_f();
             break;
         }
 
-        MACRO_ADDACTONQTSOLOG("Execute", this, logItem_c::type_ec::info);
+        MACRO_ADDLOG("Execute", this, messageType_ec::information);
 
         checkDataExecution_ptr_pri = createExecutionObj_f(checkDataExecutionResult_ptr_pri);
 
-        MACRO_ADDACTONQTSOLOG("Check execution object ctored", this, logItem_c::type_ec::info);
+        MACRO_ADDLOG("Check execution object ctored", this, messageType_ec::information);
 
         QObject::connect(checkDataExecution_ptr_pri, &baseCheckExecution_c::destroyed, this, &check_c::setCheckDataExecutionNull_f );
 
@@ -206,15 +208,15 @@ void check_c::execute_f()
     }
 }
 
-void check_c::tryExecute_f()
+void check_c::tryExecute_f(QObject* parent_par)
 {
-    MACRO_ADDACTONQTSOLOG("Try execute", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Try execute", this, messageType_ec::debug);
     while (true)
     {
         //not enabled
         if (not enabled_pro)
         {
-            MACRO_ADDACTONQTSOLOG("Can't run a disabled Check", this, logItem_c::type_ec::info);
+            MACRO_ADDLOG("Can't run a disabled Check", this, messageType_ec::information);
             break;
         }
         else
@@ -224,7 +226,7 @@ void check_c::tryExecute_f()
         //something is executing
         if (isExecuting_f())
         {
-            MACRO_ADDACTONQTSOLOG("Already executing", this, logItem_c::type_ec::info);
+            MACRO_ADDLOG("Already executing", this, messageType_ec::information);
             break;
         }
         else
@@ -232,26 +234,11 @@ void check_c::tryExecute_f()
             //go on
         }
 
-        if (checkDataExecutionResult_ptr_pri == nullptr)
+        if (checkDataExecutionResult_ptr_pri == nullptr
+            or checkDataExecutionResult_ptr_pri->lastState_f() not_eq checkExecutionState_ec::initial)
         {
             //initialize result obj if necessary
-             checkDataExecutionResult_ptr_pri = new checkDataExecutionResult_c(this);
-        }
-        else
-        {
-            //when repeating execution
-
-            //when running checks from checkDataHub_c this has been done previously
-            //if checks are re-executed, if the first one finishes before the second is cleared (or any after before the next one),
-            //checkdatahub_c::verifycheckresults might wrongly get that some checks have already finished (when they haven't)
-            if (checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::initial)
-            {
-                //initial state requires no changes
-            }
-            else
-            {
-                checkDataExecutionResult_ptr_pri->tryClear_f();
-            }
+            checkDataExecutionResult_ptr_pri = new checkExecutionResult_c(this, parent_par);
         }
 
         if (checkDataExecution_ptr_pri == nullptr)
@@ -270,7 +257,7 @@ void check_c::tryExecute_f()
 
 void check_c::stopExecution_f()
 {
-    MACRO_ADDACTONQTSOLOG("Try stop execution", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Try stop execution", this, messageType_ec::debug);
     while (true)
     {
         if (not enabled_pro)
@@ -278,7 +265,7 @@ void check_c::stopExecution_f()
             break;
         }
         if (checkDataExecutionResult_ptr_pri not_eq nullptr
-            and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stoppingByUser)
+            and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::stopping)
         {
             break;
         }
@@ -286,15 +273,15 @@ void check_c::stopExecution_f()
         if (checkDataExecutionResult_ptr_pri not_eq nullptr
             and checkDataExecutionResult_ptr_pri->lastState_f() == checkExecutionState_ec::preparing)
         {
-            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
-            MACRO_ADDACTONQTSOLOG("Stopped while preparing", this, logItem_c::type_ec::info);
+            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stopping);
+            MACRO_ADDLOG("Stopped while preparing", this, messageType_ec::information);
             break;
         }
 
         if (isExecuting_f())
         {
-            MACRO_ADDACTONQTSOLOG("Stopping execution", this, logItem_c::type_ec::info);
-            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stoppingByUser);
+            MACRO_ADDLOG("Stopping execution", this, messageType_ec::information);
+            checkDataExecutionResult_ptr_pri->trySetExecutionState_f(checkExecutionState_ec::stopping);
             checkDataExecution_ptr_pri->stop_f();
         }
 
@@ -302,7 +289,7 @@ void check_c::stopExecution_f()
     }
 }
 
-checkDataExecutionResult_c* check_c::createGetCheckDataExecutionResult_ptr_f()
+checkExecutionResult_c* check_c::createGetCheckDataExecutionResult_ptr_f(QObject* parent_par)
 {
     while (true)
     {
@@ -310,21 +297,34 @@ checkDataExecutionResult_c* check_c::createGetCheckDataExecutionResult_ptr_f()
         {
             break;
         }
-//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), messageType_ec::debug);
 //        if (deleteObject_par_con and not isExecuting_f())
 //        {
 //            deleteCheckDataExecutionResultObject_f();
 //        }
         if (checkDataExecutionResult_ptr_pri == nullptr)
         {
-            checkDataExecutionResult_ptr_pri = new checkDataExecutionResult_c(this);
+            checkDataExecutionResult_ptr_pri = new checkExecutionResult_c(this, parent_par);
         }
         break;
     }
     return checkDataExecutionResult_ptr_pri;
 }
 
-checkDataExecutionResult_c* check_c::checkDataExecutionResult_ptr_f() const
+
+checkExecutionResult_c* check_c::regenerateGetActionDataExecutionResult_ptr_f(QObject* parent_par)
+{
+    if (enabled_pro)
+    {
+        if (checkDataExecutionResult_ptr_pri not_eq nullptr and checkDataExecutionResult_ptr_pri->lastState_f() not_eq checkExecutionState_ec::initial )
+        {
+            checkDataExecutionResult_ptr_pri = new checkExecutionResult_c(this, parent_par);
+        }
+    }
+    return checkDataExecutionResult_ptr_pri;
+}
+
+checkExecutionResult_c* check_c::checkDataExecutionResult_ptr_f() const
 {
     return checkDataExecutionResult_ptr_pri;
 }
@@ -336,18 +336,14 @@ bool check_c::threaded_f() const
 
 void check_c::setThreaded_f(const bool threaded_par_con)
 {
-    if (
-       isExecuting_f()
-        )
+    if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
+        MACRO_ADDLOG("Not editable, executing", this, messageType_ec::debug);
     }
     else
     {
-        if (tryClearResultsOnEdit_f())
-        {
-            threaded_pro = threaded_par_con;
-        }
+        threaded_pro = threaded_par_con;
+        checkDataExecutionResult_ptr_pri = nullptr;
     }
 }
 
@@ -358,22 +354,18 @@ bool check_c::enabled_f() const
 
 void check_c::setEnabled_f(const bool enabled_par_con)
 {
-    if (
-       isExecuting_f()
-        )
+    if (isExecuting_f())
     {
-        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
+        MACRO_ADDLOG("Executing", this, messageType_ec::debug);
     }
     else
     {
-        if (tryClearResultsOnEdit_f())
+        enabled_pro = enabled_par_con;
+        //on disable delete the execution objects
+        if (not enabled_pro)
         {
-            enabled_pro = enabled_par_con;
-            //on disable delete the execution objects
-            if (not enabled_pro)
-            {
-                deleteExecutionObjects_f();
-            }
+            deleteExecutionObjects_f();
+            checkDataExecutionResult_ptr_pri = nullptr;
         }
     }
 }
@@ -392,7 +384,7 @@ uint_fast64_t check_c::updateActionStringIdDependencies_f(
         isExecuting_f()
         )
     {
-        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
+        MACRO_ADDLOG("Executing", this, messageType_ec::debug);
     }
     else
     {
@@ -418,7 +410,7 @@ uint_fast64_t check_c::updateStringTriggerDependecies_f(const QString& newString
         isExecuting_f()
         )
     {
-        MACRO_ADDACTONQTSOLOG("Executing", this, logItem_c::type_ec::debug);
+        MACRO_ADDLOG("Executing", this, messageType_ec::debug);
     }
     else
     {
@@ -478,7 +470,7 @@ bool check_c::isFieldsCheckValid_f(textCompilation_c* errorsPtr_par) const
         //really rare case? if some error implementation is missed
         if (not isValidResultTmp)
         {
-            MACRO_ADDACTONQTSOLOG("Check is not valid but also has no errors", this, logItem_c::type_ec::warning);
+            MACRO_ADDLOG("Check is not valid but also has no errors", this, messageType_ec::warning);
         }
         else
         {
@@ -491,6 +483,18 @@ bool check_c::isFieldsCheckValid_f(textCompilation_c* errorsPtr_par) const
 void check_c::updateCheckData_f(const checkData_c& checkData_par_con)
 {
     this->checkData_c::operator=(checkData_par_con);
+}
+
+action_c* check_c::parentAction_f() const
+{
+    action_c* resultTmp(nullptr);
+    //check parents, at least in this library, will always be checkDataHub_c
+    //and checkDataHub_c parents, at least in this library, will always be action_c
+    if (parent() not_eq nullptr)
+    {
+        resultTmp = static_cast<action_c*>(parent()->parent());
+    }
+    return resultTmp;
 }
 
 void check_c::deleteCheckDataExecutionObject_f()
@@ -506,23 +510,23 @@ void check_c::deleteCheckDataExecutionObject_f()
     }
 }
 
-void check_c::deleteCheckDataExecutionResultObject_f()
-{
-    if (checkDataExecutionResult_ptr_pri == nullptr)
-    {
+//void check_c::deleteCheckDataExecutionResultObject_f()
+//{
+//    if (checkDataExecutionResult_ptr_pri == nullptr)
+//    {
 
-    }
-    else
-    {
-        checkDataExecutionResult_ptr_pri->deleteLater();
-        checkDataExecutionResult_ptr_pri = nullptr;
-    }
-}
+//    }
+//    else
+//    {
+//        checkDataExecutionResult_ptr_pri->deleteLater();
+//        checkDataExecutionResult_ptr_pri = nullptr;
+//    }
+//}
 
 void check_c::deleteExecutionObjects_f()
 {
     deleteCheckDataExecutionObject_f();
-    deleteCheckDataExecutionResultObject_f();
+    //deleteCheckDataExecutionResultObject_f();
 }
 
 void check_c::deleteUsedPtrs_f()
@@ -544,7 +548,7 @@ void check_c::deleteUsedPtrs_f()
 //    , threaded_pri(threaded_par_con)
 //    , checkDataJSON_pri(checkDataJson_par_con)
 //{
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed", messageType_ec::debug);
 //}
 
 check_c::check_c(
@@ -553,13 +557,13 @@ check_c::check_c(
     : checkData_c(checkData_par_con)
     , id_pri(nextCheckDataId_f())
 {
-    MACRO_ADDACTONQTSOLOG("Check constructed", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Check constructed", this, messageType_ec::debug);
 }
 
 check_c::check_c()
     : check_c(checkData_c())
 {
-    MACRO_ADDACTONQTSOLOG("Constructed (empty constructor)", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Constructed (empty constructor)", this, messageType_ec::debug);
 }
 
 
@@ -572,7 +576,7 @@ check_c::check_c()
 //    , checkDataJSON_pri(from_par_con.checkDataJSON_pri)
 //    , parentAction_pri(from_par_con.parentAction_pri)
 //{
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " copied (const)", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " copied (const)", messageType_ec::debug);
 //}
 
 //check_c::check_c(check_c& from_par)
@@ -584,7 +588,7 @@ check_c::check_c()
 //    , checkDataJSON_pri(from_par.checkDataJSON_pri)
 //    , parentAction_pri(from_par.parentAction_pri)
 //{
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " copied (no const)", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " copied (no const)", messageType_ec::debug);
 //}
 
 //check_c::check_c(check_c&& from_par) noexcept
@@ -601,7 +605,7 @@ check_c::check_c()
 //    from_par.checkDataExecution_ptr_pri = nullptr;
 //    from_par.checkDataExecutionResult_ptr_pri = nullptr;
 
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed-moved", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " constructed-moved", messageType_ec::debug);
 //}
 
 //check_c& check_c::operator=(const check_c& from_par_con)
@@ -614,7 +618,7 @@ check_c::check_c()
 //    parentAction_pri = from_par_con.parentAction_pri;
 
 //    deleteUsedPtrs_f();
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned= (const)", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned= (const)", messageType_ec::debug);
 //    return *this;
 //}
 
@@ -628,7 +632,7 @@ check_c::check_c()
 //    parentAction_pri = from_par_con.parentAction_pri;
 
 //    deleteUsedPtrs_f();
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned= (const)", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned= (const)", messageType_ec::debug);
 //    return *this;
 //}
 
@@ -646,13 +650,13 @@ check_c::check_c()
 
 //    from_par.checkDataExecution_ptr_pri = nullptr;
 //    from_par.checkDataExecutionResult_ptr_pri = nullptr;
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned-moved", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " assigned-moved", messageType_ec::debug);
 //    return *this;
 //}
 
 //void check_c::setParentAction_f(action_c* parentAction_par)
 //{
-//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " parentAction is nullptr? " +  QSTRINGBOOL(parentAction_par not_eq nullptr), logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " parentAction is nullptr? " +  QSTRINGBOOL(parentAction_par not_eq nullptr), messageType_ec::debug);
 //    //if it's null or (it's not and it's not executing)
 //    if (parentAction_pri == nullptr or not parentAction_pri->isExecuting_f())
 //    {
@@ -662,7 +666,7 @@ check_c::check_c()
 
 check_c::~check_c()
 {
-    MACRO_ADDACTONQTSOLOG("Check destroyed", logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Check destroyed", messageType_ec::debug);
     deleteUsedPtrs_f();
 }
 
@@ -677,7 +681,7 @@ void check_c::write_f(QJsonObject& json_ref_par) const
     derivedWrite_f(derivedObjTmp);
     json_ref_par["checkTypeData"] = derivedObjTmp;
 
-    MACRO_ADDACTONQTSOLOG("Check serialized", this, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Check serialized", this, messageType_ec::debug);
 }
 
 void check_c::read_f(const QJsonObject& json_par_con)
@@ -688,7 +692,7 @@ void check_c::read_f(const QJsonObject& json_par_con)
 //        or isExecuting_f()
 //        )
 //    {
-//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), logItem_c::type_ec::debug);
+//        MACRO_ADDACTONQTSOLOG("Check Id: " + QString::number(this->id_pri) + " is executing: " + QSTRINGBOOL(isExecuting_f()), messageType_ec::debug);
 //    }
 //    else
 //    {
@@ -704,13 +708,18 @@ void check_c::read_f(const QJsonObject& json_par_con)
         }
         derivedRead_f(json_par_con["checkTypeData"].toObject());
 
-        MACRO_ADDACTONQTSOLOG("Check deserialized", this, logItem_c::type_ec::debug);
+        MACRO_ADDLOG("Check deserialized", this, messageType_ec::debug);
         //    }
 }
 
 QString check_c::typeStr_f() const
 {
-     return checkTypeToStrUMap_ext_con.at(type_f());
+    return checkTypeToStrUMap_ext_con.at(type_f());
+}
+
+QString check_c::reference_f() const
+{
+    return QString::number(id_pri) + "_" + typeStr_f() + "_" + derivedReference_f();
 }
 
 //QString check_c::uniqueIdString_f() const
@@ -755,7 +764,7 @@ void check_c::setResultLogic_f(const checkData_c::resultLogic_ec& resultLogic_pa
 //  , enabled_pro(source_par_con->threaded_pro)
 //  , resultLogic_pro(source_par_con->resultLogic_pro)
 //{
-//    MACRO_ADDACTONQTSOLOG("checkData_c, \"constructed\" (\"derived constructor\")", logItem_c::type_ec::debug);
+//    MACRO_ADDACTONQTSOLOG("checkData_c, \"constructed\" (\"derived constructor\")", messageType_ec::debug);
 //}
 
 checkData_c::checkData_c(

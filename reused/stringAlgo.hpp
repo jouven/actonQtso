@@ -29,7 +29,7 @@ uint_fast64_t replaceSubString_f(
         , const QString& oldValue_par_con
         , const QString& newValue_par_con) = delete;
 
-
+//counts
 uint_fast64_t EXPIMP_ACTONQTSO vectorQStringCountSubString_f(
         const QString& valueToFind_par_con
         , const std::vector<QString>& stringsToSearch_par_con

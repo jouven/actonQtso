@@ -16,9 +16,9 @@ QString createDirectoryData_c::directoryPath_f() const
     return directoryPath_pro;
 }
 
-QString createDirectoryData_c::directoryPathParsed_f() const
+QString createDirectoryAction_c::directoryPathParsed_f() const
 {
-    COPYPARSERETURNVAR(directoryPath_pro);
+    return stringParserMap_c::parseString_f(directoryPath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void createDirectoryData_c::setDirectoryPath_f(const QString& directoryPath_par_con)
@@ -53,7 +53,7 @@ bool createDirectoryData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par
     while (true)
     {
         text_c errorTextTmp;
-        if (isValidStringSize_f(directoryPathParsed_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
+        if (isValidStringSize_f(directoryPath_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
         {
             //it's valid
         }
@@ -73,7 +73,6 @@ bool createDirectoryData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par
     }
     return resultTmp;
 }
-
 
 createDirectoryData_c::createDirectoryData_c(
         const QString& directoryPath_par_con
@@ -137,10 +136,10 @@ action_c* createDirectoryAction_c::derivedClone_f() const
     //slice and dice
     createDirectoryData_c createDirectoryDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new createDirectoryAction_c(actionDataTmp, createDirectoryDataTmp);
+    return new createDirectoryAction_c(actonDataHubParent_f(), actionDataTmp, createDirectoryDataTmp);
 }
 
-baseActionExecution_c* createDirectoryAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* createDirectoryAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new createDirectoryActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -150,15 +149,21 @@ actionType_ec createDirectoryAction_c::type_f() const
     return actionType_ec::createDirectory;
 }
 
+QString createDirectoryAction_c::derivedReference_f() const
+{
+    return directoryPath_pro;
+}
+
 //QString createDirectoryAction_c::typeStr_f() const
 //{
 //    return actionTypeToStrUMap_ext_con.at(type_f());
 //}
 
 createDirectoryAction_c::createDirectoryAction_c(
+        actonDataHub_c* actonDataHubParent_par,
         const actionData_c& actionData_par_con
         , const createDirectoryData_c& createDirectoryData_par_con)
-    : action_c(actionData_par_con)
+    : action_c(actonDataHubParent_par, actionData_par_con)
     , createDirectoryData_c(createDirectoryData_par_con)
 {
 }

@@ -1,7 +1,6 @@
 #message($$QMAKESPEC)
 QT -= gui
 
-TARGET = actonQtso
 TEMPLATE = lib
 
 !android:QMAKE_CXXFLAGS += -std=c++17
@@ -62,6 +61,8 @@ HEADERS += \
     actions/copyFile.hpp \
     actionExecution/copyFileExecution.hpp \
     dateTimeStringFormat.hpp \
+    executionMessage.hpp \
+    executionResult.hpp \
     reused/sameFileAlgo.hpp \
     actions/deleteFileDir.hpp \
     actionExecution/deleteFileDirExecution.hpp \
@@ -106,6 +107,8 @@ SOURCES += \
     actions/copyFile.cpp \
     actionExecution/copyFileExecution.cpp \
     dateTimeStringFormat.cpp \
+    executionMessage.cpp \
+    executionResult.cpp \
     reused/sameFileAlgo.cpp \
     actions/deleteFileDir.cpp \
     actionExecution/deleteFileDirExecution.cpp \
@@ -178,3 +181,9 @@ QMAKE_LFLAGS_RELEASE += -fvisibility=hidden
 #LFLAGS
 linux:QMAKE_LFLAGS_RELEASE += -flto=jobserver
 win32::QMAKE_LFLAGS_RELEASE += -flto
+
+
+#remove at some point, this is to suppress a qtcreator clang model issue
+unix {
+    INCLUDEPATH += /usr/lib/gcc/x86_64-linux-gnu/10/include
+}

@@ -14,7 +14,12 @@ class folderChangeReactionAction_c;
 
 class fileState_c
 {
+    //the filepath + rootPath is to save memory, absolute path can still be used if rootPath is null,
+    //because when using absolute file paths depending on the location might use a lot of extra space just to save the root part,
+    //this way files are stored without the common root part in filePath and rootPath is a pointer to the same value
+    //4 bytes vs whatever common absolute root path
     QString filePath_pri;
+    const QString* rootPath_pri = nullptr;
 
     //current values
     //in bytes
@@ -50,8 +55,8 @@ class fileState_c
     void copyCurrentToOld_f();
 public:
     fileState_c() = default;
-    fileState_c(
-            const QString& filePath_par_con
+    fileState_c(const QString& filePath_par_con
+            , const QString* rootPath_par
             , const bool requiresHash_par_con = false);
 
     void updateFileValues_f();
@@ -65,6 +70,9 @@ public:
     uint_fast64_t oldHash_f() const;
     bool oldExists_f() const;
     QString filePath_f() const;
+    const QString* rootPath_f() const;
+    //rootPath + / + filePath, checking if rootPath is nullptr and adding / if necessary
+    QString fullFilePAth_f() const;
 
     //updateFileValues_f (which calls copyCurrentToOld_f) must be called once
     //otherwise all this fucntions bellow will return false
@@ -78,6 +86,7 @@ public:
 };
 
 class action_c;
+class executionResult_c;
 class directoryFilter_c;
 
 class folderChangeReactionActionExecution_c : public baseActionExecution_c
@@ -92,6 +101,7 @@ class folderChangeReactionActionExecution_c : public baseActionExecution_c
     std::vector<QString> monitoredFilesToRemove_pri;
     std::vector<action_c*> executingReactionActions_pri;
     directoryFilter_c* directoryFilter_pri = nullptr;
+    QString directoryRoot_pri;
     bool firstCycle_pri = true;
 
     bool hashRequired_pri = false;
@@ -99,6 +109,7 @@ class folderChangeReactionActionExecution_c : public baseActionExecution_c
     bool anyChangeToReact_f(const fileState_c& fileStateObj_par_con) const;
     action_c* getActionForReaction_f(const QString& filePath_par_con);
     void monitoringScheduler_f();
+    void setupDirectoryFilter_f();
     void launchMonitoringGatherFilesThread_f();
     void executeReaction_f(const QString& monitoredFile_par_con, const bool sequentialReaction_par_con);
 protected:
@@ -109,7 +120,7 @@ protected:
 public:
     folderChangeReactionActionExecution_c() = delete;
     explicit folderChangeReactionActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            actionExecutionResult_c* actionExecutionResultObj_par_con
             , folderChangeReactionAction_c* folderChangeReactionActionPtr_par
     );
 Q_SIGNALS:
@@ -118,7 +129,11 @@ private Q_SLOT:
     void monitoringGatherFiles_f();
     void monitoringReact_f();
     void monitoringCycleEnd_f();
-    void monitoringCheckReactionPhaseEnded_f(action_c* action_par);
+    void monitoringCheckReactionPhaseEnded_f(executionResult_c* executionResult_par);
+
+    //slots to add the errors from the cloned actions to the parent (this object) errors
+    void addClonedError_f(action_c* action_ptr_par_con, const text_c error_par_con);
+    void addClonedErrors_f(action_c* action_ptr_par_con, const textCompilation_c errors_par_con);
 };
 
 #endif // ACTONQTSO_FOLDERCHANGEREACTIONEXECUTION_HPP

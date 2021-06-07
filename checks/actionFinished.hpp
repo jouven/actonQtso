@@ -12,6 +12,10 @@ class QJsonObject;
 class textCompilation_c;
 class actonDataHub_c;
 
+//this check requires a parent action and the action is in a actonDataHub_c
+//it won't work in the void and it requires the existence of other actions, being in actonDataHub_c, to work
+//for the reasons above it "can't" be excuted "alone"
+
 class EXPIMP_ACTONQTSO actionFinishedData_c
 {
 public:
@@ -29,6 +33,7 @@ public:
 
     };
 protected:
+    //stringId of the action this check is waiting to finish
     QString actionStringId_pro;
     //how many times the action has to finish successfully (which depends on successOnActionSuccess_pro)
     //to end this check (otherwise it will keep "executing")
@@ -77,7 +82,7 @@ public:
     //returns true if the mapping is added
     //use bool actonDataHub_c::stringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const; to check and warn
     //that a key is already used in another check
-    bool mapActionResultToStringParserConfig_f(const actionExecutionResultFields_ec actionExecutionResultField_par_con, const QString& stringTrigger_par_con);
+    bool mapActionResultToStringParserConfig_f(actonDataHub_c* actonDataHub_par, const actionExecutionResultFields_ec actionExecutionResultField_par_con, const QString& stringTrigger_par_con);
     void removeMapActionResultToStringParserConfig_f(const actionExecutionResultFields_ec actionExecutionResultField_par_con);
 
     std::unordered_map<actionExecutionResultFields_ec, QString> actionExecutionResultFieldToStringTrigger_f() const;
@@ -89,7 +94,7 @@ public:
     bool successOnActionSuccess_f() const;
     void setSuccessOnActionSuccess_f(const bool successOnActionSuccess_par_con);
 
-    bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr, const void* const objectToIgnore_par = nullptr) const;
+    bool isFieldsDataValid_f(actonDataHub_c* actonDataHub_par, textCompilation_c* errorsPtr_par = nullptr, const void* const objectToIgnore_par = nullptr) const;
 };
 
 //this only "supports" one actionStringId because an action can have multiple
@@ -105,7 +110,7 @@ class EXPIMP_ACTONQTSO actionFinishedCheck_c : public check_c, public actionFini
     //it will not clone actionExecutionResultFieldToStringTrigger_pro because it would create conflicts
     check_c* derivedClone_f() const override;
 
-    baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
+    baseCheckExecution_c* createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
 
     uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
@@ -116,6 +121,7 @@ class EXPIMP_ACTONQTSO actionFinishedCheck_c : public check_c, public actionFini
     //QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
     QSet<QString> derivedStringTriggerCreationCollection_f() const override;
 
+    QString derivedReference_f() const override;
 public:
     actionFinishedCheck_c() = default;
     actionFinishedCheck_c(const checkData_c& checkData_par_con, const actionFinishedData_c& actionFinishedData_par_con);

@@ -14,6 +14,10 @@
 class QJsonObject;
 class textCompilation_c;
 
+//this action requires a parent actonDataHub_c
+//it won't work in the void and it requires the existence of other actions, being in actonDataHub_c, to work
+//for the reasons above it "can't" be excuted "alone"
+
 class EXPIMP_ACTONQTSO folderChangeReactionData_c
 {
 public:
@@ -172,7 +176,7 @@ public:
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 
     QString folderPath_f() const;
-    QString folderPathParsed_f() const;
+
     void setFolderPath_f(const QString& folderPath_par_con);
     std::unordered_set<changeType_ec> changesToMonitor_f() const;
     void setChangesToMonitor_pri(const std::unordered_set<changeType_ec>& changesToMonitor_par_con);
@@ -196,7 +200,7 @@ public:
     void setRecurseFolders_f(const bool recurseFolders_par_con);
     bool useAbsolutePaths_f() const;
     void setUseAbsolutePaths_f(const bool useAbsolutePaths_par_con);
-    QString argumentPlaceHolderToReplaceWithChangedFilePathParsed_f() const;
+
     QString argumentPlaceHolderToReplaceWithChangedFilePath_f() const;
     void setArgumentPlaceHolderToReplaceWithChangedFilePath_f(const QString& argumentPlaceHolderToReplaceWithChangedFilePath_par_con);
     QString reactionActionStringId_f() const;
@@ -226,12 +230,17 @@ class EXPIMP_ACTONQTSO folderChangeReactionAction_c : public action_c, public fo
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     folderChangeReactionAction_c() = default;
-    folderChangeReactionAction_c(const actionData_c& actionData_par_con, const folderChangeReactionData_c& folderChangeReactionData_par_con);
+    folderChangeReactionAction_c(actonDataHub_c* parent_par, const actionData_c& actionData_par_con, const folderChangeReactionData_c& folderChangeReactionData_par_con);
+
+    QString folderPathParsed_f() const;
+    QString argumentPlaceHolderToReplaceWithChangedFilePathParsed_f() const;
 
     void updateFolderChangeReactionData_f(const folderChangeReactionData_c& folderChangeReactionData_par_con);
 };

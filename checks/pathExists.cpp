@@ -16,9 +16,9 @@ QString pathExistsData_c::path_f() const
     return path_pro;
 }
 
-QString pathExistsData_c::pathParsed_f() const
+QString pathExistsCheck_c::pathParsed_f() const
 {
-    COPYPARSERETURNVAR(path_pro);
+    return stringParserMap_c::parseString_f(path_pro, parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void pathExistsData_c::setPath_f(const QString& path_par_con)
@@ -32,7 +32,7 @@ bool pathExistsData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) con
     while (true)
     {
         text_c errorTextTmp;
-        if (isValidStringSize_f(pathParsed_f(), 255, std::addressof(errorTextTmp), "Path is too long: {0} (maximum length is {1})"))
+        if (isValidStringSize_f(path_f(), 255, std::addressof(errorTextTmp), "Path is too long: {0} (maximum length is {1})"))
         {
             //it's valid
         }
@@ -82,7 +82,7 @@ check_c* pathExistsCheck_c::derivedClone_f() const
     return new pathExistsCheck_c(checkDataTmp, sameFileDataTmp);
 }
 
-baseCheckExecution_c* pathExistsCheck_c::createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par)
+baseCheckExecution_c* pathExistsCheck_c::createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par)
 {
     return new pathExistsCheckExecution_c(checkDataExecutionResult_ptr_par, this);
 }
@@ -117,6 +117,11 @@ QSet<QString> pathExistsCheck_c::derivedStringTriggersInUse_f(const QSet<QString
         }
     }
     return resultTmp;
+}
+
+QString pathExistsCheck_c::derivedReference_f() const
+{
+    return path_pro;
 }
 
 pathExistsCheck_c::pathExistsCheck_c(

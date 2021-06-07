@@ -6,6 +6,7 @@
 #include <QProcess>
 
 class runProcessAction_c;
+class executionMessage_c;
 
 class runProcessActionExecution_c : public baseActionExecution_c
 {
@@ -20,8 +21,7 @@ class runProcessActionExecution_c : public baseActionExecution_c
 
     //when executing: actionProcess_pri.terminate();
     void terminateExecution_f();
-    //when executing: actionProcess_pri.kill();
-    void killExecution_f();
+
 protected:
     void derivedExecute_f() override;
     //sends sigterm
@@ -31,18 +31,13 @@ protected:
 public:
     runProcessActionExecution_c() = delete;
     explicit runProcessActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            actionExecutionResult_c* actionExecutionResultObj_par_con
             , runProcessAction_c* runProcessActionPtr_par
             , const bool mergeOutErr_par_con = false
             , const int_fast32_t timeoutMilliseconds_par_con = 0
     );
 
 Q_SIGNALS:
-    //for the called process stdout
-    void addProcessOutput_signal(const QString& processOutput_par_con);
-    //for the called process stderr
-    void addProcessError_signal(const QString& processError_par_con);
-
     void setReturnCode_signal(const int returnCode_par_con);
 
 private Q_SLOTS:
@@ -53,6 +48,8 @@ private Q_SLOTS:
     void readStderr_f();
     void readStdout_f();
     void readProcessState_f(QProcess::ProcessState newState_par);
+    //when executing: actionProcess_pri.kill();
+    void killExecution_f();
 };
 
 #endif // ACTONQTSO_RUNPROCESSEXECUTION_HPP

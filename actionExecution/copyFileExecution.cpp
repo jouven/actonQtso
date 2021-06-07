@@ -22,8 +22,14 @@
 
 #include <QMap>
 
+#define MACRO_ADDLOG(...) \
+if (copyFileActionPtr_pri->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(copyFileActionPtr_pri->actonDataHubParent_f(),__VA_ARGS__); \
+}
+
 copyFileActionExecution_c::copyFileActionExecution_c(
-        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        actionExecutionResult_c* actionExecutionResultObj_par_con
         , copyFileAction_c* copyFileActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
@@ -364,7 +370,7 @@ void copyFileActionExecution_c::blockMoveFiles_f(
         filterOptionsTmp.filenameRegexFilters_pub.append(destinationFileInfoTmp.fileName() + "\\.[0-9]+$");
         filterOptionsTmp.listEmptyDirectories_pub = false;
 
-        directoryFilter_c directoryFilterTmp(destinationFileInfoTmp.path(), filterOptionsTmp);
+        directoryFilter_c directoryFilterTmp(nullptr, destinationFileInfoTmp.path(), filterOptionsTmp);
         std::vector<QString> fileListResultTmp(directoryFilterTmp.filter_f());
 
         //check if file size is multiple of buffersize
@@ -624,7 +630,7 @@ void copyFileActionExecution_c::blockCopy_f(
         , textCompilation_c* errorsPtr_par
 )
 {
-    //MACRO_ADDACTONQTSOLOG("Block copy source: " + source_par_con + " to " + destination_par_con, logItem_c::type_ec::debug);
+    //MACRO_ADDACTONQTSOLOG("Block copy source: " + source_par_con + " to " + destination_par_con, messageType_ec::debug);
     //"resuming" is just starting to read the source from the destination "size index"
     //and writing at the end of the destination file
     //destination is openened by appending:
@@ -687,7 +693,7 @@ void copyFileActionExecution_c::blockCopy_f(
                 if (destinationFileTmp.size() > sourceFileTmp.size())
                 {
                     //ignore file but warn
-                    Q_EMIT addOutput_signal({"Destination file {0}"
+                    emitExecutionMessage_f({"Destination file {0}"
                                              " is bigger than source {1}"
                                              ", destination size: {2}"
                                              ", source size: {3} "
@@ -695,7 +701,7 @@ void copyFileActionExecution_c::blockCopy_f(
                                              , source_par_con
                                              , destinationFileTmp.size()
                                              , sourceFileTmp.size()}
-                    );
+                    , executionMessage_c::type_ec::warning);
                     //             + " source size: "  + QString::number(sourceFileTmp.size())));
                     //APPENDSTRPTR(errorStrPtr_par, "Error, can't resume, destination file is bigger than source, destination size: " + QString::number(destinationFileTmp.size())
                     //             + " source size: "  + QString::number(sourceFileTmp.size()))
@@ -780,6 +786,82 @@ void copyFileActionExecution_c::blockCopy_f(
     }
 }
 
+std::vector<QString> copyFileActionExecution_c::testSourceFileList_f(
+        const copyFileAction_c* const copyFileDataPtr_par
+        , textCompilation_c* errors_ptr
+        )
+{
+    std::vector<QString> resultTmp;
+    while (copyFileDataPtr_par->isFieldsDataValid_f(errors_ptr))
+    {
+        //ignore destination options
+        const QString sourcePathTmp_con(copyFileDataPtr_par->sourcePathParsed_f());
+        if (QFileInfo::exists(sourcePathTmp_con))
+        {
+            //good
+        }
+        else
+        {
+            if (errors_ptr not_eq nullptr)
+            {
+                errors_ptr->append_f("Source doesn't exist");
+            }
+            break;
+        }
+
+        QFileInfo sourceFileInfoTmp(sourcePathTmp_con);
+        if (sourceFileInfoTmp.isDir())
+        {
+            filterOptions_s filterOptionsTmp(copyFileAction_c::setupFilterOptions_f(copyFileDataPtr_par, sourceFileInfoTmp));
+
+            directoryFilter_c directoryFilterTmp(nullptr, sourcePathTmp_con, filterOptionsTmp);
+            //the mutex here is to prevent the stop function to conflict
+            //with the filtering normal ending process
+
+            {
+                QMutexLocker mutexLockerTmp(std::addressof(directoryFilteringMutex_pri));
+                directoryFilterPtr_pri = std::addressof(directoryFilterTmp);
+            }
+            resultTmp = directoryFilterTmp.filter_f();
+            if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
+            {
+                errors_ptr->append_f(directoryFilterTmp.getErrors_f());
+            }
+            {
+                QMutexLocker mutexLockerTmp(std::addressof(directoryFilteringMutex_pri));
+                directoryFilterPtr_pri = nullptr;
+            }
+            break;
+        }
+
+        if (sourceFileInfoTmp.isFile())
+        {
+            resultTmp.emplace_back(sourcePathTmp_con);
+            break;
+        }
+        break;
+    }
+    return resultTmp;
+}
+
+void copyFileActionExecution_c::stopDirectoryFiltering_f()
+{
+    QMutexLocker mutexLockerTmp(std::addressof(directoryFilteringMutex_pri));
+    if (directoryFilterPtr_pri not_eq nullptr)
+    {
+        directoryFilterPtr_pri->stopFiltering_f();
+    }
+}
+
+void copyFileActionExecution_c::stopSameFile_f()
+{
+    QMutexLocker mutexLockerTmp(std::addressof(checkSameFileMutex_pri));
+    if (checkSameFile_ptr not_eq nullptr)
+    {
+        checkSameFile_ptr->stop_f();
+    }
+}
+
 void copyFileActionExecution_c::prepareCopyFile_f(
         const QFileInfo& sourceFileInfo_par_con
         , const QFileInfo& destinationFileInfo_par_con
@@ -791,11 +873,11 @@ void copyFileActionExecution_c::prepareCopyFile_f(
 //        MACRO_ADDACTONQTSOLOG("Source: " + sourceFileInfo_par_con.filePath()
 //                              + " is dir " + QSTRINGBOOL(sourceFileInfo_par_con.isDir())
 //                              + " is file " + QSTRINGBOOL(sourceFileInfo_par_con.isFile())
-//                              , logItem_c::type_ec::debug);
+//                              , messageType_ec::debug);
 //        MACRO_ADDACTONQTSOLOG("Destination: " + destinationFileInfo_par_con.filePath()
 //                              + " is dir " + QSTRINGBOOL(destinationFileInfo_par_con.isDir())
 //                              + " is file " + QSTRINGBOOL(destinationFileInfo_par_con.isFile())
-//                              , logItem_c::type_ec::debug);
+//                              , messageType_ec::debug);
 
 
         if (destinationFileInfo_par_con.exists())
@@ -1031,12 +1113,12 @@ void copyFileActionExecution_c::executeSinglePath_f(
 
         {
             text_c logTextTmp("\nSource: {0} is dir {1} is file {2}", sourceFileInfoTmp.filePath(), QSTRINGBOOL(sourceIsDirTmp), QSTRINGBOOL(sourceIsFileTmp));
-            MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::debug);
+            MACRO_ADDLOG(logTextTmp, copyFileActionPtr_pri, messageType_ec::debug);
         }
 
         {
             text_c logTextTmp("\nDestination: {0} is dir {1} is file {2}", destinationFileInfoTmp.filePath(), QSTRINGBOOL(destinationIsDirTmp), QSTRINGBOOL(destinationIsFileTmp));
-            MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::debug);
+            MACRO_ADDLOG(logTextTmp, copyFileActionPtr_pri, messageType_ec::debug);
         }
 
         //case 1 source directory, destination file case
@@ -1085,15 +1167,13 @@ void copyFileActionExecution_c::executeSinglePath_f(
 
             if (sourceIsDirTmp)
             {
-                std::vector<QString> fileListTmp(copyFileData_c::testSourceFileList_f(
+                std::vector<QString> fileListTmp(testSourceFileList_f(
                                                      copyFileActionPtr_pri
-                                                     , directoryFilterPtr_pri
                                                      , errorsPtr_par
-                                                     , std::addressof(directoryFilteringMutex_pri)
                                                      )
                 );
                 text_c logTextTmp("FileList size {0}", fileListTmp.size());
-                MACRO_ADDACTONQTSOLOG(logTextTmp, copyFileActionPtr_pri, logItem_c::type_ec::info);
+                MACRO_ADDLOG(logTextTmp, copyFileActionPtr_pri, messageType_ec::information);
                 if (errorsPtr_par->empty_f())
                 {
                     //good
@@ -1113,7 +1193,7 @@ void copyFileActionExecution_c::executeSinglePath_f(
                     else
                     {
                         text_c textTmp("No file/s to copy found in the source {0}", sourceFileInfoTmp.filePath());
-                        Q_EMIT addOutput_signal(textTmp);
+                        emitExecutionMessage_f(textTmp, executionMessage_c::type_ec::information);
                     }
                     break;
                 }
@@ -1163,14 +1243,14 @@ void copyFileActionExecution_c::executeSinglePath_f(
 
 void copyFileActionExecution_c::derivedExecute_f()
 {
-    MACRO_ADDACTONQTSOLOG("Begin copy file action execution", copyFileActionPtr_pri, logItem_c::type_ec::debug);
+    MACRO_ADDLOG("Begin copy file action execution", copyFileActionPtr_pri, messageType_ec::debug);
     textCompilation_c errorsTmp;
     while (copyFileActionPtr_pri->isFieldsDataValid_f(std::addressof(errorsTmp)))
     {
         QString sourceParsedTmp(copyFileActionPtr_pri->sourcePathParsed_f());
         if (sourceParsedTmp.contains('\n'))
         {
-            QStringList splitResulTmp(sourceParsedTmp.split('\n', QString::SkipEmptyParts));
+            QStringList splitResulTmp(sourceParsedTmp.split('\n', Qt::SkipEmptyParts));
             for (const QString& sourceStr_ite_con : splitResulTmp)
             {
                 executeSinglePath_f(sourceStr_ite_con, std::addressof(errorsTmp));
@@ -1199,7 +1279,7 @@ void copyFileActionExecution_c::derivedExecute_f()
     }
     else
     {
-        Q_EMIT addErrors_signal(errorsTmp);
+        emitExecutionMessage_f(errorsTmp, executionMessage_c::type_ec::error);
     }
     Q_EMIT anyFinish_signal();
 }
@@ -1207,14 +1287,8 @@ void copyFileActionExecution_c::derivedExecute_f()
 void copyFileActionExecution_c::derivedStop_f()
 {
     pleaseStop_pri = true;
-    copyFileData_c::stopDirectoryFiltering_f(directoryFilterPtr_pri, std::addressof(directoryFilteringMutex_pri));
-    {
-        QMutexLocker mutexLockerTmp(std::addressof(checkSameFileMutex_pri));
-        if (checkSameFile_ptr not_eq nullptr)
-        {
-            checkSameFile_ptr->stop_f();
-        }
-    }
+    stopDirectoryFiltering_f();
+    stopSameFile_f();
 }
 
 void copyFileActionExecution_c::derivedKill_f()

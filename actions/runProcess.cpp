@@ -17,9 +17,9 @@ QString runProcessData_c::workingDirectory_f() const
     return workingDirectory_pro;
 }
 
-QString runProcessData_c::workingDirectoryParsed_f() const
+QString runProcessAction_c::workingDirectoryParsed_f() const
 {
-    COPYPARSERETURNVAR(workingDirectory_pro);
+    return stringParserMap_c::parseString_f(workingDirectory_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void runProcessData_c::setWorkingDirectory_f(const QString& workingDirectory_par_con)
@@ -32,10 +32,10 @@ QHash<QString, environmentPairConfig_c> runProcessData_c::environmentToAdd_f() c
     return environmentToAdd_pro;
 }
 
-QHash<QString, environmentPairConfig_c> runProcessData_c::environmentToAddParsed_f() const
+QHash<QString, environmentPairConfig_c> runProcessAction_c::environmentToAddParsed_f() const
 {
     QHash<QString, environmentPairConfig_c> environmentToAddParsedTmp;
-    if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr)
+    if (actonDataHubParent_f() not_eq nullptr and actonDataHubParent_f()->executionOptions_f().stringParserMap_f() not_eq nullptr)
     {
         environmentToAddParsedTmp.reserve(environmentToAdd_pro.size());
         QHash<QString, environmentPairConfig_c>::const_iterator iteratorTmp(environmentToAdd_pro.constBegin());
@@ -43,7 +43,7 @@ QHash<QString, environmentPairConfig_c> runProcessData_c::environmentToAddParsed
         {
             QString environmentKeyParsedTmp(iteratorTmp.key());
             //"environment value" doesn't need any parsing because it has a "parsed get" function
-            actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(environmentKeyParsedTmp));
+            actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(environmentKeyParsedTmp));
             environmentToAddParsedTmp.insert(environmentKeyParsedTmp, iteratorTmp.value());
             ++iteratorTmp;
         }
@@ -75,7 +75,7 @@ bool runProcessData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) con
     bool resultTmp(false);
     while (true)
     {
-        if (processPathParsed_f().isEmpty())
+        if (processPath_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Process path is empty");
             break;
@@ -87,7 +87,7 @@ bool runProcessData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) con
 
         {
             text_c errorTextTmp;
-            if (isValidStringSize_f(processPathParsed_f(), 255, std::addressof(errorTextTmp), "Process path is too long: {0} (maximum length is {1})"))
+            if (isValidStringSize_f(processPath_f(), 255, std::addressof(errorTextTmp), "Process path is too long: {0} (maximum length is {1})"))
             {
                 //it's valid
             }
@@ -104,17 +104,29 @@ bool runProcessData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) con
     return resultTmp;
 }
 
+uint_fast64_t runProcessData_c::killTimeoutMilliseconds_f() const
+{
+    return killTimeoutMilliseconds_pro;
+}
+
+void runProcessData_c::setKillTimeoutMilliseconds_f(const uint_fast64_t& killTimeoutMilliseconds_par_con)
+{
+    killTimeoutMilliseconds_pro = killTimeoutMilliseconds_par_con;
+}
+
 runProcessData_c::runProcessData_c(
         const QString& processPath_par_con
         , const std::vector<argument_c>& arguments_par_con
         , const QString& workingDirectory_par_con
         , const bool useProcessEnvironment_par_con
-        , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con)
+        , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con
+        , const uint_fast64_t killTimeoutMilliseconds_par_con)
     : processPath_pro(processPath_par_con)
     , arguments_pro(arguments_par_con)
     , workingDirectory_pro(workingDirectory_par_con)
     , useProgramEnvironment_pro(useProcessEnvironment_par_con)
     , environmentToAdd_pro(environmentToAdd_par_con)
+    , killTimeoutMilliseconds_pro(killTimeoutMilliseconds_par_con)
 {}
 
 void runProcessAction_c::derivedWrite_f(QJsonObject& json_par) const
@@ -151,6 +163,7 @@ void runProcessAction_c::derivedWrite_f(QJsonObject& json_par) const
         json_par["workingDirectory"] = workingDirectory_pro;
     }
     json_par["useProgramEnvironment"] = useProgramEnvironment_pro;
+    json_par["killTimeoutMilliseconds"] = QString::number(killTimeoutMilliseconds_pro);
 }
 
 void runProcessAction_c::derivedRead_f(const QJsonObject& json_par_con)
@@ -186,6 +199,10 @@ void runProcessAction_c::derivedRead_f(const QJsonObject& json_par_con)
     if (json_par_con["useProgramEnvironment"].isBool())
     {
         useProgramEnvironment_pro = json_par_con["useProgramEnvironment"].toBool();
+    }
+    if (json_par_con["killTimeoutMilliseconds"].isString())
+    {
+        killTimeoutMilliseconds_pro = json_par_con["killTimeoutMilliseconds"].toString(QString::number(killTimeoutMilliseconds_pro)).toLongLong();
     }
 }
 
@@ -292,10 +309,10 @@ action_c* runProcessAction_c::derivedClone_f() const
     //slice and dice
     runProcessData_c runProcessDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new runProcessAction_c(actionDataTmp, runProcessDataTmp);
+    return new runProcessAction_c(actonDataHubParent_f(), actionDataTmp, runProcessDataTmp);
 }
 
-baseActionExecution_c* runProcessAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* runProcessAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new runProcessActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -305,15 +322,21 @@ actionType_ec runProcessAction_c::type_f() const
     return actionType_ec::runProcess;
 }
 
+QString runProcessAction_c::derivedReference_f() const
+{
+    return processPath_pro;
+}
+
 //QString runProcessAction_c::typeStr_f() const
 //{
 //    return actionTypeToStrUMap_ext_con.at(type_f());
 //}
 
 runProcessAction_c::runProcessAction_c(
+        actonDataHub_c* parent_par,
         const actionData_c& actionData_par_con
         , const runProcessData_c& runProcessData_par_con)
-    : action_c(actionData_par_con)
+    : action_c(parent_par, actionData_par_con)
     , runProcessData_c(runProcessData_par_con)
 {
 }
@@ -328,9 +351,9 @@ QString runProcessData_c::processPath_f() const
     return processPath_pro;
 }
 
-QString runProcessData_c::processPathParsed_f() const
+QString runProcessAction_c::processPathParsed_f() const
 {
-    COPYPARSERETURNVAR(processPath_pro);
+    return stringParserMap_c::parseString_f(processPath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void runProcessData_c::setProcessPath_f(const QString& processPath_par_con)
@@ -343,16 +366,16 @@ std::vector<argument_c> runProcessData_c::arguments_f() const
     return arguments_pro;
 }
 
-std::vector<argument_c> runProcessData_c::argumentsParsed_f() const
+std::vector<argument_c> runProcessAction_c::argumentsParsed_f() const
 {
     std::vector<argument_c> resultTmp;
-    if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr)
+    if (actonDataHubParent_f() not_eq nullptr and actonDataHubParent_f()->executionOptions_f().stringParserMap_f() not_eq nullptr)
     {
         resultTmp.reserve(arguments_pro.size());
         for (const argument_c& argument_ite_con : arguments_pro)
         {
             QString argumentCopyTmp(argument_ite_con.argument_f());
-            actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(argumentCopyTmp));
+            actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(argumentCopyTmp));
             resultTmp.emplace_back(argument_c(argumentCopyTmp, argument_ite_con.enabled_f()));
         }
     }
@@ -408,9 +431,9 @@ QString argument_c::argument_f() const
     return argument_pri;
 }
 
-QString argument_c::argumentParsed_f() const
+QString argument_c::argumentParsed_f(stringParserMap_c* stringParserMap_par) const
 {
-    COPYPARSERETURNVAR(argument_pri);
+    return stringParserMap_c::parseString_f(argument_pri, stringParserMap_par);
 }
 
 void argument_c::setArgument_f(const QString& value_par_con)
@@ -445,9 +468,9 @@ QString environmentPairConfig_c::environmentValue_f() const
     return environmentValue_pri;
 }
 
-QString environmentPairConfig_c::environmentValueParsed_f() const
+QString environmentPairConfig_c::environmentValueParsed_f(stringParserMap_c* stringParserMap_par) const
 {
-    COPYPARSERETURNVAR(environmentValue_pri);
+    return stringParserMap_c::parseString_f(environmentValue_pri, stringParserMap_par);
 }
 
 void environmentPairConfig_c::setEnvironmentValue_f(const QString& environmentValue_par_con)

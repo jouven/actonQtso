@@ -2,185 +2,106 @@
 
 #include "actionData.hpp"
 #include "actonDataHub.hpp"
+#include "actionMappings/actionExecutionStateStrMapping.hpp"
 
 #include "comuso/practicalTemplates.hpp"
 
-#include <QDateTime>
-
-textCompilation_c actionDataExecutionResult_c::errors_f() const
-{
-    return errors_pri;
+#define MACRO_ADDLOG(...) \
+if (action_ptr_pri->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(action_ptr_pri->actonDataHubParent_f(),__VA_ARGS__); \
 }
 
-QString actionDataExecutionResult_c::externalOutput_f() const
-{
-    return externalOutput_pri;
-}
-
-QString actionDataExecutionResult_c::externalErrorOutput_f() const
-{
-    return externalErrorOutput_pri;
-}
-
-int actionDataExecutionResult_c::returnCode_f() const
+int actionExecutionResult_c::returnCode_f() const
 {
     return returnCode_pri;
 }
 
-actionExecutionState_ec actionDataExecutionResult_c::lastState_f() const
+actionExecutionState_ec actionExecutionResult_c::lastState_f() const
 {
     return executionStateVector_pri.back();
 }
 
-bool actionDataExecutionResult_c::returnCodeSet_f() const
+bool actionExecutionResult_c::returnCodeSet_f() const
 {
     return returnCodeSet_pri;
 }
 
-std::vector<actionExecutionState_ec> actionDataExecutionResult_c::executionStateVector_f() const
+std::vector<actionExecutionState_ec> actionExecutionResult_c::executionStateVector_f() const
 {
     return executionStateVector_pri;
 }
 
-action_c* actionDataExecutionResult_c::parentAction_ptr_f() const
+action_c* actionExecutionResult_c::action_ptr_f() const
 {
-    return parentAction_ptr_pri;
+    return action_ptr_pri;
 }
 
-bool actionDataExecutionResult_c::started_f() const
-{
-    return started_pri;
-}
+//void actionExecutionResult_c::derivedTryClear_f()
+//{
+//    //clear only the pri variables since the pro one are cleared with tryClear_f
+//    returnCode_pri = -1;
+//    returnCodeSet_pri = false;
 
-bool actionDataExecutionResult_c::finished_f() const
-{
-    return finished_pri;
-}
+//    executionStateVector_pri = { actionExecutionState_ec::initial };
 
+//    killedByUser_pri = false;
 
-qint64 actionDataExecutionResult_c::startTime_f() const
-{
-    return startTime_pri;
-}
+//    Q_EMIT resultsCleared_signal(action_ptr_pri);
+//}
 
-qint64 actionDataExecutionResult_c::finishedTime_f() const
-{
-    return finishedTime_pri;
-}
-
-bool actionDataExecutionResult_c::tryClear_f()
-{
-    bool resultTmp(false);
-    if (finished_pri)
-    {
-        output_pri.clear_f();
-
-        externalOutput_pri.clear();
-
-        externalErrorOutput_pri.clear();
-
-        errors_pri.clear_f();
-
-        returnCode_pri = -1;
-        returnCodeSet_pri = false;
-
-        executionStateVector_pri = { actionExecutionState_ec::initial };
-
-        started_pri = false;
-        finished_pri = false;
-        stoppedByUser_pri = false;
-
-        startTime_pri = 0;
-        finishedTime_pri = 0;
-
-        resultTmp = true;
-        Q_EMIT resultsCleared_signal(parentAction_ptr_pri);
-    }
-    return resultTmp;
-}
-
-bool actionDataExecutionResult_c::stoppedByUser_f() const
-{
-    return stoppedByUser_pri;
-}
-
-actionDataExecutionResult_c::actionDataExecutionResult_c(
-        action_c* const parentAction_par_ptr_con
-        )
-    : parentAction_ptr_pri(parentAction_par_ptr_con)
+actionExecutionResult_c::actionExecutionResult_c(
+        action_c* action_par_ptr_con
+        , QObject* parent_par)
+    : executionResult_c(parent_par)
+    , action_ptr_pri(action_par_ptr_con)
 {}
 
-textCompilation_c actionDataExecutionResult_c::output_f() const
+void actionExecutionResult_c::derivedAppendMessage_f(executionMessage_c* message_par_con)
 {
-    return output_pri;
-}
-
-void actionDataExecutionResult_c::appendOutput_f(const text_c& output_par_con)
-{
-    if (not finished_pri)
+    //qDebug() << "message_par_con " << message_par_con->text_f().toRawReplace_f() << Qt::endl;
+    while (not finished_pro)
     {
-        output_pri.append_f(output_par_con);
-        Q_EMIT outputUpdated_signal(parentAction_ptr_pri, output_par_con);
-    }
-}
-
-void actionDataExecutionResult_c::appendError_f(const text_c& error_par_con)
-{
-    if (not finished_pri)
-    {
-        MACRO_ADDACTONQTSOLOG(error_par_con, parentAction_ptr_pri, logItem_c::type_ec::warning);
-        errors_pri.append_f(error_par_con);
-        trySetExecutionState_f(actionExecutionState_ec::error);
-        Q_EMIT error_signal(parentAction_ptr_pri, error_par_con);
-    }
-}
-
-void actionDataExecutionResult_c::appendErrors_f(const textCompilation_c& errors_par_con)
-{
-    if (not finished_pri)
-    {
-        errors_pri.append_f(errors_par_con);
-        trySetExecutionState_f(actionExecutionState_ec::error);
-#ifdef DEBUGJOUVEN
-        for (int_fast32_t i = 0, l = errors_par_con.size_f(); i < l; ++i)
+        if (message_par_con->type_f() == executionMessage_c::type_ec::error)
         {
-            MACRO_ADDACTONQTSOLOG(errors_par_con.text_f(i), parentAction_ptr_pri, logItem_c::type_ec::debug);
+            for (size_t i = 0, l = message_par_con->text_f().size_f(); i < l; ++i)
+            {
+                MACRO_ADDLOG(message_par_con->text_f().text_f(i), action_ptr_pri, messageType_ec::warning);
+            }
+            trySetExecutionState_f(actionExecutionState_ec::error);
+            break;
         }
-#endif
-        Q_EMIT errors_signal(parentAction_ptr_pri, errors_par_con);
+        if (message_par_con->type_f() == executionMessage_c::type_ec::externalsdout)
+        {
+            Q_EMIT externalStdoutAdded_signal(action_ptr_pri, message_par_con);
+            break;
+        }
+        if (message_par_con->type_f() == executionMessage_c::type_ec::externalstderr)
+        {
+            Q_EMIT externalStdErrAdded_signal(action_ptr_pri, message_par_con);
+            break;
+        }
+        break;
     }
 }
 
-void actionDataExecutionResult_c::appendExternalOutput_f(const QString& actionOutput_par_con)
+void actionExecutionResult_c::setReturnCode_f(const int returnCode_par_con)
 {
-    if (not finished_pri)
-    {
-        externalOutput_pri.append(actionOutput_par_con);
-        Q_EMIT externalOutputUpdated_signal(parentAction_ptr_pri, actionOutput_par_con);
-    }
-}
-
-void actionDataExecutionResult_c::appendExternalError_f(const QString& actionError_par_con)
-{
-    if (not finished_pri)
-    {
-        externalErrorOutput_pri.append(actionError_par_con);
-        Q_EMIT externalErrorUpdated_signal(parentAction_ptr_pri, actionError_par_con);
-    }
-}
-
-void actionDataExecutionResult_c::setReturnCode_f(const int returnCode_par_con)
-{
-    if (not finished_pri and not returnCodeSet_pri)
+    if (not finished_pro and not returnCodeSet_pri)
     {
         returnCode_pri = returnCode_par_con;
         returnCodeSet_pri = true;
-        Q_EMIT returnCodeSet_signal(parentAction_ptr_pri);
+        Q_EMIT returnCodeSet_signal(action_ptr_pri);
+        Q_EMIT anyChange_signal(this);
     }
 }
 
-bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con)
+bool actionExecutionResult_c::trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con)
 {
+#ifdef DEBUGJOUVEN
+    //qDebug() << "current stateString_f() " << stateString_f() << Qt::endl;
+    //qDebug() << "new stateString_f() " << actionExecutionStateToString_f(actionExecutionState_par_con) << Qt::endl;
+#endif
     bool validExecutionStateChangeTmp(false);
     bool emitPreparingTmp(false);
     bool emitExecutingChecksTmp(false);
@@ -188,7 +109,7 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
     bool emitStoppingTmp(false);
     bool emitKillingTmp(false);
     //verify if is on a "final" state
-    while (not finished_pri and (lastState_f() not_eq actionExecutionState_par_con))
+    while (not finished_pro and (lastState_f() not_eq actionExecutionState_par_con))
     {
         //states that can't be set outside of this class
         if (equalOnce_ft(actionExecutionState_par_con
@@ -284,7 +205,6 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
             if (actionExecutionState_par_con == actionExecutionState_ec::stopping)
             {
                 emitStoppingTmp = true;
-                break;
             }
             break;
         }
@@ -300,7 +220,6 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
             if (actionExecutionState_par_con == actionExecutionState_ec::killing)
             {
                 emitKillingTmp = true;
-                break;
             }
             break;
         }
@@ -316,58 +235,79 @@ bool actionDataExecutionResult_c::trySetExecutionState_f(const actionExecutionSt
         //thread so the deletion should wait until the thread is back to its execution loop.
         //Still more stuff that can be signaled from the execution object might happen, more errors or info,
         //and finishing prevents any modification of the results
-        Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri, actionExecutionState_par_con);
+        Q_EMIT executionStateUpdated_signal(action_ptr_pri, actionExecutionState_par_con);
         if (emitPreparingTmp)
         {
-            Q_EMIT preparing_signal(parentAction_ptr_pri);
+            Q_EMIT preparing_signal(this);
             break;
         }
         if (emitExecutingChecksTmp)
         {
-            Q_EMIT executingChecks_signal(parentAction_ptr_pri);
+            Q_EMIT executingChecks_signal(action_ptr_pri);
             break;
         }
         if (emitExecutingTmp)
         {
             setStarted_f();
-            Q_EMIT executing_signal(parentAction_ptr_pri);
+            Q_EMIT executing_signal(this);
             break;
         }
         if (emitStoppingTmp)
         {
-            Q_EMIT stopping_signal(parentAction_ptr_pri);
+            Q_EMIT stopping_signal(this);
             break;
         }
         if (emitKillingTmp)
         {
-            Q_EMIT killing_signal(parentAction_ptr_pri);
+            Q_EMIT killing_signal(action_ptr_pri);
             break;
         }
         break;
     }
+    if (validExecutionStateChangeTmp)
+    {
+        Q_EMIT anyChange_signal(this);
+    }
     return validExecutionStateChangeTmp;
 }
 
-bool actionDataExecutionResult_c::killedByUser_f() const
+bool actionExecutionResult_c::killedByUser_f() const
 {
     return killedByUser_pri;
 }
 
-void actionDataExecutionResult_c::setStarted_f()
-{
-    if (not started_pri)
-    {
-        started_pri = true;
-        startTime_pri = QDateTime::currentMSecsSinceEpoch();
+//void actionExecutionResult_c::derivedSetStarted_f()
+//{
+//    Q_EMIT started_signal(this);
+//}
 
-        Q_EMIT started_signal(parentAction_ptr_pri);
-    }
+executionResult_c::type_ec actionExecutionResult_c::type_f() const
+{
+    return executionResult_c::type_ec::action;
 }
 
-void actionDataExecutionResult_c::trySetFinished_f()
+QString actionExecutionResult_c::stateString_f() const
 {
-    if (not finished_pri
-        and equalOnce_ft(lastState_f()
+    return actionExecutionStateToString_f(lastState_f());
+}
+
+QString actionExecutionResult_c::derivedElementTypeString_f() const
+{
+    return action_ptr_pri->typeStr_f();
+}
+
+QString actionExecutionResult_c::derivedElementDescription_f() const
+{
+    return action_ptr_pri->description_f();
+}
+
+bool actionExecutionResult_c::derivedTrySetFinished_f()
+{
+    bool resultTmp(false);
+#ifdef DEBUGJOUVEN
+    //qDebug() << "derivedTrySetFinished_f stateString_f() " << stateString_f() << Qt::endl;
+#endif
+    if (equalOnce_ft(lastState_f()
                          , actionExecutionState_ec::executing
                          //error is special because it's a final state already
                          , actionExecutionState_ec::error
@@ -379,13 +319,10 @@ void actionDataExecutionResult_c::trySetFinished_f()
                          )
     )
     {
-        finished_pri = true;
-        //in some cases the action can end before "properly" starting
-        if (startTime_pri not_eq 0)
+        if (lastState_f() == actionExecutionState_ec::error)
         {
-            finishedTime_pri = QDateTime::currentMSecsSinceEpoch();
+            resultTmp = true;
         }
-
         if (equalOnce_ft(lastState_f()
                          , actionExecutionState_ec::executing
                          , actionExecutionState_ec::killing
@@ -400,7 +337,7 @@ void actionDataExecutionResult_c::trySetFinished_f()
             }
             if (lastState_f() == actionExecutionState_ec::stopping)
             {
-                stoppedByUser_pri = true;
+                stoppedByUser_pro = true;
                 finishedStateTmp = actionExecutionState_ec::stopped;
             }
             if (lastState_f() == actionExecutionState_ec::killing)
@@ -412,21 +349,29 @@ void actionDataExecutionResult_c::trySetFinished_f()
             {
                 finishedStateTmp = actionExecutionState_ec::checksFailed;
             }
+            resultTmp = true;
             executionStateVector_pri.emplace_back(finishedStateTmp);
-            Q_EMIT executionStateUpdated_signal(parentAction_ptr_pri, finishedStateTmp);
+            Q_EMIT executionStateUpdated_signal(action_ptr_pri, finishedStateTmp);
             if (lastState_f() == actionExecutionState_ec::success)
             {
-                Q_EMIT success_signal(parentAction_ptr_pri);
+                Q_EMIT success_signal(action_ptr_pri);
             }
             if (lastState_f() == actionExecutionState_ec::stopped)
             {
-                Q_EMIT stopped_signal(parentAction_ptr_pri);
+                Q_EMIT stopped_signal(this);
             }
             if (lastState_f() == actionExecutionState_ec::killed)
             {
-                Q_EMIT killed_signal(parentAction_ptr_pri);
+                Q_EMIT killed_signal(action_ptr_pri);
             }
         }
-        Q_EMIT finished_signal(parentAction_ptr_pri);
     }
+    if (not resultTmp)
+    {
+        MACRO_ADDLOG(
+                    {"Error finishing action execution couldn't finish from {0} state"
+                     , stateString_f() }
+                    , messageType_ec::error);
+    }
+    return resultTmp;
 }

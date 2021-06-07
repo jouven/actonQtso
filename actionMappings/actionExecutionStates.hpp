@@ -4,30 +4,31 @@
 //shared by all types of action executions
 enum class actionExecutionState_ec
 {
+    empty
     //action is not going/being/was executed
-    initial = 0
+    , initial
     //executing checks
-    , executingChecks = 1
+    , executingChecks
     //when the action is going to be executed (this is only visible waiting for an available thread, otherwise it will "instantly" go from initial/executingChecks to executing)
-    , preparing = 2
+    , preparing
     //executing the action
-    , executing = 3
+    , executing
     //errors controlled by the code
-    , error = 4
+    , error
     //during the stop period before "finished"
-    , stopping = 5
+    , stopping
     //if when "finished" previously was stopping
-    , stopped = 6
+    , stopped
     //if the action has a timeout and hits it before succeeding
-    , timeOut = 7
+    , timeOut
     //when it finishes without issues
-    , success = 8
+    , success
     //during the killing period before "finished"
-    , killing = 9
+    , killing
     //killed by the user, not all the actions can be killed, only "special" ones like runProcess (only this one right now)
-    , killed = 10
+    , killed
     //finishing on checks failed, after executingChecks, when the action checks result/s in a false "logic result" and the action won't execute
-    , checksFailed = 11
+    , checksFailed
 };
 
 #endif // ACTONQTSO_ACTIONEXECUTIONSTATES_HPP

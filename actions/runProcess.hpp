@@ -13,6 +13,7 @@
 
 class QJsonObject;
 class textCompilation_c;
+class stringParserMap_c;
 
 class EXPIMP_ACTONQTSO argument_c
 {
@@ -29,7 +30,7 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString argument_f() const;
-    QString argumentParsed_f() const;
+    QString argumentParsed_f(stringParserMap_c* stringParserMap_par) const;
     void setArgument_f(const QString& value_par_con);
     bool enabled_f() const;
     void setEnabled_f(const bool enabled_par_con);
@@ -52,7 +53,7 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString environmentValue_f() const;
-    QString environmentValueParsed_f() const;
+    QString environmentValueParsed_f(stringParserMap_c* stringParserMap_par) const;
     void setEnvironmentValue_f(const QString& environmentValue_par_con);
 
     bool enabled_f() const;
@@ -65,7 +66,7 @@ protected:
     QString processPath_pro;
     std::vector<argument_c> arguments_pro;
     //this action type has a working directory because QProcess has the option
-    QString workingDirectory_pro;
+    QString workingDirectory_pro = QDir::currentPath();
     //enviroment requires some extra options
 
     //copy the main program (i.e. actonQtg) environment
@@ -74,6 +75,9 @@ protected:
     bool useProgramEnvironment_pro = true;
     //specific environment to add to the "base" one
     QHash<QString, environmentPairConfig_c> environmentToAdd_pro;
+
+    //10 seconds
+    uint_fast64_t killTimeoutMilliseconds_pro = 10000;
 
     //prevent public assignments
     runProcessData_c& operator=(runProcessData_c const &) = default;
@@ -93,24 +97,28 @@ public:
             , const QString& workingDirectory_par_con = QDir::currentPath()
             , const bool useProcessEnvironment_par_con = true
             , const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con = QHash<QString, environmentPairConfig_c>()
+            , const uint_fast64_t killTimeoutMilliseconds_par_con = 10000
     );
 
     QString processPath_f() const;
-    QString processPathParsed_f() const;
+
     void setProcessPath_f(const QString& processPath_par_con);
     std::vector<argument_c> arguments_f() const;
-    std::vector<argument_c> argumentsParsed_f() const;
+
     void setArguments_f(const std::vector<argument_c>& arguments_par_con);
     QString workingDirectory_f() const;
-    QString workingDirectoryParsed_f() const;
+
     void setWorkingDirectory_f(const QString& workingDirectory_par_con);
     QHash<QString, environmentPairConfig_c> environmentToAdd_f() const;
-    QHash<QString, environmentPairConfig_c> environmentToAddParsed_f() const;
+
     void setEnvironmentToAdd_f(const QHash<QString, environmentPairConfig_c>& environmentToAdd_par_con);
     bool useProgramEnvironment_f() const;
     void setUseProgramEnvironment_f(const bool useProgramEnvironment_par_con);
 
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
+
+    uint_fast64_t killTimeoutMilliseconds_f() const;
+    void setKillTimeoutMilliseconds_f(const uint_fast64_t& killTimeoutMilliseconds_par_con);
 };
 
 class EXPIMP_ACTONQTSO runProcessAction_c : public action_c, public runProcessData_c
@@ -131,12 +139,19 @@ class EXPIMP_ACTONQTSO runProcessAction_c : public action_c, public runProcessDa
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     runProcessAction_c() = default;
-    runProcessAction_c(const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con);
+    runProcessAction_c(actonDataHub_c* parent_par, const actionData_c& actionData_par_con, const runProcessData_c& runProcessData_par_con);
+
+    QString processPathParsed_f() const;
+    std::vector<argument_c> argumentsParsed_f() const;
+    QHash<QString, environmentPairConfig_c> environmentToAddParsed_f() const;
+    QString workingDirectoryParsed_f() const;
 
     void updateRunProcessData_f(const runProcessData_c& runProcessData_par_con);
 };

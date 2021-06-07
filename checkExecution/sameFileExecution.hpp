@@ -19,10 +19,11 @@ protected:
 public:
     sameFileCheckExecution_c() = delete;
     explicit sameFileCheckExecution_c(
-            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            checkExecutionResult_c* checkExecutionResultObj_par_con
             , sameFileCheck_c* samefileCheckPtr_par
     );
-
+private Q_SLOTS:
+    void sameFileErrorToExecutionMessage_f(const text_c& error_par);
 };
 
 #endif // ACTONQTSO_SAMEFILEEXECUTION_HPP

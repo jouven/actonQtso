@@ -5,7 +5,7 @@
 #include <QFileInfo>
 
 pathExistsCheckExecution_c::pathExistsCheckExecution_c(
-        checkDataExecutionResult_c* checkExecutionResultObj_par_con
+        checkExecutionResult_c* checkExecutionResultObj_par_con
         , pathExistsCheck_c* pathExistsCheckPtr_par)
     : baseCheckExecution_c(checkExecutionResultObj_par_con)
     , pathExistsCheckPtr_pri(pathExistsCheckPtr_par)

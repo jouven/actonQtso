@@ -16,9 +16,9 @@ QString deleteFileDirData_c::path_f() const
     return path_pro;
 }
 
-QString deleteFileDirData_c::pathParsed_f() const
+QString deleteFileDirAction_c::pathParsed_f() const
 {
-    COPYPARSERETURNVAR(path_pro);
+    return stringParserMap_c::parseString_f(path_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void deleteFileDirData_c::setPath_f(const QString& path_par_con)
@@ -52,7 +52,7 @@ bool deleteFileDirData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) 
     while (true)
     {
         text_c errorTextTmp;
-        if (isValidStringSize_f(pathParsed_f(), 255, std::addressof(errorTextTmp), "Path is too long: {0} (maximum length is {1})"))
+        if (isValidStringSize_f(path_f(), 255, std::addressof(errorTextTmp), "Path is too long: {0} (maximum length is {1})"))
         {
             //it's valid
         }
@@ -61,7 +61,7 @@ bool deleteFileDirData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) 
             APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
             break;
         }
-        if (pathParsed_f().isEmpty())
+        if (path_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Path is empty")
             break;
@@ -135,10 +135,10 @@ action_c* deleteFileDirAction_c::derivedClone_f() const
     //slice and dice
     deleteFileDirData_c createDirectoryDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new deleteFileDirAction_c(actionDataTmp, createDirectoryDataTmp);
+    return new deleteFileDirAction_c(actonDataHubParent_f(), actionDataTmp, createDirectoryDataTmp);
 }
 
-baseActionExecution_c* deleteFileDirAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* deleteFileDirAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new deleteFiledirActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -148,15 +148,21 @@ actionType_ec deleteFileDirAction_c::type_f() const
     return actionType_ec::deleteFileDir;
 }
 
+QString deleteFileDirAction_c::derivedReference_f() const
+{
+    return path_pro;
+}
+
 //QString deleteFileDirAction_c::typeStr_f() const
 //{
 //    return actionTypeToStrUMap_ext_con.at(type_f());
 //}
 
 deleteFileDirAction_c::deleteFileDirAction_c(
+        actonDataHub_c* parent_par,
         const actionData_c& actionData_par_con
         , const deleteFileDirData_c& deleteFileDirData_par_con)
-    : action_c(actionData_par_con)
+    : action_c(parent_par, actionData_par_con)
     , deleteFileDirData_c(deleteFileDirData_par_con)
 {
 }

@@ -6,9 +6,7 @@
 #include "../crossPlatformMacros.hpp"
 
 #include <QString>
-#include <QMap>
-
-#include <unordered_map>
+#include <QList>
 
 class QJsonObject;
 class textCompilation_c;
@@ -18,9 +16,9 @@ class EXPIMP_ACTONQTSO timerData_c
 public:
     enum class type_ec
     {
-        empty = 0
-        , timer = 1
-        , dateTime = 2
+        empty
+        , timer
+        , dateTime
     };
 protected:
     type_ec type_pro = type_ec::timer;
@@ -50,10 +48,10 @@ public:
             , const bool errorOnPastDatetimeValue_par_con
     );
 
-    //keys are lower-case
-    static EXPIMP_ACTONQTSO const QMap<QString, type_ec> strTotimerTypeMap_sta_con;
-    //values are camelcase
-    static EXPIMP_ACTONQTSO const std::unordered_map<type_ec, QString> timerTypeToStrUMap_sta_con;
+    //strings not matching a type will return an empty type, case can be ignored because internally it's lowered before comparing
+    static EXPIMP_ACTONQTSO type_ec stringTotimerType_f(const QString& str_par_con);
+    static EXPIMP_ACTONQTSO QString timerTypeToString_f(const type_ec type_par_con);
+    static EXPIMP_ACTONQTSO QList<QString> timerTypeStringValues_f();
 
     type_ec alarmType_f() const;
     void setAlarmType_f(const type_ec& alarmType_par_con);
@@ -76,7 +74,7 @@ class EXPIMP_ACTONQTSO timerCheck_c : public check_c, public timerData_c
 
     check_c* derivedClone_f() const override;
 
-    baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
+    baseCheckExecution_c* createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
 
     //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
@@ -86,6 +84,8 @@ class EXPIMP_ACTONQTSO timerCheck_c : public check_c, public timerData_c
     //uint64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
     //QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
     //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     timerCheck_c() = default;
     timerCheck_c(const checkData_c& checkData_par_con, const timerData_c& timerData_par_con);

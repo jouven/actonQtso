@@ -10,8 +10,14 @@
 #include <QDebug>
 #endif
 
+#define MACRO_ADDLOG(...) \
+if (deleteFileDirActionPtr_pri->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(deleteFileDirActionPtr_pri->actonDataHubParent_f(),__VA_ARGS__); \
+}
+
 deleteFiledirActionExecution_c::deleteFiledirActionExecution_c(
-        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        actionExecutionResult_c* actionExecutionResultObj_par_con
         , deleteFileDirAction_c* deleteFileDirActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
@@ -32,12 +38,12 @@ void deleteFiledirActionExecution_c::derivedExecute_f()
                 if (deleteFileDirActionPtr_pri->onlyIfEmpty_f() and itemCountTmp > 0)
                 {
 #ifdef DEBUGJOUVEN
-                    //qDebug() << "pathToDeleteDirTmp.count() " << pathToDeleteDirTmp.count() << endl;
+                    //qDebug() << "pathToDeleteDirTmp.count() " << pathToDeleteDirTmp.count() << Qt::endl;
 #endif
                     if (itemCountTmp > 0)
                     {
                         text_c errorTmp("Path to delete {0} ignored, it contains {1} items" , deleteFileDirActionPtr_pri->pathParsed_f(), itemCountTmp);
-                        MACRO_ADDACTONQTSOLOG(errorTmp, deleteFileDirActionPtr_pri, logItem_c::type_ec::warning);
+                        MACRO_ADDLOG(errorTmp, deleteFileDirActionPtr_pri, messageType_ec::warning);
                     }
                     //ignore, see onlyIfEmpty_f private variable description
                     //Q_EMIT addError_signal({"Can't delete {0}, directory is not empty", deleteFileDirActionPtr_pri->pathParsed_f()});
@@ -55,7 +61,7 @@ void deleteFiledirActionExecution_c::derivedExecute_f()
                 }
                 else
                 {
-                    Q_EMIT addError_signal({"Error removing {0}", deleteFileDirActionPtr_pri->pathParsed_f()});
+                    emitExecutionMessage_f({"Error removing {0}", deleteFileDirActionPtr_pri->pathParsed_f()}, executionMessage_c::type_ec::error);
                     break;
                 }
             }
@@ -80,12 +86,12 @@ void deleteFiledirActionExecution_c::derivedExecute_f()
                 }
                 else
                 {
-                    Q_EMIT addError_signal({"Error removing {0}", deleteFileDirActionPtr_pri->pathParsed_f()});
+                    emitExecutionMessage_f({"Error removing {0}", deleteFileDirActionPtr_pri->pathParsed_f()}, executionMessage_c::type_ec::error);
                     break;
                 }
             }
 
-            Q_EMIT addError_signal({"Can't delete {0}, path is not a file or folder", deleteFileDirActionPtr_pri->pathParsed_f()});
+            emitExecutionMessage_f({"Can't delete {0}, path is not a file or folder", deleteFileDirActionPtr_pri->pathParsed_f()}, executionMessage_c::type_ec::error);
             break;
 
         }
@@ -93,7 +99,7 @@ void deleteFiledirActionExecution_c::derivedExecute_f()
         {
             if (deleteFileDirActionPtr_pri->errorIfNotExists_f())
             {
-                Q_EMIT addError_signal({"Can't delete {0}, path doesn't exists", deleteFileDirActionPtr_pri->pathParsed_f()});
+                emitExecutionMessage_f({"Can't delete {0}, path doesn't exists", deleteFileDirActionPtr_pri->pathParsed_f()}, executionMessage_c::type_ec::error);
                 break;
             }
             else

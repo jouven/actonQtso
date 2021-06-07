@@ -56,14 +56,15 @@ void actionFinishedData_c::setActionStringId_f(const QString& actionStringId_par
 
 
 bool actionFinishedData_c::mapActionResultToStringParserConfig_f(
-        const actionFinishedCheck_c::actionExecutionResultFields_ec actionExecutionResultField_par_con
+        actonDataHub_c* actonDataHub_par
+        , const actionFinishedCheck_c::actionExecutionResultFields_ec actionExecutionResultField_par_con
         , const QString& stringTrigger_par_con
 )
 {
     bool resultTmp(false);
     while (true)
     {
-        if (actonDataHub_ptr_ext->stringTriggerCreationConflict_f(stringTrigger_par_con).first not_eq -1)
+        if (actonDataHub_par->stringTriggerCreationConflict_f(stringTrigger_par_con).first not_eq -1)
         {
             //in use in stringParserMap or other actions/checks are already using this string trigger
             break;
@@ -127,7 +128,8 @@ void actionFinishedData_c::setSuccessOnActionSuccess_f(const bool successOnActio
 }
 
 bool actionFinishedData_c::isFieldsDataValid_f(
-        textCompilation_c* errorsPtr_par
+        actonDataHub_c* actonDataHub_par
+        , textCompilation_c* errorsPtr_par
         , const void* const objectToIgnore_par) const
 {
     bool resultTmp(false);
@@ -162,7 +164,7 @@ bool actionFinishedData_c::isFieldsDataValid_f(
                 uniqueStringsTmp.insert(actionExecutionResultFieldToStringPair_ite_con.second);
             }
 
-            auto firstConflictTmp(actonDataHub_ptr_ext->stringTriggerCreationConflict_f(actionExecutionResultFieldToStringPair_ite_con.second, objectToIgnore_par));
+            auto firstConflictTmp(actonDataHub_par->stringTriggerCreationConflict_f(actionExecutionResultFieldToStringPair_ite_con.second, objectToIgnore_par));
             if (firstConflictTmp.first not_eq -1)
             {
                 if (firstConflictTmp.first > 0)
@@ -260,7 +262,7 @@ void actionFinishedCheck_c::derivedRead_f(const QJsonObject& json_par_con)
 
 bool actionFinishedCheck_c::derivedIsValidCheck_f(textCompilation_c* errors_par) const
 {
-    return isFieldsDataValid_f(errors_par);
+    return isFieldsDataValid_f(parentAction_f()->actonDataHubParent_f(), errors_par);
 }
 
 check_c* actionFinishedCheck_c::derivedClone_f() const
@@ -274,7 +276,7 @@ check_c* actionFinishedCheck_c::derivedClone_f() const
     return resultTmp;
 }
 
-baseCheckExecution_c* actionFinishedCheck_c::createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par)
+baseCheckExecution_c* actionFinishedCheck_c::createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par)
 {
     return new actionFinishedCheckExecution_c(checkDataExecutionResult_ptr_par, this);
 }
@@ -392,6 +394,11 @@ QSet<QString> actionFinishedCheck_c::derivedStringTriggerCreationCollection_f() 
         }
     }
     return keyStringsTmp;
+}
+
+QString actionFinishedCheck_c::derivedReference_f() const
+{
+    return actionStringId_pro;
 }
 
 void actionFinishedCheck_c::updateActionFinishedData_f(

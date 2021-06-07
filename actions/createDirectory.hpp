@@ -37,7 +37,7 @@ public:
     );
 
     QString directoryPath_f() const;
-    QString directoryPathParsed_f() const;
+
     void setDirectoryPath_f(const QString& directoryPath_par_con);
     bool createParents_f() const;
     void setCreateParents_f(const bool createParents_par_con);
@@ -65,12 +65,16 @@ class EXPIMP_ACTONQTSO createDirectoryAction_c : public action_c, public createD
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     createDirectoryAction_c() = default;
-    createDirectoryAction_c(const actionData_c& actionData_par_con, const createDirectoryData_c& createDirectoryData_par_con);
+    createDirectoryAction_c(actonDataHub_c* actonDataHubParent_par, const actionData_c& actionData_par_con, const createDirectoryData_c& createDirectoryData_par_con);
+
+    QString directoryPathParsed_f() const;
 
     void updateCreateDirectoryData_f(const createDirectoryData_c& createDirectoryData_par_con);
 };

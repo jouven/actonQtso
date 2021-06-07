@@ -6,14 +6,18 @@
 #include <QObject>
 #include <QSet>
 
+#include <unordered_set>
 #include <unordered_map>
 #include <vector>
 #include <deque>
+#include <QObject>
 //#include <memory>
 
 class action_c;
 class check_c;
 class textCompilation_c;
+class executionMessage_c;
+class executionResult_c;
 
 
 //20191124 parentActionPtrTmp->checkResultLogicAnd_f() makes this class hard depend on having a parent set to an action_c object
@@ -51,6 +55,7 @@ class EXPIMP_ACTONQTSO checksDataHub_c : public QObject
     bool checksExecutionStopped_pri = false;
 
     void executeChecks_f();
+
 public:
     explicit checksDataHub_c(action_c* parentAction_par);
 
@@ -71,9 +76,9 @@ public:
 
     //set this checkDataHub parent action and sets the parents of all the checks objects
     //use this instead of the QObject setParent
-    void setParentAction_f(action_c* parentAction_par);
+    void setParentAction_f(QObject* parentAction_par);
 
-    ~checksDataHub_c();
+    //~checksDataHub_c();
 
     //to check if a row value can be inserted, not negative and row/index=<"container size"
     bool validRow_f(const row_t row_par_con) const;
@@ -134,6 +139,7 @@ public:
 
     checksDataHub_c clone_f() const;
 
+    action_c* actionParent_f() const;
 private Q_SLOTS:
     void verifyCheckResults_f();
     void executeNextSeqCheck_f();
@@ -143,6 +149,7 @@ Q_SIGNALS:
     void stoppingChecksExecution_signal();
     void checksExecutionStopped_signal();
     void checksExecutionFinished_signal(const bool result_par_con);
+public Q_SLOTS:
 };
 
 #endif // ACTONQTSO_CHECKSDATAHUB_HPP

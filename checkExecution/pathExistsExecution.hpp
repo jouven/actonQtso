@@ -16,7 +16,7 @@ protected:
 public:
     pathExistsCheckExecution_c() = delete;
     explicit pathExistsCheckExecution_c(
-            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            checkExecutionResult_c* checkExecutionResultObj_par_con
             , pathExistsCheck_c* pathExistsCheckPtr_par
     );
 

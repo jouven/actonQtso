@@ -3,6 +3,7 @@
 
 #include "baseCheckExecution.hpp"
 
+class executionResult_c;
 class actionStartedExecutingCheck_c;
 class action_c;
 
@@ -18,11 +19,11 @@ protected:
 public:
     actionStartedExecutingCheckExecution_c() = delete;
     explicit actionStartedExecutingCheckExecution_c(
-            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            checkExecutionResult_c* checkExecutionResultObj_par_con
             , actionStartedExecutingCheck_c* actionStartedExecutingCheckPtr_par
     );
 private Q_SLOTS:
-    void actionStarted_f(action_c* const action_par_ptr_con);
+    void actionStarted_f(executionResult_c* const executionResult_par_ptr_con);
     void finishCheck_f();
 };
 

@@ -15,7 +15,7 @@ public:
         empty = 0
         //call stop for everything executing and prevent any non-executing, but waiting to execute, action to execute
         , stop = 1
-        //waits for the current executing cycle to finish, looping actions (which ignore the executing cycle, will not loop again)
+        //waits for the current executing cycle to finish, looping actions, which ignore the executing cycle, will not loop again
         , waitToFinish = 2
     };
 protected:
@@ -33,7 +33,7 @@ protected:
 public:
     //declaring move ctor/operators removes non-explicit default copy ctors
     //see https://stackoverflow.com/questions/11255027
-    //so... explicit them
+    //so... explicit them but not public
     metaEndExecutionCycleData_c(metaEndExecutionCycleData_c const&) = default;
     metaEndExecutionCycleData_c(metaEndExecutionCycleData_c&) = default;
 
@@ -55,10 +55,10 @@ public:
 //    void setKillTimeout_f(const int_fast64_t& killTimeout_par_con);
     bool killAfterTimeout_f() const;
     void setKillAfterTimeout_f(const bool killAfterTimeout_par_con);
-//    bool isFieldsDataValid_f(textCompilation_c* = nullptr) const
-//    {
-//        return true;
-//    }
+    bool isFieldsDataValid_f(textCompilation_c* = nullptr) const
+    {
+        return endType_pro not_eq endType_ec::empty;
+    }
 };
 
 class EXPIMP_ACTONQTSO metaEndExecutionCycleAction_c : public action_c, public metaEndExecutionCycleData_c
@@ -67,7 +67,7 @@ class EXPIMP_ACTONQTSO metaEndExecutionCycleAction_c : public action_c, public m
 
     void derivedWrite_f(QJsonObject &json_par) const override;
     void derivedRead_f(const QJsonObject &json_par_con) override;
-    bool derivedIsValidAction_f(textCompilation_c* = nullptr) const override;
+    bool derivedIsValidAction_f(textCompilation_c* errors_par = nullptr) const override;
 
     //uint_fast64_t derivedUpdateActionStringIdDependencies_f(const QString& , const QString& ) override;
     //uint_fast64_t derivedActionStringIdDependencyCount_f(const QString& ) const override;
@@ -79,12 +79,13 @@ class EXPIMP_ACTONQTSO metaEndExecutionCycleAction_c : public action_c, public m
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
+    QString derivedReference_f() const override;
 public:
     metaEndExecutionCycleAction_c() = default;
-    metaEndExecutionCycleAction_c(const actionData_c& actionData_par_con, const metaEndExecutionCycleData_c& metaEndExecutionData_par_con);
+    metaEndExecutionCycleAction_c(actonDataHub_c* parent_par, const actionData_c& actionData_par_con, const metaEndExecutionCycleData_c& metaEndExecutionData_par_con);
 
     void updateMetaEndExecutionCycleData_f(const metaEndExecutionCycleData_c& metaEndExecutionCycleData_par_con);
 };

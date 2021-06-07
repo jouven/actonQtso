@@ -36,7 +36,7 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString path_f() const;
-    QString pathParsed_f() const;
+
     void setPath_f(const QString& path_par_con);
 
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
@@ -53,7 +53,7 @@ class EXPIMP_ACTONQTSO pathExistsCheck_c : public check_c, public pathExistsData
 
     check_c* derivedClone_f() const override;
 
-    baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
+    baseCheckExecution_c* createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
 
     //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
@@ -63,11 +63,15 @@ class EXPIMP_ACTONQTSO pathExistsCheck_c : public check_c, public pathExistsData
     uint64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
     QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
     //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     pathExistsCheck_c() = default;
     pathExistsCheck_c(const checkData_c& checkData_par_con, const pathExistsData_c& pathExistsData_par_con);
 
     void updatePathExistsData_f(const pathExistsData_c& pathExistsData_par_con);
+
+    QString pathParsed_f() const;
 };
 
 #endif // ACTONQTSO_PATHEXISTS_HPP

@@ -18,6 +18,7 @@
 
 class QJsonObject;
 class QMutex;
+class stringParserMap_c;
 
 //the class is split in two,
 //to allow copying and not being forced to use "new",
@@ -159,7 +160,6 @@ protected:
     int_fast64_t bufferSize_pro = 1024 * 1024;
     //above stuff is json save-load-able
 
-
     //directoryFilter_c* directoryFilterPtr_pro = nullptr;
     //FUTURE sort options? tho it can be "done" using several copy actions and actionFinished check
 
@@ -208,10 +208,10 @@ public:
 //    copyFileAction_c& operator=(copyFileAction_c&& from_par) noexcept;
 
     QString sourcePath_f() const;
-    QString sourcePathParsed_f() const;
+
     void setSourcePath_f(const QString& sourcePath_par_con);
     QString destinationPath_f() const;
-    QString destinationPathParsed_f() const;
+
     void setDestinationPath_f(const QString& destinationPath_par_con);
     transferType_ec transferType_f() const;
     void setTransferType_f(const transferType_ec transferType_par_con);
@@ -220,7 +220,7 @@ public:
     bool copyHidden_f() const;
     void setCopyHidden_f(const bool copyHidden_par_con);
     QStringList sourceFilenameFullExtensions_f() const;
-    QStringList sourceFilenameFullExtensionsParsed_f() const;
+
     void setSourceFilenameFullExtensions_f(const QStringList& filenameFullExtensions_par_con);
     bool navigateSubdirectories_f() const;
     void setNavigateSubdirectories_f(const bool includeSubdirectories_par_con);
@@ -229,7 +229,6 @@ public:
     bool copyEmptyDirectories_f() const;
     void setCopyEmptyDirectories_f(const bool copyEmptyDirectories_par_con);
     QStringList sourceFilenameRegexFilters_f() const;
-    QStringList sourceFilenameRegexFiltersParsed_f() const;
     void setSourceFilenameRegexFilters_f(const QStringList& sourceFilenameRegexFilters_par_con);
     bool createDestinationAndParents_f() const;
     void setCreateDestinationAndParents_f(const bool createDestinationParent_par_con);
@@ -242,25 +241,10 @@ public:
     resumeType_ec resumeType_f() const;
     void setResumeType_f(const resumeType_ec resumeType_par_con);
 
-    //for the below 2 functions
-    //pass a mutex if stopping the directory filtering is required from another thread
-    //The mutex is "mandatory" to prevent the stopDirectoryFiltering_f function and the testSourceFileList_f function to
-    //conflict, because stopDirectoryFiltering_f might try to access directoryFilterPtr_pri,
-    //the object that does the filtering, when it's getting ctored or dtored
-
-    //tries to generate a file list, used in copyFileActionExecution_c during execution and
-    //in actonQtg copyFile editor to do dry runs of what will be copied
-    static std::vector<QString> testSourceFileList_f(
-            const copyFileData_c* const copyFileDataPtr_par
-            //this should be null because it will be asigned a value for the duration of the file list generation
-            , directoryFilter_c*& directoryFilterPtrRef_par
-            , textCompilation_c* errors_ptr = nullptr
-            , QMutex* directoryFilterPtrMutexPtr_par = nullptr);
-    //to stop directoryFilter_c* filtering, no effect if it's not filtering or already stopping/ed
-    static void stopDirectoryFiltering_f(directoryFilter_c* directoryFilterPtr_par, QMutex* directoryFilterPtrMutexPtr_par = nullptr);
-
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 };
+
+class QFileInfo;
 
 class EXPIMP_ACTONQTSO copyFileAction_c : public action_c, public copyFileData_c
 {
@@ -280,15 +264,26 @@ class EXPIMP_ACTONQTSO copyFileAction_c : public action_c, public copyFileData_c
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
 
+    QString derivedReference_f() const override;
+
 public:
     copyFileAction_c() = default;
-    copyFileAction_c(const actionData_c& actionData_par_con, const copyFileData_c& copyFile_par_con);
+    copyFileAction_c(actonDataHub_c* parent_par, const actionData_c& actionData_par_con, const copyFileData_c& copyFile_par_con);
 
     void updateCopyFileData_f(const copyFileData_c& copyFileData_par_con);
+
+    QString sourcePathParsed_f() const;
+    QString destinationPathParsed_f() const;
+    QStringList sourceFilenameFullExtensionsParsed_f() const;
+    QStringList sourceFilenameRegexFiltersParsed_f() const;
+
+    static filterOptions_s setupFilterOptions_f(const copyFileAction_c* const copyFileDataPtr_par, const QFileInfo& sourceFileInfo_par_con);
+    //doesn't filter just setups the directoryFilter_c, use filter or the threaded version (connect the signals prior)
+    static directoryFilter_c* testSourceFileListV2_f(const copyFileAction_c* const copyFileDataPtr_par, textCompilation_c* errors_ptr = nullptr);
 };
 
 #endif // ACTONQTSO_CREATEDIRECTORY_HPP

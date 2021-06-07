@@ -93,7 +93,7 @@ check_c* actionStartedExecutingCheck_c::derivedClone_f() const
     return new actionStartedExecutingCheck_c(checkDataTmp, actionStartedExecutingDataTmp);
 }
 
-baseCheckExecution_c* actionStartedExecutingCheck_c::createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par)
+baseCheckExecution_c* actionStartedExecutingCheck_c::createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par)
 {
     return new actionStartedExecutingCheckExecution_c(checkDataExecutionResult_ptr_par, this);
 }
@@ -122,6 +122,11 @@ uint64_t actionStartedExecutingCheck_c::derivedActionStringIdDependencyCount_f(c
         resultTmp = 1;
     }
     return resultTmp;
+}
+
+QString actionStartedExecutingCheck_c::derivedReference_f() const
+{
+    return actionStringId_pro;
 }
 
 //uint64_t actionStartedExecutingCheck_c::derivedUpdateStringTriggerDependecies_f(const QString& newStringTrigger_par_con, const QString& oldStringTrigger_par_con)

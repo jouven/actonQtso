@@ -8,20 +8,9 @@
 #include "essentialQtso/macros.hpp"
 
 #include <QJsonObject>
+#include <QMap>
 
-const QMap<QString, timerData_c::type_ec> timerData_c::strTotimerTypeMap_sta_con(
-{
-//Keys are lower case because this way when reading from json the strings can be lower-cased
-//and compared, allowing to ignore case
-    {	"timer", timerData_c::type_ec::timer}
-    , {	"datetime", timerData_c::type_ec::dateTime}
-});
-
-const std::unordered_map<timerData_c::type_ec, QString> timerData_c::timerTypeToStrUMap_sta_con(
-{
-    {	timerData_c::type_ec::timer, "timer" }
-    , {	timerData_c::type_ec::dateTime, "dateTime" }
-});
+#include <unordered_map>
 
 timerData_c::type_ec timerData_c::alarmType_f() const
 {
@@ -80,9 +69,48 @@ timerData_c::timerData_c(
     , errorOnPastDateTimeValue_pro(errorOnPastDatetimeValue_par_con)
 {}
 
+//QMap usage instead of QHash to have the keys in order
+QMap<QString, timerData_c::type_ec>& stringToTimerTypeMapRef_f()
+{
+    static QMap<QString, timerData_c::type_ec> stringTotimerTypeMap_sta_con(
+    {
+    //Keys are lower case because this way when reading from json the strings can be lower-cased
+    //and compared, allowing to ignore case
+        {	"timer", timerData_c::type_ec::timer}
+        , {	"datetime", timerData_c::type_ec::dateTime}
+    });
+    return stringTotimerTypeMap_sta_con;
+}
+
+timerData_c::type_ec timerData_c::stringTotimerType_f(const QString& str_par_con)
+{
+    return stringToTimerTypeMapRef_f().value(str_par_con.toLower(), timerData_c::type_ec::empty);
+}
+
+std::unordered_map<timerData_c::type_ec, QString>& timerTypeToStringUMapRef_f()
+{
+    static std::unordered_map<timerData_c::type_ec, QString> timerTypeToStringUMap_sta_con(
+    {
+        { timerData_c::type_ec::empty, "empty" }
+        , {	timerData_c::type_ec::timer, "timer" }
+        , {	timerData_c::type_ec::dateTime, "dateTime" }
+    });
+    return timerTypeToStringUMap_sta_con;
+}
+
+QString timerData_c::timerTypeToString_f(const timerData_c::type_ec type_par_con)
+{
+    return timerTypeToStringUMapRef_f().at(type_par_con);
+}
+
+QList<QString> timerData_c::timerTypeStringValues_f()
+{
+    return stringToTimerTypeMapRef_f().keys();
+}
+
 void timerCheck_c::derivedWrite_f(QJsonObject& json_par) const
 {
-    json_par["type"] = timerTypeToStrUMap_sta_con.at(type_pro);
+    json_par["type"] = timerTypeToString_f(type_pro);
     json_par["value"] = QString::number(value_pro);
     json_par["errorOnPastDatetimeValue"] = errorOnPastDateTimeValue_pro;
 }
@@ -91,7 +119,7 @@ void timerCheck_c::derivedRead_f(const QJsonObject& json_par_con)
 {
     if (json_par_con["type"].isString())
     {
-        type_pro = strTotimerTypeMap_sta_con.value(json_par_con["type"].toString().toLower());
+        type_pro = stringTotimerType_f(json_par_con["type"].toString().toLower());
     }
     if (json_par_con["value"].isString())
     {
@@ -122,7 +150,7 @@ check_c* timerCheck_c::derivedClone_f() const
     return resultTmp;
 }
 
-baseCheckExecution_c* timerCheck_c::createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par)
+baseCheckExecution_c* timerCheck_c::createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par)
 {
     return new timerCheckExecution_c(checkDataExecutionResult_ptr_par, this);
 }
@@ -130,6 +158,11 @@ baseCheckExecution_c* timerCheck_c::createExecutionObj_f(checkDataExecutionResul
 checkType_ec timerCheck_c::type_f() const
 {
     return checkType_ec::timer;
+}
+
+QString timerCheck_c::derivedReference_f() const
+{
+    return timerTypeToString_f(type_pro) + "_" + QString::number(value_pro);
 }
 
 timerCheck_c::timerCheck_c(

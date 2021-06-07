@@ -13,6 +13,12 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
+#define MACRO_ADDLOG(...) \
+    if (actonDataHubParent_f() not_eq nullptr) \
+    { \
+        MACRO_ADDACTONDATAHUBLOG(actonDataHubParent_f(),__VA_ARGS__); \
+    }
+
 //changeType_ec mapping
 const QMap<QString, folderChangeReactionData_c::changeType_ec> folderChangeReactionData_c::strToChangeTypeMap_sta_con(
 {
@@ -112,9 +118,9 @@ void folderChangeReactionData_c::setUseAbsolutePaths_f(const bool useAbsolutePat
     useAbsolutePaths_pro = useAbsolutePath_par_con;
 }
 
-QString folderChangeReactionData_c::argumentPlaceHolderToReplaceWithChangedFilePathParsed_f() const
+QString folderChangeReactionAction_c::argumentPlaceHolderToReplaceWithChangedFilePathParsed_f() const
 {
-    COPYPARSERETURNVAR(argumentPlaceHolderToReplaceWithChangedFilePath_pro)
+    return stringParserMap_c::parseString_f(argumentPlaceHolderToReplaceWithChangedFilePath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 QString folderChangeReactionData_c::argumentPlaceHolderToReplaceWithChangedFilePath_f() const
@@ -232,7 +238,7 @@ bool folderChangeReactionData_c::isFieldsDataValid_f(textCompilation_c* errorsPt
     while (true)
     {
         text_c errorTextTmp;
-        if (isValidStringSize_f(folderPathParsed_f(), 255, std::addressof(errorTextTmp), "Folder path is too long: {0} (maximum length is {1})"))
+        if (isValidStringSize_f(folderPath_f(), 255, std::addressof(errorTextTmp), "Folder path is too long: {0} (maximum length is {1})"))
         {
             //it's valid
         }
@@ -241,7 +247,7 @@ bool folderChangeReactionData_c::isFieldsDataValid_f(textCompilation_c* errorsPt
             APPENDTEXTPTR(errorsPtr_par, errorTextTmp);
             break;
         }
-        if (folderPathParsed_f().isEmpty())
+        if (folderPath_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Folder path is empty")
             break;
@@ -264,11 +270,6 @@ bool folderChangeReactionData_c::isFieldsDataValid_f(textCompilation_c* errorsPt
             APPENDTEXTPTR(errorsPtr_par, "Empty reaction type");
             break;
         }
-        //TODO a reaction action will always need an additional action
-        //to execute-use for the reaction part
-        //for now don't validate if the actionStringId points to an actual disabled action here
-        //do it on execution, because anyway this can be done also on any program/X that links to this library
-        //while editing the action or somewhere else
         if (reactionActionStringId_pro.isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Empty reaction Action stringId type");
@@ -286,9 +287,9 @@ QString folderChangeReactionData_c::folderPath_f() const
     return folderPath_pro;
 }
 
-QString folderChangeReactionData_c::folderPathParsed_f() const
+QString folderChangeReactionAction_c::folderPathParsed_f() const
 {
-    COPYPARSERETURNVAR(folderPath_pro)
+    return stringParserMap_c::parseString_f(folderPath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void folderChangeReactionData_c::setFolderPath_f(const QString& folderPath_par_con)
@@ -387,7 +388,7 @@ void folderChangeReactionAction_c::derivedWrite_f(QJsonObject& json_par) const
     if (changesToMonitorArrayTmp.empty())
     {
         text_c errorTmp("folderChangeReaction action has no changes to monitor", reactionActionStringId_pro);
-        MACRO_ADDACTONQTSOLOG(errorTmp, this, logItem_c::type_ec::error);
+        MACRO_ADDLOG(errorTmp, this, messageType_ec::error);
     }
     else
     {
@@ -551,10 +552,10 @@ action_c* folderChangeReactionAction_c::derivedClone_f() const
     //slice and dice
     folderChangeReactionData_c folderChangeReactionDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new folderChangeReactionAction_c(actionDataTmp, folderChangeReactionDataTmp);
+    return new folderChangeReactionAction_c(actonDataHubParent_f(), actionDataTmp, folderChangeReactionDataTmp);
 }
 
-baseActionExecution_c* folderChangeReactionAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* folderChangeReactionAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new folderChangeReactionActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -564,18 +565,29 @@ actionType_ec folderChangeReactionAction_c::type_f() const
     return actionType_ec::folderChangeReaction;
 }
 
+QString folderChangeReactionAction_c::derivedReference_f() const
+{
+    QString changesStr;
+    for (const changeType_ec change_ite_con : changesToMonitor_pro)
+    {
+        changesStr.append(changeTypeToStrUMap_sta_con.at(change_ite_con)).append('|');
+    }
+    changesStr.chop(1);
+    return folderPath_pro + '_' + changesStr + '_' + reactionTypeToStrUMap_sta_con.at(reactionType_pro) + '_' + reactionOrderToStrUMap_sta_con.at(reactionOrder_pro);
+}
+
 //QString sentryFolderAction_c::typeStr_f() const
 //{
 //    return actionTypeToStrUMap_ext_con.at(type_f());
 //}
 
 folderChangeReactionAction_c::folderChangeReactionAction_c(
+        actonDataHub_c* parent_par,
         const actionData_c& actionData_par_con
         , const folderChangeReactionData_c& folderChangeReactionData_par_con)
-    : action_c(actionData_par_con)
+    : action_c(parent_par, actionData_par_con)
     , folderChangeReactionData_c(folderChangeReactionData_par_con)
 {
-
 }
 
 void folderChangeReactionAction_c::updateFolderChangeReactionData_f(const folderChangeReactionData_c& folderChangeReactionData_par_con)

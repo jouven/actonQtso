@@ -17,13 +17,20 @@
 #include <QDebug>
 #endif
 
+//this check can't work in the void, theoretically it should always be a child of an action and the action of a actonDataHub
+#define MACRO_ADDLOG(...) \
+if (actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f(),__VA_ARGS__); \
+}
+
 void actionFinishedCheckExecution_c::derivedStop_f()
 {
     Q_EMIT anyFinish_signal(false);
 }
 
 actionFinishedCheckExecution_c::actionFinishedCheckExecution_c(
-        checkDataExecutionResult_c* checkExecutionResultObj_par_con
+        checkExecutionResult_c* checkExecutionResultObj_par_con
         , actionFinishedCheck_c* actionFinishedCheckPtr_par)
     : baseCheckExecution_c(checkExecutionResultObj_par_con)
       , actionFinishedCheckPtr_pri(actionFinishedCheckPtr_par)
@@ -34,19 +41,29 @@ void actionFinishedCheckExecution_c::derivedExecute_f()
     //bool anyErrorTmp(false);
     while (true)
     {
+        if (not actionFinishedCheckPtr_pri->parentAction_f()->parentIsActonDataHubObj_f())
+        {
+            emitExecutionMessage_f(
+            {
+                            "actionFinished check with description {0} has no actonDataHub parent object"
+                            , actionFinishedCheckPtr_pri->description_f()
+            }, executionMessage_c::type_ec::error);
+            break;
+        }
+
         QString actionStringIdTmp(actionFinishedCheckPtr_pri->actionStringId_f());
-        int_fast64_t actionDataIdTmp(actonDataHub_ptr_ext->actionDataStringIdToActionDataId_f(actionStringIdTmp));
+        int_fast64_t actionDataIdTmp(actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->actionDataStringIdToActionDataId_f(actionStringIdTmp));
         if (actionDataIdTmp <= 0)
         {
-            Q_EMIT addError_signal({"No actionDataId could be retrieved from the actionDataStringId: {0}", actionStringIdTmp});
+            emitExecutionMessage_f({"No actionDataId could be retrieved from the actionDataStringId: {0}", actionStringIdTmp}, executionMessage_c::type_ec::error);
             //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             //anyErrorTmp = true;
             break;
         }
-        action_c* actionPtrTmp(actonDataHub_ptr_ext->action_ptr_f(actionDataIdTmp));
+        action_c* actionPtrTmp(actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->action_ptr_f(actionDataIdTmp));
         if (actionPtrTmp == nullptr)
         {
-            Q_EMIT addError_signal({"No action object could be retrieved from the actionDataId: {0}", actionDataIdTmp});
+            emitExecutionMessage_f({"No action object could be retrieved from the actionDataId: {0}", actionDataIdTmp}, executionMessage_c::type_ec::error);
             //Q_EMIT executionStateChange_signal(checkExecutionState_ec::error);
             //anyErrorTmp = true;
             break;
@@ -62,46 +79,47 @@ void actionFinishedCheckExecution_c::derivedExecute_f()
             if (actionResultObjPtrTmp->finished_f())
             {
 #ifdef DEBUGJOUVEN
-                //qDebug() << "actionResultObjPtrTmp->finished_f()" << endl;
+                //qDebug() << "actionResultObjPtrTmp->finished_f()" << Qt::endl;
 #endif
-                actionFinished_f(actionPtrTmp);
+                actionFinished_f(actionResultObjPtrTmp);
             }
             else
             {
-                QObject::connect(actionResultObjPtrTmp, &actionDataExecutionResult_c::finished_signal, this, &actionFinishedCheckExecution_c::actionFinished_f);
+                QObject::connect(actionResultObjPtrTmp, &actionExecutionResult_c::finished_signal, this, &actionFinishedCheckExecution_c::actionFinished_f);
             }
         }
         else
         {
-            Q_EMIT addError_signal({"Could not get the action result object (action not enabled?), the actionDataStringId: {0}", actionStringIdTmp});
+            emitExecutionMessage_f({"Could not get the action result object (action not enabled?), the actionDataStringId: {0}", actionStringIdTmp}, executionMessage_c::type_ec::error);
             break;
         }
 
         //Q_EMIT executionStateChange_signal(checkExecutionState_ec::executing);
         break;
     }
-//    if (anyErrorTmp)
-//    {
-//        Q_EMIT finishedFalse_signal();
-//    }
+    if (executionError_f())
+    {
+        Q_EMIT anyFinish_signal(false);
+    }
 }
 
-void actionFinishedCheckExecution_c::actionFinished_f(action_c* const action_par_ptr_con)
+void actionFinishedCheckExecution_c::actionFinished_f(executionResult_c* const executionResult_par_ptr_con)
 {
     while (true)
     {
+        actionExecutionResult_c* actionExecutionResultPtrTmp(static_cast<actionExecutionResult_c*>(executionResult_par_ptr_con));
         bool finishComputedResultTmp(actionFinishedCheckPtr_pri->successOnActionSuccess_f() ?
-                    action_par_ptr_con->actionDataExecutionResult_ptr_f()->lastState_f() == actionExecutionState_ec::success
+                    actionExecutionResultPtrTmp->lastState_f() == actionExecutionState_ec::success
                   : true);
         if (finishComputedResultTmp)
         {
             finishedCount_pri = finishedCount_pri + 1;
         }
         text_c textTmp("(Check) Action stringId \"{0}\" finished result: {1}, count: {2}"
-                       , action_par_ptr_con->stringId_f()
+                       , actionExecutionResultPtrTmp->action_ptr_f()->stringId_f()
                        , QSTRINGBOOL(finishComputedResultTmp)
                        , finishedCount_pri);
-        MACRO_ADDACTONQTSOLOG(textTmp, actionFinishedCheckPtr_pri, logItem_c::type_ec::info);
+        MACRO_ADDLOG(textTmp, actionFinishedCheckPtr_pri, messageType_ec::information);
         if (finishedCount_pri >= actionFinishedCheckPtr_pri->finishedCount_f())
         {
             //finish
@@ -136,42 +154,42 @@ void actionFinishedCheckExecution_c::actionFinished_f(action_c* const action_par
                     //so ...use the rawReplaced, hardcoded is more generic that the different possible translations
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::errorStr)
                     {
-                        valueTmp.append(action_par_ptr_con->actionDataExecutionResult_ptr_f()->errors_f().toRawReplace_f());
+                        valueTmp = actionExecutionResultPtrTmp->messagesStr_f({executionMessage_c::type_ec::error});
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::outputStr)
                     {
-                        valueTmp.append(action_par_ptr_con->actionDataExecutionResult_ptr_f()->output_f().toRawReplace_f());
+                        valueTmp = actionExecutionResultPtrTmp->messagesStr_f({executionMessage_c::type_ec::information});
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::externalErrorStr)
                     {
-                        valueTmp = action_par_ptr_con->actionDataExecutionResult_ptr_f()->externalErrorOutput_f();
+                        valueTmp = actionExecutionResultPtrTmp->messagesStr_f({executionMessage_c::type_ec::externalstderr});
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::externalOutputStr)
                     {
-                        valueTmp = action_par_ptr_con->actionDataExecutionResult_ptr_f()->externalOutput_f();
+                        valueTmp = actionExecutionResultPtrTmp->messagesStr_f({executionMessage_c::type_ec::externalsdout});
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::endState)
                     {
-                        valueTmp = actionExecutionStateToStrUMap_ext_con.at(action_par_ptr_con->actionDataExecutionResult_ptr_f()->lastState_f());
+                        valueTmp = actionExecutionStateToString_f(actionExecutionResultPtrTmp->lastState_f());
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::returnCode)
                     {
-                        valueTmp = QString::number(action_par_ptr_con->actionDataExecutionResult_ptr_f()->returnCode_f());
+                        valueTmp = QString::number(actionExecutionResultPtrTmp->returnCode_f());
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::startDateTime)
                     {
-                        valueTmp = QString::number(action_par_ptr_con->actionDataExecutionResult_ptr_f()->startTime_f());
+                        valueTmp = QString::number(actionExecutionResultPtrTmp->startTime_f());
                         break;
                     }
                     if (pair_ite_con.first == actionFinishedCheck_c::actionExecutionResultFields_ec::endDateTime)
                     {
-                        valueTmp = QString::number(action_par_ptr_con->actionDataExecutionResult_ptr_f()->finishedTime_f());
+                        valueTmp = QString::number(actionExecutionResultPtrTmp->finishedTime_f());
                         break;
                     }
 
@@ -179,12 +197,12 @@ void actionFinishedCheckExecution_c::actionFinished_f(action_c* const action_par
                 }
                 //the parsers created here during execution are removed when the execution stops (successfully or not)
                 stringReplacer_c* stringReplacerPtrTmp(new stringReplacer_c(pair_ite_con.second, stringReplacer_c::replaceType_ec::string, valueTmp));
-                actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->addParser_f(stringReplacerPtrTmp);
-                if (actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->anyError_f())
+                actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->addParser_f(stringReplacerPtrTmp);
+                if (actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->anyError_f())
                 {
-                    for (int_fast32_t i = 0, l = actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->getErrors_f().size_f(); i < l; ++i)
+                    for (int_fast32_t i = 0, l = actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->getErrors_f().size_f(); i < l; ++i)
                     {
-                        Q_EMIT addError_signal(actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->getErrors_f().text_f(i));
+                        emitExecutionMessage_f({actionFinishedCheckPtr_pri->parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f()->getErrors_f().text_f(i)}, executionMessage_c::type_ec::error);
                     }
                     break;
                 }

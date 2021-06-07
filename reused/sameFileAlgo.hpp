@@ -38,7 +38,7 @@ private:
     int_fast64_t indexWhereFilesAreDifferent_pri = 0;
 public:
     checkSameFile_c() = delete;
-    checkSameFile_c(
+    explicit checkSameFile_c(
             const QString& fileA_par_con
             , const QString& fileB_par_con
     );

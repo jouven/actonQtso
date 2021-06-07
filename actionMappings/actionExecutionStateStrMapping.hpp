@@ -6,13 +6,10 @@
 #include "../crossPlatformMacros.hpp"
 
 #include <QString>
-//#include <QHash>
+#include <QList>
 
-#include <unordered_map>
-
-
-//extern const QHash<QString, actionExecutionState_ec> strToActionExecutionStateUMap_ext_con;
-//only output for now
-extern EXPIMP_ACTONQTSO const std::unordered_map<actionExecutionState_ec, QString> actionExecutionStateToStrUMap_ext_con;
+extern EXPIMP_ACTONQTSO QString actionExecutionStateToString_f(const actionExecutionState_ec actionExecutionState_par_con);
+extern EXPIMP_ACTONQTSO actionExecutionState_ec stringToActionExecutionState_f(const QString& string_par_con);
+extern EXPIMP_ACTONQTSO QList<QString> actionExecutionStateStringValues_f();
 
 #endif // ACTONQTSO_ACTIONEXECUTIONSTATESTRMAPPING_H_

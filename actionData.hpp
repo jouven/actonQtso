@@ -22,10 +22,11 @@
 //FUTURE make description optional, for each action create a description function that can be used some generic description
 //that use values of that specific action as a "description"
 
-class actionDataExecutionResult_c;
+class actionExecutionResult_c;
 class baseActionExecution_c;
 class QJsonObject;
 class textCompilation_c;
+class actonDataHub_c;
 
 //this class is a split from actionData_c to make it easier for the
 //classes inheriting from actionData_c to ctor the base class
@@ -112,38 +113,43 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
 
     //DATA
     checksDataHub_c checkDataHub_pri;
-    //this object can live on the main thread or on a different thread
 
     //CONTROL
     //this QObject can live on the main thread or on a different thread
     baseActionExecution_c* actionDataExecution_ptr_pri = nullptr;
     //this QObject will always live on the main thread
-    actionDataExecutionResult_c* actionDataExecutionResult_ptr_pri = nullptr;
+    actionExecutionResult_c* actionDataExecutionResult_ptr_pri = nullptr;
 
     bool lastCheckLogicResult_pri = false;
     bool lastCheckLogicResultSet_pri = false;
 
+    //some actions, right now it's only folderChangeReaction, must have an actonDataHub obj as parent to work
+    //because they fetch other actions obj, when validating these type of actions it's checked if the parent
+    //otherwise they aren't valid
+    bool parentIsActonDataHubObj_pri = false;
+
+    bool stoppedInTheLastExecution_pri = false;
+
     void clearExecutionResults_f() const;
 
     void deleteActionDataExecutionObject_f();
-    void deleteActionDataExecutionResultObject_f();
+    //void deleteActionDataExecutionResultObject_f();
 
-    void deleteExecutionObjects_f();
-    void deleteUsedPtrs_f();
+    //void deleteExecutionObjects_f();
+    //void deleteUsedPtrs_f();
 
     void execute_f();
 
     void prepareToExecuteAction_f();
 
-    bool isKillingExecutionAfterTimeout_pri = false;
-
+    //bool isKillingExecutionAfterTimeout_pri = false;
     void stopExecutingChecks_f();
     //must be called after tryStopExecution_f
     void kill_f();
 
     //bool isEditable_f() const;
     //use only on set value functions
-    bool tryClearResultsOnEdit_f();
+    //bool tryClearResultsOnEdit_f();
 
     virtual void derivedWrite_f(QJsonObject &json_ref_par) const = 0;
     virtual void derivedRead_f(const QJsonObject &json_par_con) = 0;
@@ -164,17 +170,26 @@ class EXPIMP_ACTONQTSO action_c : public QObject, public actionData_c //: public
     virtual QSet<QString> derivedStringTriggerCreationCollection_f() const;
     virtual QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& ) const;
 
-    virtual baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) = 0;
+    virtual baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) = 0;
+
+    virtual QString derivedReference_f() const = 0;
 protected:
+    //has to be callable from the derived classes to when creating cloned actions
     explicit action_c();
+
+    //for actions that will be in working with an actonDataHub_c parent obj
+    explicit action_c(
+            actonDataHub_c* actonDataHubParent_par
+            , const actionData_c& actionData_par_con
+    );
+    //for actions in the "void"
     explicit action_c(
             const actionData_c& actionData_par_con
+            , //can be null
+            QObject* parent_par = nullptr
     );
 
-    //delete the pointer variables if they aren't nullptr
-    ~action_c();
 public:
-
 
     void read_f(
             const QJsonObject &json_par_con
@@ -187,6 +202,10 @@ public:
     void write_f(QJsonObject &json_ref_par) const;
 
     virtual actionType_ec type_f() const = 0;
+    //what is this? explain please
+    //this is for context in the execution messages, to know what the action "essential" details and what is doing
+    //so it must have the action type string, the string id, and the basic describing elements of each action type
+    QString reference_f() const;
     QString typeStr_f() const;
     //FUTURE dates (creation, modification with the option of hide/show in the grid)
     int_fast64_t id_f() const;
@@ -203,7 +222,7 @@ public:
 
     bool isStoppingExecution_f() const;
     bool isExecuting_f() const;
-    bool killingExecutionAfterTimeout_f() const;
+    //bool killingExecutionAfterTimeout_f() const;
     bool lastCheckLogicResult_f() const;
     bool lastCheckLogicResultSet_f() const;
 
@@ -212,28 +231,45 @@ public:
             const QString& stringId_par_con
             , const bool updateObjectsThatUsedOldValue_par_con = false
             , textCompilation_c* errorsPtr_par = nullptr);
+    //some of the sets will not work during execution
     void setDescription_f(const QString& description_par_con);
     void setCheckResultLogicAnd_f(const bool checkResultLogicAnd_par_con);
     void setChecksEnabled_f(const bool checksEnabled_par_con);
-    void setEnabled_f(const bool enabled_par_con);
+    //sets actionDataExecutionResult_ptr_pri to nullptr, by default without trying to delete the obj if there was one
+    void setEnabled_f(const bool enabled_par_con, const bool deleteExecutionResults_par_con = false);
     void setStopAllExecutionOnError_f(const bool stopAllExecutionOnError_par_con);
     void setRepeatExecution_f(const bool repeatExecution_par_con);
+
+    //set the parent for the action and it's children, regular QObject setParent doesn't recurse
+    //parent_par can be nullptr
+    void updateActionChildrenParent_f(QObject* parent_par);
 
     //WARNING actionDataHub_c (datahub_f) has an execute function too, executeActionDataRows_f
     //Use that call if the Action is in the datahub, only call this if the action is in the "void"
     //won't rerun if already executing, check or connect the results object
     //to know if/when execution has finished
-    void tryExecute_f();
+    //parent is for the execution details and messages, otherwise this action is set as their parent
+    //and if this action is dtored so are the execution details and messages
+    //parent is not used in actionDataHub_c but in foderChangeReaction
+    void tryExecute_f(QObject* parent_par = nullptr);
     //stops initial or executing checks action, for more expeditive options try kill
     //returns if true if it's stopping else false
     //FUTURE revamp, if an action is told to stop all the the actions that depend on this one should stop too
     //right now this happens because everything stops too (if used from the actonDataHub obj)
-    //kill timeout can be set in actonDataHub (actonExecutionOptions)
-    void tryStopExecution_f(const bool killAfterTimeout_par_con = false);
-    //will initialize (new actionDataExecutionResult_pri) if it hasn't been initilized
-    actionDataExecutionResult_c* createGetActionDataExecutionResult_ptr_f();
+    //forcekill=true will only take effect once the action has been stopped once,
+    //meaning calling this function with forcekill=true without a prior call of this function will act as forcekill=false
+    void tryStopExecution_f(const bool forceKill_par_con);
+
+    //IMPORTANT ONLY PASS A PARENT when creating/regenerating actionExecutionResults if no actonDataHub is being used
+    //actonDataHub does deleteLater on it's dtor, so if something else does it first things will go wrong
+    //initializes (new actionDataExecutionResult_ptr_pri) if it hasn't been initilized
+    //by default execution results and their execution messages can be independent from the action, they aren't parented,
+    //because they can outlive the action, does nothing if the action is not enabled
+    actionExecutionResult_c* createGetActionDataExecutionResult_ptr_f(QObject* parent_par = nullptr);
+    //intializes actionDataExecutionResult_ptr_pri with a new object, does not destroy the previous one if there was one, does nothing if the action is not enabled
+    actionExecutionResult_c* regenerateGetActionDataExecutionResult_ptr_f(QObject* parent_par = nullptr);
     //check against Q_NULLPTR to know if exists
-    actionDataExecutionResult_c* actionDataExecutionResult_ptr_f() const;
+    actionExecutionResult_c* actionDataExecutionResult_ptr_f() const;
     //update all the actions/checks setting that depend on an actionStringId
     //returns the number of updated checks/action properties which did match with the oldStringId
     uint_fast64_t updateActionStringIdDependencies_f(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
@@ -249,16 +285,27 @@ public:
     //pass the above function + stringParserMap_c::stringTriggers_f to get what's in use
     QSet<QString> stringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const;
 
-    static action_c* readCreateDerived_f(const actionType_ec actionType_par_con);
+    //REMOVE
+    //static action_c* readCreateDerived_f(const actionType_ec actionType_par_con);
     //aka the copy ctor alternative for polymorphic classes
     action_c* clone_f() const;
 
     bool isFieldsActionValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 
     //returns success, it can fail it the string id is already in use
-    void updateActionData_f(const actionData_c& actionData_par_con
+    void updateActionData_f(
+            const actionData_c& actionData_par_con
             , const bool updateObjectsThatUsedOldValue_par_con = false
-            , textCompilation_c* errorsPtr_par = nullptr);
+            , textCompilation_c* errorsPtr_par = nullptr
+    );
+    //use this when parenting or un-parenting from an actonDataHub obj
+    //not nullptr sets it and makes parentIsActonDataHubObj_pro = true
+    //nullptr unsets it and makes parentIsActonDataHubObj_pro = false
+    void setActonDataHubParent_f(actonDataHub_c* actonDataHubParent_par);
+    actonDataHub_c* actonDataHubParent_f() const;
+    bool parentIsActonDataHubObj_f() const;
+
+    bool stoppedInTheLastExecution_f() const;
 
 Q_SIGNALS:
     void actionStringIdChanged_signal(const QString& newActionStringId_par_con, const QString& oldActionStringId_par_con);
@@ -266,6 +313,7 @@ private Q_SLOTS:
     void setExecutionStateExecutingChecks_f();
     void examineCheckResults_f(const bool result_par_con);
     void setActionDataExecutionNull_f();
+    void setStoppedDuringExecution_f();
 };
 
 #endif // ACTONQTSO_ACTIONDATA_HPP

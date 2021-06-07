@@ -13,7 +13,7 @@
 #include <unordered_map>
 
 class baseCheckExecution_c;
-class checkDataExecutionResult_c;
+class checkExecutionResult_c;
 class action_c;
 class check_c;
 class textCompilation_c;
@@ -110,10 +110,10 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
     //this QObject can live on the main thread or on a different thread
     baseCheckExecution_c* checkDataExecution_ptr_pri = nullptr;
     //this QObject will live always on the main thread
-    checkDataExecutionResult_c* checkDataExecutionResult_ptr_pri = nullptr;
+    checkExecutionResult_c* checkDataExecutionResult_ptr_pri = nullptr;
 
     void deleteCheckDataExecutionObject_f();
-    void deleteCheckDataExecutionResultObject_f();
+    //void deleteCheckDataExecutionResultObject_f();
 
     void deleteExecutionObjects_f();
     void deleteUsedPtrs_f();
@@ -121,9 +121,8 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
     void prepareToExecute_f();
     void execute_f();
 
-    bool isEditable_f() const;
     //use only on sets
-    bool tryClearResultsOnEdit_f();
+    //bool tryClearResultsOnEdit_f();
 
     virtual void derivedWrite_f(QJsonObject &json_ref_par) const = 0;
     virtual void derivedRead_f(const QJsonObject &json_par_con) = 0;
@@ -144,8 +143,9 @@ class EXPIMP_ACTONQTSO check_c  : public QObject, public checkData_c
     virtual QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& ) const;
     virtual QSet<QString> derivedStringTriggerCreationCollection_f() const;
 
-    virtual baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) = 0;
+    virtual baseCheckExecution_c* createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par) = 0;
 
+    virtual QString derivedReference_f() const = 0;
 protected:
     explicit check_c();
 
@@ -178,9 +178,14 @@ public:
     virtual checkType_ec type_f() const = 0;
     QString typeStr_f() const;
 
+    //what is this? explain please
+    //this is for context in the execution messages, to know what the action "essential" details and what is doing
+    //so it must have the action type string, the string id, and the basic describing elements of each action type
+    QString reference_f() const;
+
     //FUTURE dates (creation, modification with the option of hide/show in the grid)
     int_fast64_t id_f() const;
-    QString uniqueIdString_f() const;
+    //QString uniqueIdString_f() const;
     QString description_f() const;
     bool threaded_f() const;
     bool enabled_f() const;
@@ -190,18 +195,21 @@ public:
 
 
     void setDescription_f(const QString& description_par_con);
-    void setUniqueIdString_f(const QString& uniqueIdString_par_con);
+    //void setUniqueIdString_f(const QString& uniqueIdString_par_con);
     void setThreaded_f(const bool threaded_par_con);
     void setEnabled_f(const bool enabled_par_con);
     void setResultLogic_f(const checkData_c::resultLogic_ec& resultLogic_par_con);
 
     //won't reexecute if already executing, check results object to know if execution has finished
-    void tryExecute_f();
+    //parent is not used in checkDataHub_c but in foderChangeReaction
+    void tryExecute_f(QObject* parent_par = nullptr);
     //returns if true if it's stopping else false
     void stopExecution_f();
     //will initialize (new checkDataExecutionResult_pri) if it hasn't been initilized
-    checkDataExecutionResult_c* createGetCheckDataExecutionResult_ptr_f();
-    checkDataExecutionResult_c* checkDataExecutionResult_ptr_f() const;
+    //parent is not used in checkDataHub_c but in foderChangeReaction
+    checkExecutionResult_c* createGetCheckDataExecutionResult_ptr_f(QObject* parent_par = nullptr);
+    checkExecutionResult_c* checkDataExecutionResult_ptr_f() const;
+    checkExecutionResult_c* regenerateGetActionDataExecutionResult_ptr_f(QObject* parent_par = nullptr);
 
     //action_c* parentAction_f() const;
 
@@ -228,6 +236,8 @@ public:
     bool isFieldsCheckValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
 
     void updateCheckData_f(const checkData_c& checkData_par_con);
+
+    action_c* parentAction_f() const;
 private Q_SLOTS:
     void setCheckDataExecutionNull_f();
 };

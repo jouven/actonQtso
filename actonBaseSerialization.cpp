@@ -4,6 +4,7 @@
 #include "actionData.hpp"
 #include "actonExecutionOptions.hpp"
 #include "actionMappings/actionStrMapping.hpp"
+#include "actionMappings/actionMapping.hpp"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -13,6 +14,12 @@
 #ifdef DEBUGJOUVEN
 #include <QDebug>
 #endif
+
+#define MACRO_ADDLOG(...) \
+if (actonDataHubPtr_par not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(actonDataHubPtr_par,__VA_ARGS__); \
+}
 
 QJsonObject serializeActonDataHub_f(
         const actonDataHub_c* const actonDataHubPtr_par_con)
@@ -81,22 +88,21 @@ void deserializeActonDataHub_f(
                 QJsonObject actionDataJsonObject(item_ite_con.toObject());
                 actionType_ec actionTypeTmp(strToActionTypeMap_ext_con.value(actionDataJsonObject["type"].toString().toLower()));
 #ifdef DEBUGJOUVEN
-                //qDebug() << "actionData_c* actionDataPtrTmp(actionData_c::readCreateDerived_f(actionTypeTmp));" << endl;
+                //qDebug() << "actionData_c* actionDataPtrTmp(actionData_c::readCreateDerived_f(actionTypeTmp));" << Qt::endl;
 #endif
                 if (actionTypeTmp == actionType_ec::empty)
                 {
                     text_c deserializeErrorTmp("Invalid action type {0}"
                             , actionDataJsonObject["type"].toString().toLower());
-                    MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
+                    MACRO_ADDLOG(deserializeErrorTmp, messageType_ec::error);
                     break;
                 }
 
-                action_c* actionPtrTmp(action_c::readCreateDerived_f(actionTypeTmp));
-
+                action_c* actionPtrTmp(createNewActionOfType_f(actionTypeTmp));
                 if (actionPtrTmp not_eq nullptr)
                 {
 #ifdef DEBUGJOUVEN
-                    //qDebug() << "actionDataPtrTmp->read_f(actionDataJsonObject);" << endl;
+                    //qDebug() << "actionDataPtrTmp->read_f(actionDataJsonObject);" << Qt::endl;
 #endif
                     actionPtrTmp->read_f(actionDataJsonObject, loadOnlyValid_par_con, errors_par);
                     if (loadOnlyValid_par_con)
@@ -111,7 +117,7 @@ void deserializeActonDataHub_f(
                         actionVectorTmp.emplace_back(actionPtrTmp);
                     }
 #ifdef DEBUGJOUVEN
-                    //qDebug() << "after actionVectorTmp.emplace_back(std::move(actionDataTmp));" << endl;
+                    //qDebug() << "after actionVectorTmp.emplace_back(std::move(actionDataTmp));" << Qt::endl;
 #endif
                 }
                 else
@@ -119,14 +125,14 @@ void deserializeActonDataHub_f(
                     text_c deserializeErrorTmp("Failed to deserialize action JSON: type {0} description {1}"
                             , actionDataJsonObject["type"].toString().toLower()
                             , actionDataJsonObject["description"].toString().toLower());
-                    MACRO_ADDACTONQTSOLOG(deserializeErrorTmp, logItem_c::type_ec::error);
+                    MACRO_ADDLOG(deserializeErrorTmp, messageType_ec::error);
                 }
             }
 
             //take in account existing count when inserting more rows
             auto rowCountTmp(actonDataHubPtr_par->size_f());
 #ifdef DEBUGJOUVEN
-            //qDebug() << "actonBaseSerialization_c::moveToDataHub_f() before loop" << endl;
+            //qDebug() << "actonBaseSerialization_c::moveToDataHub_f() before loop" << Qt::endl;
 #endif
             for (action_c* item_ite_con : actionVectorTmp)
             {

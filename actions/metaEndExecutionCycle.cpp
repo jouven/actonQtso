@@ -87,9 +87,9 @@ void metaEndExecutionCycleAction_c::derivedRead_f(const QJsonObject& json_par_co
     //    }
 }
 
-bool metaEndExecutionCycleAction_c::derivedIsValidAction_f(textCompilation_c* ) const
+bool metaEndExecutionCycleAction_c::derivedIsValidAction_f(textCompilation_c* errors_par) const
 {
-    return true; //isFieldsDataValid_f(errors_par);
+    return isFieldsDataValid_f(errors_par);
 }
 
 action_c* metaEndExecutionCycleAction_c::derivedClone_f() const
@@ -97,10 +97,10 @@ action_c* metaEndExecutionCycleAction_c::derivedClone_f() const
     //slice and dice
     metaEndExecutionCycleData_c createDirectoryDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new metaEndExecutionCycleAction_c(actionDataTmp, createDirectoryDataTmp);
+    return new metaEndExecutionCycleAction_c(actonDataHubParent_f(), actionDataTmp, createDirectoryDataTmp);
 }
 
-baseActionExecution_c* metaEndExecutionCycleAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* metaEndExecutionCycleAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new metaEndExecutionCycleActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -110,15 +110,30 @@ actionType_ec metaEndExecutionCycleAction_c::type_f() const
     return actionType_ec::metaEndExecutionCycle;
 }
 
+QString metaEndExecutionCycleAction_c::derivedReference_f() const
+{
+    QString endTypeTmp;
+    if (endType_pro == endType_ec::stop)
+    {
+        endTypeTmp = "stop";
+    }
+    if (endType_pro == endType_ec::waitToFinish)
+    {
+        endTypeTmp = "waitToFinish";
+    }
+    return endTypeTmp;
+}
+
 //QString metaEndExecutionCycleAction_c::typeStr_f() const
 //{
 //    return actionTypeToStrUMap_ext_con.at(type_f());
 //}
 
 metaEndExecutionCycleAction_c::metaEndExecutionCycleAction_c(
-        const actionData_c& actionData_par_con
+        actonDataHub_c* parent_par
+        , const actionData_c& actionData_par_con
         , const metaEndExecutionCycleData_c& metaEndExecutionData_par_con)
-    : action_c(actionData_par_con)
+    : action_c(parent_par, actionData_par_con)
     , metaEndExecutionCycleData_c(metaEndExecutionData_par_con)
 {
 }

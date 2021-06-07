@@ -9,12 +9,47 @@
 #include "../actions/metaEndExecutionCycle.hpp"
 #include "../actions/folderChangeReaction.hpp"
 
-const std::unordered_map<actionType_ec, std::function<action_c*()>> actionTypeToActionCreationFunctionMap_ext_con(
+action_c* createNewActionOfType_f(const actionType_ec type_par_con)
 {
-    {	actionType_ec::runProcess, []() -> action_c* { return new runProcessAction_c;}}
-    , {	actionType_ec::createDirectory, []() -> action_c* { return new createDirectoryAction_c;}}
-    , {	actionType_ec::copyFile, []() -> action_c* { return new copyFileAction_c;}}
-    , {	actionType_ec::deleteFileDir, []() -> action_c* { return new deleteFileDirAction_c;}}
-    , {	actionType_ec::metaEndExecutionCycle, []() -> action_c* { return new metaEndExecutionCycleAction_c;}}
-    , {	actionType_ec::folderChangeReaction, []() -> action_c* { return new folderChangeReactionAction_c;}}
-});
+    action_c* resultTmp(nullptr);
+    while (true)
+    {
+        if (type_par_con == actionType_ec::runProcess)
+        {
+            resultTmp = new runProcessAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::runProcess)
+        {
+            resultTmp = new runProcessAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::createDirectory)
+        {
+            resultTmp = new createDirectoryAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::copyFile)
+        {
+            resultTmp = new copyFileAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::deleteFileDir)
+        {
+            resultTmp = new deleteFileDirAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::metaEndExecutionCycle)
+        {
+            resultTmp = new metaEndExecutionCycleAction_c();
+            break;
+        }
+        if (type_par_con == actionType_ec::folderChangeReaction)
+        {
+            resultTmp = new folderChangeReactionAction_c();
+            break;
+        }
+        break;
+    }
+    return resultTmp;
+}

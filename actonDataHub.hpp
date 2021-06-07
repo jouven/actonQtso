@@ -12,36 +12,17 @@
 #include <QHash>
 #include <QStringList>
 
+#include <deque>
 #include <unordered_map>
 #include <QSet>
 #include <vector>
 
 //this macro should only be used inside this library: actonQtso
-//don't use in actonDataHub_c ctor/s
 #define MACRO_FILEMETA MACRO_FILENAME, __func__, __LINE__
-#define MACRO_ADDACTONQTSOLOG(...) actonDataHub_ptr_ext->addLogMessage_f(__VA_ARGS__, MACRO_FILEMETA)
+#define MACRO_ADDACTONDATAHUBLOG(X,...) X->addLogMessage_f(__VA_ARGS__, MACRO_FILEMETA)
 
-
-//the 2 macro bellow are used in getter of string functions, the return is intended
-
-//this macro will leave the original value if there is not parser configuration or no string "triggered"
-#define COPYPARSERETURNVAR(X) QString copyStrTmp(X); \
-if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
-{ \
-    actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(copyStrTmp)); \
-} \
-return copyStrTmp;
-
-//same as above but for container of QString
-#define COPYPARSERETURNSTRINGLIST(X) QStringList copyStrListTmp(X); \
-if (actonDataHub_ptr_ext not_eq nullptr and actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f() not_eq nullptr) \
-{ \
-    for (QString& str_ite : copyStrListTmp) \
-    { \
-        actonDataHub_ptr_ext->executionOptions_f().stringParserMap_f()->executeForString_f(std::addressof(str_ite)); \
-    } \
-} \
-return copyStrListTmp;
+class executionMessage_c;
+class executionResult_c;
 
 //FUTURE (FAR?) action result's to file, actions can use this files as a source
 //make result clases de/serializable
@@ -92,6 +73,7 @@ class EXPIMP_ACTONQTSO actonDataHub_c : public QObject
     bool actionsExecutionStopped_pri = false;
     bool killingActionsExecution_pri = false;
     bool actionsExecutionKilled_pri = false;
+    bool resumingExecution_pri = false;
 
     bool stopWhenCurrentExecutionCycleFinishes_pri = false;
 
@@ -99,8 +81,21 @@ class EXPIMP_ACTONQTSO actonDataHub_c : public QObject
 
     void executeActions_f(const bool loop_par_con = false);
 
+    std::deque<executionMessage_c*> executionMessages_pri;
+    std::deque<executionResult_c*> executionResults_pri;
+    uint_fast64_t executionMessageMaxDequeSize_pri = 100000;
+    uint_fast64_t executionResultMaxDequeSize_pri = 100000;
+    //when the cache is full remove the first/oldest executionMessageClearCacheAmount_pri items from the cache
+    uint_fast64_t executionMessageClearCacheAmount_pri = executionMessageMaxDequeSize_pri / 10;
+    //when the cache is full remove the first/oldest executionResultMaxQueueSize_pri items from the cache
+    uint_fast64_t executionResultClearCacheAmount_pri = executionResultMaxDequeSize_pri / 10;
+
+    void addExecutionMessage_f(executionMessage_c* executionMessage_par);
+
 public:
+    //can't use const ptr argument because QObject* ctor argument is non-const
     explicit actonDataHub_c(QObject* parent_par);
+    ~actonDataHub_c();
 
     //to check if a row value can be inserted, not negative and index=<"container size"
     bool validRow_f(const int row_par_con) const;
@@ -155,7 +150,7 @@ public:
     //actionIds could be used too, but, rows are ordered
     //this way having to check if the actionIds are in order or getting their order can be skipped
     //and even if rows weren't in order, they'll be after the remove dupes step
-    void executeActionDataRows_f(std::vector<int> rows_par = std::vector<int>());
+    bool executeActionDataRows_f(std::vector<int> rows_par = std::vector<int>(), textCompilation_c* errors_par = nullptr);
     void tryResumeActionsExecution_f();
 
     bool executingActions_f() const;
@@ -223,31 +218,43 @@ public:
     //will do nothing if logDataHub_pri hasn't been set
     bool addLogMessage_f(
             const text_c& message_par_con
-            , const logItem_c::type_ec logType_par_con
+            , const messageType_ec logType_par_con
             , const QString& sourceFile_par_con
             , const QString& sourceFunction_par_con
             , const int_fast32_t line_par_con
-    );
+    ) const;
     bool addLogMessage_f(
             const text_c& message_par_con
             , const action_c* actionPtr_par
-            , const logItem_c::type_ec logType_par_con
+            , const messageType_ec  logType_par_con
             , const QString& sourceFile_par_con
             , const QString& sourceFunction_par_con
             , const int_fast32_t line_par_con
-    );
-    bool addLogMessage_f(const text_c& message_par_con
+    ) const;
+    bool addLogMessage_f(
+            const text_c& message_par_con
             , const check_c* checkPtr_par
-            , const logItem_c::type_ec logType_par_con
+            , const messageType_ec logType_par_con
             , const QString& sourceFile_par_con
             , const QString& sourceFunction_par_con
             , const int_fast32_t line_par_con
-    );
+    ) const;
 
     //verifies if ALL the actions are valid
     //a more optimized version of this could be made, i.e. get the first invalid one...
     //but right now this function is used when deserializing and before execution where an ALL version is required
     bool areActionsValid_f(textCompilation_c* errors_par = nullptr) const;
+
+    //this is for the special actions/checks types that depend on other actions/checks, action/check regular validation can't/won't check
+    //if other actions/checks are in the state they require.
+    //Check for actionFinished, actionStartedExecuting and folderChangeReaction if their dependencies are met
+    //i.e., actionFinished action should be enabled, same with actionStartedExecuting, on the other hand folderChangeReaction actions should be disabled
+    //but valid (which they aren't checked for during execution)
+    bool areCheckActionDependenciesValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
+
+    std::deque<executionMessage_c*> executionMessages_f() const;
+    std::deque<executionResult_c*> executionResults_f() const;
+
 Q_SIGNALS:
     void actionsExecutionStarted_signal();
     void stoppingActionsExecution_signal();
@@ -255,9 +262,11 @@ Q_SIGNALS:
     void killingActionsExecution_signal();
     void actionsExecutionKilled_signal();
     void actionsExecutionFinished_signal(std::vector<action_c*> lastRunActions_par);
+    void executionMessageAdded_signal(const executionMessage_c* message_par);
+    void executionResultAdded_signal(const executionResult_c* executionResult_par);
     //void anyExecutingChecksStopped_signal();
 private Q_SLOTS:
-    void verifyExecutionFinished_f(action_c* actionPtr_par);
+    void verifyExecutionFinished_f(executionResult_c* executionResultPtr_par);
     void killingStarted_f();
 public Q_SLOTS:
     //update all the actions/checks fields that reference/depend on an actionStringId (not the actionStringId field of an action object)
@@ -269,8 +278,13 @@ public Q_SLOTS:
     //doesn't modify any action it only updates actionDataStringIdToActionDataId_pri
     //it's automatically called when an action of this actonDataHub_c is updated with a different actionStringId
     bool changeActionStringId_f(const QString& oldActionStringId_par_con, const QString& newActionStringId_par_con);
+
+    //this is used for checks too
+    void addExecutionResult_f(executionResult_c* executionResult_par);
+    void addActionExecutionResultMessage_f(executionResult_c*, executionMessage_c* message_par);
+    void addCheckExecutionResultMessage_f(executionResult_c*, executionMessage_c* message_par);
 };
 
-extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;
+//extern EXPIMP_ACTONQTSO actonDataHub_c* actonDataHub_ptr_ext;
 
 #endif // ACTONQTSO_ACTONDATAHUB_HPP

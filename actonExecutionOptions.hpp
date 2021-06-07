@@ -45,9 +45,8 @@ private:
     //If no extra threads, because the limit has been reached,
     //are available when an action is ready to run it will wait until one is
     //Even with 1 thread the overall execution can run and finish no problem
-    uint_fast64_t extraThreads_pri = 1;
-    //10 seconds
-    uint_fast64_t killTimeoutMilliseconds_pri = 10000;
+    //20210222 +1 because signalProxyQtso requires one
+    uint_fast64_t extraThreads_pri = 2;
 
     stringParserMap_c* stringParserMap_pri = nullptr;
 public:
@@ -56,11 +55,10 @@ public:
     //ctor to serialize
     executionOptions_c(
             const executionLoopType_ec executionLoopType_par_con
-            , const uint_fast64_t loopXTimesCount_par_con = 0
+            , const uint_fast64_t loopXTimesCount_par_con
             //, const bool stopExecutingOnError_par_con
-            , const uint_fast64_t extraThreads_par_con = 1
-            , const uint_fast64_t killTimeoutMilliseconds_par_con = 10000
-    );
+            , const uint_fast64_t extraThreads_par_con
+   );
    void write_f(QJsonObject &json_par) const;
    //stringParserMap must be set for the json parser to read anything into it
    //otherwise any stringTrigger/s config is ignored
@@ -72,13 +70,11 @@ public:
    uint_fast64_t loopXTimesCount_f() const;
    //bool stopExecutingOnError_f() const;
    uint_fast64_t extraThreads_f() const;
-   uint_fast64_t killTimeoutMilliseconds_f() const;
 
    void setExecutionLoopType_f(const executionLoopType_ec executionLoopType_par_con);
    void setLoopXTimesCount_f(const uint_fast64_t loopXTimesCount_par_con);
    //void setStopExecutingOnError_f(const bool stopExecutingOnError_par_con);
    void setExtraThreads_f(const uint_fast64_t extraThreads_par_con);
-   void setKillTimeoutMilliseconds_f(const uint_fast64_t killTimeoutMilliseconds_par_con);
 
    stringParserMap_c* stringParserMap_f() const;
    void setStringParserMap_f(stringParserMap_c* stringParserMap_par);

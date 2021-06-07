@@ -79,9 +79,9 @@ QString copyFileData_c::sourcePath_f() const
     return sourcePath_pro;
 }
 
-QString copyFileData_c::sourcePathParsed_f() const
+QString copyFileAction_c::sourcePathParsed_f() const
 {
-    COPYPARSERETURNVAR(sourcePath_pro);
+    return stringParserMap_c::parseString_f(sourcePath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void copyFileData_c::setSourcePath_f(const QString& sourcePath_par_con)
@@ -94,9 +94,9 @@ QString copyFileData_c::destinationPath_f() const
     return destinationPath_pro;
 }
 
-QString copyFileData_c::destinationPathParsed_f() const
+QString copyFileAction_c::destinationPathParsed_f() const
 {
-    COPYPARSERETURNVAR(destinationPath_pro);
+    return stringParserMap_c::parseString_f(destinationPath_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void copyFileData_c::setDestinationPath_f(const QString& destinationPath_par_con)
@@ -119,9 +119,9 @@ QStringList copyFileData_c::sourceFilenameRegexFilters_f() const
     return sourceFilenameRegexFilters_pro;
 }
 
-QStringList copyFileData_c::sourceFilenameRegexFiltersParsed_f() const
+QStringList copyFileAction_c::sourceFilenameRegexFiltersParsed_f() const
 {
-    COPYPARSERETURNSTRINGLIST(sourceFilenameRegexFilters_pro);
+    return stringParserMap_c::parseStringList_f(sourceFilenameRegexFilters_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void copyFileData_c::setSourceFilenameRegexFilters_f(const QStringList& sourceFilenameRegexFilters_par_con)
@@ -139,13 +139,11 @@ void copyFileData_c::setCreateDestinationAndParents_f(const bool createDestinati
     createDestinationAndParents_pro = createDestinationParent_par_con;
 }
 
-std::vector<QString> copyFileData_c::testSourceFileList_f(
-        const copyFileData_c* const copyFileDataPtr_par
-        , directoryFilter_c*& directoryFilterPtrRef_par
-        , textCompilation_c* errors_ptr
-        , QMutex* directoryFilterPtrMutexPtr_par)
+directoryFilter_c* copyFileAction_c::testSourceFileListV2_f(
+        const copyFileAction_c* const copyFileDataPtr_par
+        , textCompilation_c* errors_ptr)
 {
-    std::vector<QString> resultTmp;
+    directoryFilter_c* resultTmp(nullptr);
     while (copyFileDataPtr_par->isFieldsDataValid_f(errors_ptr))
     {
         //ignore destination options
@@ -158,7 +156,7 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
         {
             if (errors_ptr not_eq nullptr)
             {
-                errors_ptr->append_f({"Source doesn't exist"});
+                errors_ptr->append_f("Source doesn't exist");
             }
             break;
         }
@@ -166,79 +164,20 @@ std::vector<QString> copyFileData_c::testSourceFileList_f(
         QFileInfo sourceFileInfoTmp(sourcePathTmp_con);
         if (sourceFileInfoTmp.isDir())
         {
-            filterOptions_s filterOptionsTmp;
-            filterOptionsTmp.navigateSubdirectories_pub = copyFileDataPtr_par->navigateSubdirectories_pro;
-            filterOptionsTmp.useAbsolutePaths_pub = sourceFileInfoTmp.isAbsolute();
-            filterOptionsTmp.listFiles_pub = true;
-            filterOptionsTmp.listHidden_pub = copyFileDataPtr_par->copyHidden_pro;
-            filterOptionsTmp.navigateHiddenDirectories_pub = copyFileDataPtr_par->copyHidden_pro;
-            filterOptionsTmp.listDirectories_pub = false;
-            filterOptionsTmp.filenameRegexFilters_pub = copyFileDataPtr_par->sourceFilenameRegexFiltersParsed_f();
-            filterOptionsTmp.listEmptyDirectories_pub = copyFileDataPtr_par->copyEmptyDirectories_pro;
-            filterOptionsTmp.filenameFullExtensions_pub = copyFileDataPtr_par->sourceFilenameFullExtensionsParsed_f();
+            filterOptions_s filterOptionsTmp(setupFilterOptions_f(copyFileDataPtr_par, sourceFileInfoTmp));
 
-            directoryFilter_c directoryFilterTmp(sourcePathTmp_con, filterOptionsTmp);
-            //the mutex here is to prevent the stop function to conflict
-            //with the filtering normal ending process
-
-            if (directoryFilterPtrMutexPtr_par not_eq nullptr)
-            {
-                {
-                    QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-                    directoryFilterPtrRef_par = std::addressof(directoryFilterTmp);
-                }
-                resultTmp = directoryFilterTmp.filter_f();
-                if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
-                {
-                    errors_ptr->append_f(directoryFilterTmp.getErrors_f());
-                }
-                {
-                    QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-                    directoryFilterPtrRef_par = nullptr;
-                }
-            }
-            else
-            {
-                directoryFilterPtrRef_par = std::addressof(directoryFilterTmp);
-                resultTmp = directoryFilterTmp.filter_f();
-                directoryFilterPtrRef_par = nullptr;
-                if (errors_ptr not_eq nullptr and directoryFilterTmp.anyError_f())
-                {
-                    errors_ptr->append_f(directoryFilterTmp.getErrors_f());
-                }
-            }
-            break;
+            resultTmp = new directoryFilter_c(nullptr, sourcePathTmp_con, filterOptionsTmp);
         }
-
-        if (sourceFileInfoTmp.isFile())
+        else
         {
-            resultTmp.emplace_back(sourcePathTmp_con);
-            break;
+            if (errors_ptr not_eq nullptr)
+            {
+                errors_ptr->append_f("Source is not a directory");
+            }
         }
         break;
     }
     return resultTmp;
-}
-
-void copyFileData_c::stopDirectoryFiltering_f(
-        directoryFilter_c* directoryFilterPtr_par
-        , QMutex* directoryFilterPtrMutexPtr_par)
-{
-    if (directoryFilterPtrMutexPtr_par not_eq nullptr)
-    {
-        QMutexLocker mutexLockerTmp(directoryFilterPtrMutexPtr_par);
-        if (directoryFilterPtr_par not_eq nullptr)
-        {
-            directoryFilterPtr_par->stopFiltering_f();
-        }
-    }
-    else
-    {
-        if (directoryFilterPtr_par not_eq nullptr)
-        {
-            directoryFilterPtr_par->stopFiltering_f();
-        }
-    }
 }
 
 bool copyFileData_c::copyHidden_f() const
@@ -256,9 +195,9 @@ QStringList copyFileData_c::sourceFilenameFullExtensions_f() const
     return sourceFilenameFullExtensions_pro;
 }
 
-QStringList copyFileData_c::sourceFilenameFullExtensionsParsed_f() const
+QStringList copyFileAction_c::sourceFilenameFullExtensionsParsed_f() const
 {
-    COPYPARSERETURNSTRINGLIST(sourceFilenameFullExtensions_pro);
+    return stringParserMap_c::parseStringList_f(sourceFilenameFullExtensions_pro, actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void copyFileData_c::setSourceFilenameFullExtensions_f(const QStringList& sourceFilenameFullExtensions_par_con)
@@ -495,9 +434,10 @@ copyFileData_c::copyFileData_c(
 //}
 
 copyFileAction_c::copyFileAction_c(
+        actonDataHub_c* parent_par,
         const actionData_c& actionData_par_con
         , const copyFileData_c& copyFile_par_con)
-    : action_c(actionData_par_con)
+    : action_c(parent_par, actionData_par_con)
     , copyFileData_c(copyFile_par_con)
 {
 }
@@ -664,10 +604,10 @@ action_c* copyFileAction_c::derivedClone_f() const
     //slice and dice
     copyFileData_c copyFileDataTmp(*this);
     actionData_c actionDataTmp(*this);
-    return new copyFileAction_c(actionDataTmp, copyFileDataTmp);
+    return new copyFileAction_c(actonDataHubParent_f(), actionDataTmp, copyFileDataTmp);
 }
 
-baseActionExecution_c* copyFileAction_c::createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par)
+baseActionExecution_c* copyFileAction_c::createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par)
 {
     return new copyFileActionExecution_c(actionDataExecutionResult_ptr_par, this);
 }
@@ -675,6 +615,27 @@ baseActionExecution_c* copyFileAction_c::createExecutionObj_f(actionDataExecutio
 actionType_ec copyFileAction_c::type_f() const
 {
     return actionType_ec::copyFile;
+}
+
+QString copyFileAction_c::derivedReference_f() const
+{
+    return transferTypeToStrUMap_sta_con.at(transferType_pro) + "_" + sourcePath_pro + "_" + destinationPath_pro;
+}
+
+filterOptions_s copyFileAction_c::setupFilterOptions_f(const copyFileAction_c* const copyFileDataPtr_par, const QFileInfo& sourceFileInfo_par_con)
+{
+    filterOptions_s filterOptionsTmp;
+    filterOptionsTmp.navigateSubdirectories_pub = copyFileDataPtr_par->navigateSubdirectories_pro;
+    filterOptionsTmp.useAbsolutePaths_pub = sourceFileInfo_par_con.isAbsolute();
+    filterOptionsTmp.listFiles_pub = true;
+    filterOptionsTmp.listHidden_pub = copyFileDataPtr_par->copyHidden_pro;
+    filterOptionsTmp.navigateHiddenDirectories_pub = copyFileDataPtr_par->copyHidden_pro;
+    filterOptionsTmp.listDirectories_pub = false;
+    filterOptionsTmp.filenameRegexFilters_pub = copyFileDataPtr_par->sourceFilenameRegexFiltersParsed_f();
+    filterOptionsTmp.listEmptyDirectories_pub = copyFileDataPtr_par->copyEmptyDirectories_pro;
+    filterOptionsTmp.filenameFullExtensions_pub = copyFileDataPtr_par->sourceFilenameFullExtensionsParsed_f();
+
+    return filterOptionsTmp;
 }
 
 //QString copyFileAction_c::typeStr_f() const
@@ -687,9 +648,9 @@ bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
     bool isValidResultTmp(false);
     while (true)
     {
-        if (sourcePathParsed_f().contains('\n'))
+        if (sourcePath_f().contains('\n'))
         {
-            QStringList splitStringTmp(sourcePathParsed_f().split('\n', QString::SkipEmptyParts));
+            QStringList splitStringTmp(sourcePath_f().split('\n', Qt::SkipEmptyParts));
             for (const QString& sourceStr_ite_con : splitStringTmp)
             {
                 //this one won't happen because skipempty parts
@@ -713,14 +674,14 @@ bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
         }
         else
         {
-            if (sourcePathParsed_f().isEmpty())
+            if (sourcePath_f().isEmpty())
             {
                 APPENDTEXTPTR(errorsPtr_par, "Source path is empty");
                 break;
             }
 
             text_c errorTextTmp;
-            if (isValidStringSize_f(sourcePathParsed_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
+            if (isValidStringSize_f(sourcePath_f(), 255, std::addressof(errorTextTmp), "Source path is too long: {0} (maximum length is {1})"))
             {
                 //it's valid
             }
@@ -731,7 +692,7 @@ bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
             }
         }
 
-        if (destinationPathParsed_f().isEmpty())
+        if (destinationPath_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "Destination path is empty");
             break;
@@ -746,7 +707,7 @@ bool copyFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
 
         {
             text_c errorTextTmp;
-            if (isValidStringSize_f(destinationPathParsed_f(), 255, std::addressof(errorTextTmp), "Destination path is too long: {0} (maximum length is {1})"))
+            if (isValidStringSize_f(destinationPath_f(), 255, std::addressof(errorTextTmp), "Destination path is too long: {0} (maximum length is {1})"))
             {
                 //it's valid
             }

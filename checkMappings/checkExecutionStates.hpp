@@ -4,24 +4,25 @@
 //shared by all types of checks
 enum class checkExecutionState_ec
 {
+    empty
     //check is not going/being/was executed
-    initial = 0
+    , initial
     //when the check is going to be executed
     //(this is only visible when the checks execute sequentially, one check is making the others wait,
     //or when waiting for an available thread, otherwise it will "instantly" go from initial to executing)
-    , preparing = 1
+    , preparing
     //executing the check
-    , executing = 2
+    , executing
     //errors controlled by the code
-    , error = 3
+    , error
     //during the stop period before "finished"
-    , stoppingByUser = 4
-    //if when "finished" previously was stoppingByUser
-    , stoppedByUser = 5
+    , stopping
+    //if when "finished" previously was stopping
+    , stopped
     //if the check has a timeout and hits it before anything (to be implemented)
-    , timeOut = 6
+    , timeOut
     //when it finishes without issues
-    , success = 7
+    , success
 };
 
 #endif // ACTONQTSO_CHECKEXECUTIONSTATES_HPP

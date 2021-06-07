@@ -8,7 +8,7 @@
 #include <QDir>
 
 createDirectoryActionExecution_c::createDirectoryActionExecution_c(
-        actionDataExecutionResult_c* actionExecutionResultObj_par_con
+        actionExecutionResult_c* actionExecutionResultObj_par_con
         , createDirectoryAction_c* createDirectoryActionPtr_par
 )
     : baseActionExecution_c(actionExecutionResultObj_par_con)
@@ -24,11 +24,11 @@ void createDirectoryActionExecution_c::derivedExecute_f()
         {
             //addError already change the state
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-            Q_EMIT addError_signal({"{0} already exists", pathToCreateTmp.path()});
+            emitExecutionMessage_f({"{0} already exists", pathToCreateTmp.path()}, executionMessage_c::type_ec::error);
         }
         else
         {
-            Q_EMIT addOutput_signal({"{0} already exists", pathToCreateTmp.path()});
+            emitExecutionMessage_f({"{0} already exists", pathToCreateTmp.path()}, executionMessage_c::type_ec::warning);
             //Q_EMIT executionStateChange_signal(actionExecutionState_ec::success);
         }
     }
@@ -41,7 +41,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             bool parentExistsTmp(pathToCreateTmp.cdUp());
             if (not parentExistsTmp and not createDirectoryActionPtr_pri->createParents_f())
             {
-                Q_EMIT addError_signal({"Can't create directory {0}, parent directory doesn't exists", pathToCreateTmp.path()});
+                emitExecutionMessage_f({"Can't create directory {0}, parent directory doesn't exists", pathToCreateTmp.path()}, executionMessage_c::type_ec::error);
                 break;
             }
             else
@@ -63,8 +63,7 @@ void createDirectoryActionExecution_c::derivedExecute_f()
             }
             else
             {
-                //Q_EMIT executionStateChange_signal(actionExecutionState_ec::error);
-                Q_EMIT addError_signal({"Couldn't create the directory {0}", pathToCreateTmp.path()});
+                emitExecutionMessage_f({"Couldn't create the directory {0}", pathToCreateTmp.path()}, executionMessage_c::type_ec::error);
             }
             break;
         }

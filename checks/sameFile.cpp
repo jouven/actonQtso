@@ -17,9 +17,9 @@ QString sameFileData_c::fileAPath_f() const
     return fileAPath_pro;
 }
 
-QString sameFileData_c::fileAPathParsed_f() const
+QString sameFileCheck_c::fileAPathParsed_f() const
 {
-    COPYPARSERETURNVAR(fileAPath_pro);
+    return stringParserMap_c::parseString_f(fileAPath_pro, parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void sameFileData_c::setFileAPath_f(const QString& fileAPath_par_con)
@@ -32,9 +32,9 @@ QString sameFileData_c::fileBPath_f() const
     return fileBPath_pro;
 }
 
-QString sameFileData_c::fileBPathParsed_f() const
+QString sameFileCheck_c::fileBPathParsed_f() const
 {
-    COPYPARSERETURNVAR(fileBPath_pro);
+    return stringParserMap_c::parseString_f(fileBPath_pro, parentAction_f()->actonDataHubParent_f()->executionOptions_f().stringParserMap_f());
 }
 
 void sameFileData_c::setFileBPath_f(const QString& fileBPath_par_con)
@@ -47,7 +47,7 @@ bool sameFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
     bool isValidResultTmp(false);
     while (true)
     {
-        if (fileAPathParsed_f().isEmpty())
+        if (fileAPath_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "File A path is empty");
             break;
@@ -55,7 +55,7 @@ bool sameFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
 
         {
             text_c errorTextTmp;
-            if (isValidStringSize_f(fileAPathParsed_f(), 255, std::addressof(errorTextTmp), "File A path is too long: {0} (maximum length is {1})"))
+            if (isValidStringSize_f(fileAPath_f(), 255, std::addressof(errorTextTmp), "File A path is too long: {0} (maximum length is {1})"))
             {
                 //it's valid
             }
@@ -66,7 +66,7 @@ bool sameFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
             }
         }
 
-        if (fileBPathParsed_f().isEmpty())
+        if (fileBPath_f().isEmpty())
         {
             APPENDTEXTPTR(errorsPtr_par, "File B path is empty");
             break;
@@ -74,7 +74,7 @@ bool sameFileData_c::isFieldsDataValid_f(textCompilation_c* errorsPtr_par) const
 
         {
             text_c errorTextTmp;
-            if (isValidStringSize_f(fileBPathParsed_f(), 255, std::addressof(errorTextTmp), "File B path is too long: {0} (maximum length is {1})"))
+            if (isValidStringSize_f(fileBPath_f(), 255, std::addressof(errorTextTmp), "File B path is too long: {0} (maximum length is {1})"))
             {
                 //it's valid
             }
@@ -123,7 +123,7 @@ check_c* sameFileCheck_c::derivedClone_f() const
     return new sameFileCheck_c(checkDataTmp, sameFileDataTmp);
 }
 
-baseCheckExecution_c* sameFileCheck_c::createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par)
+baseCheckExecution_c* sameFileCheck_c::createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par)
 {
     return new sameFileCheckExecution_c(checkDataExecutionResult_ptr_par, this);
 }
@@ -161,6 +161,11 @@ QSet<QString> sameFileCheck_c::derivedStringTriggersInUse_f(const QSet<QString>&
         }
     }
     return resultTmp;
+}
+
+QString sameFileCheck_c::derivedReference_f() const
+{
+    return "from_" + fileAPath_pro + "_to_" + fileBPath_pro;
 }
 
 sameFileCheck_c::sameFileCheck_c(

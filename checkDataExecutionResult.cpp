@@ -2,83 +2,66 @@
 
 #include "actionData.hpp"
 #include "checkData.hpp"
+#include "checkMappings/checkExecutionStateStrMapping.hpp"
+#include "actonDataHub.hpp"
 
 #include "comuso/practicalTemplates.hpp"
 
 #include <QDateTime>
 
-textCompilation_c checkDataExecutionResult_c::errors_f() const
-{
-    return errors_pri;
+#define MACRO_ADDLOG(...) \
+if (check_ptr_pri->parentAction_f() not_eq nullptr) \
+{ \
+    MACRO_ADDACTONDATAHUBLOG(check_ptr_pri->parentAction_f()->actonDataHubParent_f(),__VA_ARGS__); \
 }
 
-std::vector<checkExecutionState_ec> checkDataExecutionResult_c::executionStateVector_f() const
+
+std::vector<checkExecutionState_ec> checkExecutionResult_c::executionStateVector_f() const
 {
     return executionStateVector_pri;
 }
 
-checkExecutionState_ec checkDataExecutionResult_c::lastState_f() const
+checkExecutionState_ec checkExecutionResult_c::lastState_f() const
 {
     return executionStateVector_pri.back();
 }
 
-check_c* checkDataExecutionResult_c::parent_ptr_f() const
+check_c* checkExecutionResult_c::check_ptr_f() const
 {
-    return parent_ptr_pri;
+    return check_ptr_pri;
 }
 
-bool checkDataExecutionResult_c::started_f() const
-{
-    return started_pri;
-}
-
-bool checkDataExecutionResult_c::finished_f() const
-{
-    return finished_pri;
-}
-
-
-qint64 checkDataExecutionResult_c::startTime_f() const
-{
-    return startTime_pri;
-}
-
-qint64 checkDataExecutionResult_c::finishedTime_f() const
-{
-    return finishedTime_pri;
-}
-
-bool checkDataExecutionResult_c::result_f() const
+bool checkExecutionResult_c::result_f() const
 {
     return result_pri;
 }
 
-bool checkDataExecutionResult_c::logicResult_f() const
+bool checkExecutionResult_c::logicResult_f() const
 {
     bool resultTmp(false);
-    while (finished_pri)
+    while (finished_pro)
     {
-        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnSuccess
+        if (check_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnSuccess
             and lastState_f() == checkExecutionState_ec::success
             and result_pri)
         {
             resultTmp = true;
             break;
         }
-        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnFailure
+        if (check_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnFailure
             and lastState_f() == checkExecutionState_ec::success
             and not result_pri)
         {
             resultTmp = true;
             break;
         }
-        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnError
+        if (check_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueOnError
             and lastState_f() == checkExecutionState_ec::error)
         {
             resultTmp = true;
             break;
         }
-        if (parent_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueAlwaysExceptOnError
+        if (check_ptr_pri->resultLogic_f() == checkData_c::resultLogic_ec::trueAlwaysExceptOnError
             and lastState_f() not_eq checkExecutionState_ec::error)
         {
             resultTmp = true;
@@ -89,60 +72,54 @@ bool checkDataExecutionResult_c::logicResult_f() const
     return resultTmp;
 }
 
-bool checkDataExecutionResult_c::tryClear_f()
-{
-    bool resultTmp(false);
-    if (finished_pri)
-    {
-        errors_pri.clear_f();
+//void checkExecutionResult_c::derivedTryClear_f()
+//{
+//    executionStateVector_pri = { checkExecutionState_ec::initial };
 
-        executionStateVector_pri = { checkExecutionState_ec::initial };
+//    result_pri = false;
+//    resultSet_pri = false;
 
-        result_pri = false;
+//    Q_EMIT resultsCleared_signal(check_ptr_pri);
+//}
 
-        started_pri = false;
-        finished_pri = false;
-        stoppedByUser_pri = false;
-
-        startTime_pri = 0;
-        finishedTime_pri = 0;
-
-        resultTmp = true;
-        Q_EMIT resultsCleared_signal(parent_ptr_pri);
-    }
-    return resultTmp;
-}
-
-bool checkDataExecutionResult_c::stoppedByUser_f() const
-{
-    return stoppedByUser_pri;
-}
-
-checkDataExecutionResult_c::checkDataExecutionResult_c(
-        check_c* const parentCheck_par_ptr_con
-        )
-    : parent_ptr_pri(parentCheck_par_ptr_con)
+checkExecutionResult_c::checkExecutionResult_c(
+        check_c* const check_par_ptr_con
+        , QObject* parent_par)
+    : executionResult_c(parent_par)
+    , check_ptr_pri(check_par_ptr_con)
 {}
 
-void checkDataExecutionResult_c::appendError_f(const text_c& error_par_con)
+void checkExecutionResult_c::derivedAppendMessage_f(executionMessage_c* message_par_con)
 {
-    errors_pri.append_f(error_par_con);
-    Q_EMIT error_signal(parent_ptr_pri);
+    while (not finished_pro)
+    {
+        if (message_par_con->type_f() == executionMessage_c::type_ec::error)
+        {
+            for (size_t i = 0, l = message_par_con->text_f().size_f(); i < l; ++i)
+            {
+                MACRO_ADDLOG(message_par_con->text_f().text_f(i), check_ptr_pri, messageType_ec::warning);
+            }
+            trySetExecutionState_f(checkExecutionState_ec::error);
+            Q_EMIT errorMessageAdded_signal(this, message_par_con);
+            break;
+        }
+        break;
+    }
 }
 
-bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionState_ec checkExecutionState_par_con)
+bool checkExecutionResult_c::trySetExecutionState_f(const checkExecutionState_ec checkExecutionState_par_con)
 {
     bool resultTmp(false);
     bool emitPreparingTmp(false);
     bool emitExecutingTmp(false);
     bool emitStoppingTmp(false);
     //verify if is on a "final" state
-    while (not finished_pri and (lastState_f() not_eq checkExecutionState_par_con))
+    while (not finished_pro and (lastState_f() not_eq checkExecutionState_par_con))
     {
         //states that can't be set outside of this class
         if (equalOnce_ft(checkExecutionState_par_con
                          , checkExecutionState_ec::initial
-                         , checkExecutionState_ec::stoppedByUser)
+                         , checkExecutionState_ec::stopped)
         )
         {
             break;
@@ -167,7 +144,7 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
             and equalOnce_ft(checkExecutionState_par_con
                              , checkExecutionState_ec::error
                              , checkExecutionState_ec::executing
-                             , checkExecutionState_ec::stoppingByUser)
+                             , checkExecutionState_ec::stopping)
             )
         {
             resultTmp = true;
@@ -176,7 +153,7 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
                 emitExecutingTmp = true;
                 break;
             }
-            if (checkExecutionState_par_con == checkExecutionState_ec::stoppingByUser)
+            if (checkExecutionState_par_con == checkExecutionState_ec::stopping)
             {
                 emitStoppingTmp = true;
                 break;
@@ -188,12 +165,12 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
         if (lastState_f() == checkExecutionState_ec::executing
             and equalOnce_ft(checkExecutionState_par_con
                              , checkExecutionState_ec::error
-                             , checkExecutionState_ec::stoppingByUser
+                             , checkExecutionState_ec::stopping
                              , checkExecutionState_ec::success)
         )
         {
             resultTmp = true;
-            if (checkExecutionState_par_con == checkExecutionState_ec::stoppingByUser)
+            if (checkExecutionState_par_con == checkExecutionState_ec::stopping)
             {
                 emitStoppingTmp = true;
                 break;
@@ -202,7 +179,7 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
         }
 
         //from stopping it can only go to error
-        if (lastState_f() == checkExecutionState_ec::stoppingByUser
+        if (lastState_f() == checkExecutionState_ec::stopping
             and equalOnce_ft(checkExecutionState_par_con
                              , checkExecutionState_ec::error)
         )
@@ -225,21 +202,21 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
         //thread so the deletion should wait until the thread is back to its execution loop.
         //Still more stuff that can be signaled from the execution object might happen, more errors or info,
         //and finishing prevents any modification of the results
-        Q_EMIT executionStateUpdated_signal(parent_ptr_pri);
+        Q_EMIT executionStateUpdated_signal(check_ptr_pri);
         if (emitPreparingTmp)
         {
-            Q_EMIT preparing_signal(parent_ptr_pri);
+            Q_EMIT preparing_signal(this);
             break;
         }
         if (emitExecutingTmp)
         {
             setStarted_f();
-            Q_EMIT executing_signal(parent_ptr_pri);
+            Q_EMIT executing_signal(this);
             break;
         }
         if (emitStoppingTmp)
         {
-            Q_EMIT stopping_signal(parent_ptr_pri);
+            Q_EMIT stopping_signal(this);
             break;
         }
         break;
@@ -247,59 +224,85 @@ bool checkDataExecutionResult_c::trySetExecutionState_f(const checkExecutionStat
     return resultTmp;
 }
 
-void checkDataExecutionResult_c::setStarted_f()
+void checkExecutionResult_c::setResult_f(const bool result_par_con)
 {
-    if (not started_pri)
+    if (not finished_pro
+        and not resultSet_pri
+        and lastState_f() == checkExecutionState_ec::executing)
     {
-        started_pri = true;
-        startTime_pri = QDateTime::currentMSecsSinceEpoch();
-
-        Q_EMIT started_signal(parent_ptr_pri);
+        result_pri = result_par_con;
+        resultSet_pri = true;
     }
 }
 
-void checkDataExecutionResult_c::trySetFinished_f(const bool resultTmp_par_con)
+//void checkExecutionResult_c::derivedSetStarted_f()
+//{
+//    Q_EMIT started_signal(this);
+//}
+
+executionResult_c::type_ec checkExecutionResult_c::type_f() const
 {
-    if (not finished_pri
+    return executionResult_c::type_ec::check;
+}
+
+QString checkExecutionResult_c::stateString_f() const
+{
+    return checkExecutionStateToString_f(lastState_f());
+}
+
+QString checkExecutionResult_c::derivedElementTypeString_f() const
+{
+    return check_ptr_pri->typeStr_f();
+}
+
+QString checkExecutionResult_c::derivedElementDescription_f() const
+{
+    return check_ptr_pri->description_f();
+}
+
+bool checkExecutionResult_c::derivedTrySetFinished_f()
+{
+    bool resultTmp(false);
+    if (resultSet_pri
         and equalOnce_ft(lastState_f()
                          , checkExecutionState_ec::executing
                          , checkExecutionState_ec::error
-                         , checkExecutionState_ec::stoppingByUser
+                         , checkExecutionState_ec::stopping
                          )
     )
     {
-        finished_pri = true;
-        if (startTime_pri not_eq 0)
-        {
-            finishedTime_pri = QDateTime::currentMSecsSinceEpoch();
-        }
-
         if (equalOnce_ft(lastState_f()
                          , checkExecutionState_ec::executing
-                         , checkExecutionState_ec::stoppingByUser
+                         , checkExecutionState_ec::stopping
                          ))
         {
             if (lastState_f() == checkExecutionState_ec::executing)
             {
                 executionStateVector_pri.emplace_back(checkExecutionState_ec::success);
-                result_pri = resultTmp_par_con;
             }
-            if (lastState_f() == checkExecutionState_ec::stoppingByUser)
+            if (lastState_f() == checkExecutionState_ec::stopping)
             {
-                stoppedByUser_pri = true;
-                executionStateVector_pri.emplace_back(checkExecutionState_ec::stoppedByUser);
+                stoppedByUser_pro = true;
+                executionStateVector_pri.emplace_back(checkExecutionState_ec::stopped);
             }
-            Q_EMIT executionStateUpdated_signal(parent_ptr_pri);
+            resultTmp = true;
+            Q_EMIT executionStateUpdated_signal(check_ptr_pri);
             if (lastState_f() == checkExecutionState_ec::success)
             {
                 //finished is always at the end
             }
-            if (lastState_f() == checkExecutionState_ec::stoppedByUser)
+            if (lastState_f() == checkExecutionState_ec::stopped)
             {
-                Q_EMIT stopped_signal(parent_ptr_pri);
+                Q_EMIT stopped_signal(this);
             }
         }
-
-        Q_EMIT finished_signal(parent_ptr_pri);
     }
+    if (not resultTmp)
+    {
+        MACRO_ADDLOG(
+                    {"Error finishing check execution couldn't finish from {0} state"
+                     , stateString_f() }
+                    , messageType_ec::error);
+    }
+    return resultTmp;
 }

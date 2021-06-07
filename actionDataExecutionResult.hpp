@@ -1,116 +1,80 @@
-#ifndef ACTONQTSO_ACTIONDATARESULT_HPP
-#define ACTONQTSO_ACTIONDATARESULT_HPP
+#ifndef ACTONQTSO_ACTIONDATAEXECUTIONRESULT_HPP
+#define ACTONQTSO_ACTIONDATAEXECUTIONRESULT_HPP
 
+#include "executionResult.hpp"
 #include "actionMappings/actionExecutionStates.hpp"
 
 #include "crossPlatformMacros.hpp"
 
-#include "textQtso/text.hpp"
-
-#include <QObject>
-#include <QString>
-
 #include <vector>
 
-class textCompilation_c;
-
 class action_c;
-//this class it to deal in a generic way with all the action execution result/s
+//this class it's to deal in a generic way with all the action execution result/s
 //so a createDirectory execution result/s can be displayed: display the directory path that has been created, or an error of why it couldn't
-//but at the same runProcess execution result/s: return code, process output (stdout and stderr) and internal errors
+//but aalso runProcess execution result/s: return code, process output (stdout and stderr) and internal errors
 //the results should be easily able to be show in console and in the gui version
-//
-class EXPIMP_ACTONQTSO actionDataExecutionResult_c : public QObject
+//for how this objects lives check executionResult_c hpp
+class EXPIMP_ACTONQTSO actionExecutionResult_c : public executionResult_c
 {
     Q_OBJECT
-    //description of what the action did successfully during the execution
-    textCompilation_c output_pri;
-    //when the action recieves external output like in runProcess
-    QString externalOutput_pri;
-    //when the action recieves external error output like in runProcess
-    QString externalErrorOutput_pri;
-    //description of any errors during the execution of this action
-    textCompilation_c errors_pri;
-    //this might only apply to the runProcess kind, 0 should be success, anything else error,
+
+    //this might only apply to the runProcess type, 0 should be success, anything else error,
     //BUT each process might vary
     //usually? it's a number from 0 to 255, https://en.wikipedia.org/wiki/Return_code
     int returnCode_pri = -1;
     bool returnCodeSet_pri = false;
 
-    action_c* const parentAction_ptr_pri;
+    action_c* const action_ptr_pri;
 
     //FUTURE add state change time, so state durations can be observed
     std::vector<actionExecutionState_ec> executionStateVector_pri = { actionExecutionState_ec::initial };
 
-    bool started_pri = false;
-    qint64 startTime_pri = 0;
-    bool finished_pri = false;
-    qint64 finishedTime_pri = 0;
-
-    bool stoppedByUser_pri = false;
     bool killedByUser_pri = false;
 
-    void setStarted_f();
+    //will clear if finished
+    //void derivedTryClear_f() override;
+
+    //void derivedSetStarted_f() override;
+    bool derivedTrySetFinished_f() override;
+
+    void derivedAppendMessage_f(executionMessage_c* message_par_con) override;
 public:
-    explicit actionDataExecutionResult_c(
-            action_c* const parentAction_par_ptr_con
+
+    explicit actionExecutionResult_c(
+            //internally the action is only used for the signals and its getter function
+            action_c* action_par_ptr_con
+            , QObject* parent_par
     );
-
-    textCompilation_c output_f() const;
-    textCompilation_c errors_f() const;
-
-    QString externalOutput_f() const;
-    QString externalErrorOutput_f() const;
 
     int returnCode_f() const;
     bool returnCodeSet_f() const;
 
     std::vector<actionExecutionState_ec> executionStateVector_f() const;
     actionExecutionState_ec lastState_f() const;
-    action_c* parentAction_ptr_f() const;
+    action_c* action_ptr_f() const;
 
-    bool started_f() const;
-    bool finished_f() const;
-    //20191118 these 2 aren't being used, not here, not in actonQtg
-    bool stoppedByUser_f() const;
     bool killedByUser_f() const;
 
-    //start time begins when the execution state changes from initial to executingChecks or preparing
-    //milliseconds since epoch
-    qint64 startTime_f() const;
-    qint64 finishedTime_f() const;
-
-    //will clear if finished
-    bool tryClear_f();
-
+    type_ec type_f() const override;
+    QString stateString_f() const override;
+    QString derivedElementTypeString_f() const override;
+    QString derivedElementDescription_f() const override;
 Q_SIGNALS:
-    void outputUpdated_signal(action_c* action_ptr_par_con, const text_c& output_par_con);
 
-    void externalOutputUpdated_signal(action_c* action_ptr_par_con, const text_c& externalOutput_par_con);
-    void externalErrorUpdated_signal(action_c* action_ptr_par_con, const text_c& externalError_par_con);
+    void externalStdoutAdded_signal(action_c* action_ptr_par, const executionMessage_c* stdoutMessage_par_con);
+    void externalStdErrAdded_signal(action_c* action_ptr_par, const executionMessage_c* stderrMessage_par_con);
 
-    void returnCodeSet_signal(action_c* action_ptr_par_con);
-    void executionStateUpdated_signal(action_c* action_ptr_par_con, actionExecutionState_ec executionState_par_con);
+    void killing_signal(action_c* action_ptr_par);
+    void killed_signal(action_c* action_ptr_par);
 
-    void started_signal(action_c* action_ptr_par_con);
-    void finished_signal(action_c* action_ptr_par_con);
-
-    void stopping_signal(action_c* action_ptr_par_con);
-    void stopped_signal(action_c* action_ptr_par_con);
-
-    void killing_signal(action_c* action_ptr_par_con);
-    void killed_signal(action_c* action_ptr_par_con);
+    void returnCodeSet_signal(action_c* action_ptr_par);
+    void executionStateUpdated_signal(action_c* action_ptr_par, actionExecutionState_ec executionState_par_con);
 
     //20191118 these 4 aren't being used, not here, not in actonQtg
-    void preparing_signal(action_c* action_ptr_par_con);
-    void executingChecks_signal(action_c* action_ptr_par_con);
-    void executing_signal(action_c* action_ptr_par_con);
-    void success_signal(action_c* action_ptr_par_con);
+    void executingChecks_signal(action_c* action_ptr_par);
+    void success_signal(action_c* action_ptr_par);
 
-    void error_signal(action_c* action_ptr_par_con, const text_c& error_par_con);
-    void errors_signal(action_c* action_ptr_par_con, const textCompilation_c& errors_par_con);
-
-    void resultsCleared_signal(action_c* action_ptr_par_con);
+    //void resultsCleared_signal(action_c* action_ptr_par);
     //the slots should only be used by the action/execution object
 public Q_SLOTS:
     //some of the actionExecutionState are final, like success, after they been set the object can't be modified anymore (without clearing it first)
@@ -118,17 +82,8 @@ public Q_SLOTS:
     //they are set when trySetFinished_f is called
     bool trySetExecutionState_f(const actionExecutionState_ec actionExecutionState_par_con);
 
-    void appendOutput_f(const text_c& output_par_con);
-    //changes the execution state to error
-    void appendError_f(const text_c& error_par_con);
-    void appendErrors_f(const textCompilation_c& errors_par_con);
-
-    void appendExternalOutput_f(const QString& actionOutput_par_con);
-    void appendExternalError_f(const QString& actionError_par_con);
-    //once set can't be changed
+    //once set can't be changed (except by a successful derivedTryClear_f)
     void setReturnCode_f(const int returnCode_par_con);
-
-    void trySetFinished_f();
 };
 
-#endif // ACTONQTSO_ACTIONDATARESULT_HPP
+#endif // ACTONQTSO_ACTIONDATAEXECUTIONRESULT_HPP

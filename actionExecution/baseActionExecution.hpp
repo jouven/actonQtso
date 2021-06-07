@@ -2,12 +2,11 @@
 #define ACTONQTSO_BASEACTIONEXECUTION_HPP
 
 #include "../actionMappings/actionExecutionStates.hpp"
+#include "../executionMessage.hpp"
 
 #include <QObject>
 
-class actionDataExecutionResult_c;
-class text_c;
-class textCompilation_c;
+class actionExecutionResult_c;
 
 class baseActionExecution_c : public QObject
 {
@@ -21,12 +20,14 @@ class baseActionExecution_c : public QObject
     //forced end, will end regardless of how things are left
     virtual void derivedKill_f() = 0;
 private Q_SLOTS:
-    void setExecutionError_f();
+    void setExecutionError_f(const executionMessage_c* messagePtr_par_con);
 protected:
-    actionDataExecutionResult_c* const actionExecutionResultObj_pri = nullptr;
+    actionExecutionResult_c* const actionExecutionResultObj_pri = nullptr;
 
-    baseActionExecution_c(actionDataExecutionResult_c* actionExecutionResultObj_par_con);
+    baseActionExecution_c(actionExecutionResult_c* actionExecutionResultObj_par_con);//, QObject* parent_par);
 
+    void emitExecutionMessage_f(const textCompilation_c& message_par_con, const executionMessage_c::type_ec type_par_con);
+    void emitExecutionMessage_f(const text_c& message_par_con, const executionMessage_c::type_ec type_par_con);
 public:
     void execute_f();
 
@@ -47,11 +48,8 @@ public:
     //it could get "half-updated" values
 Q_SIGNALS:
     void executionStateChange_signal(const actionExecutionState_ec actionExecutionState_par_con);
-    //this action output
-    void addOutput_signal(const text_c& output_par_con);
-    //this action errors
-    void addError_signal(const text_c& error_par_con);
-    void addErrors_signal(const textCompilation_c& errors_par_con);
+    //from subclasses use emitMessage instead
+    void addExecutionMessage_signal(executionMessage_c* messagePtr_par_con);
     //when the process "finishes" in any way, error, user stopped/killed, successful
     void anyFinish_signal();
 };

@@ -5,21 +5,47 @@
 
 #include "textQtso/text.hpp"
 
-void baseActionExecution_c::setExecutionError_f()
+void baseActionExecution_c::setExecutionError_f(const executionMessage_c* messagePtr_par_con)
 {
-    executionError_pri = true;
+    if (messagePtr_par_con->type_f() == executionMessage_c::type_ec::error)
+    {
+        executionError_pri = true;
+    }
 }
 
-baseActionExecution_c::baseActionExecution_c(actionDataExecutionResult_c* actionExecutionResultObj_par_con)
-    : actionExecutionResultObj_pri(actionExecutionResultObj_par_con)
+baseActionExecution_c::baseActionExecution_c(actionExecutionResult_c* actionExecutionResultObj_par_con)//, QObject* parent_par)
+    : QObject(nullptr), actionExecutionResultObj_pri(actionExecutionResultObj_par_con)
 {
-    QObject::connect(this, &baseActionExecution_c::executionStateChange_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::trySetExecutionState_f);
-    QObject::connect(this, &baseActionExecution_c::addError_signal, this, &baseActionExecution_c::setExecutionError_f);
-    QObject::connect(this, &baseActionExecution_c::addError_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendError_f);
-    QObject::connect(this, &baseActionExecution_c::addErrors_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendErrors_f);
-    QObject::connect(this, &baseActionExecution_c::addOutput_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::appendOutput_f);
-    QObject::connect(this, &baseActionExecution_c::anyFinish_signal, actionExecutionResultObj_pri, &actionDataExecutionResult_c::trySetFinished_f);
-    QObject::connect(actionExecutionResultObj_pri, &actionDataExecutionResult_c::finished_signal, this, &QObject::deleteLater);
+    QObject::connect(this, &baseActionExecution_c::executionStateChange_signal, actionExecutionResultObj_pri, &actionExecutionResult_c::trySetExecutionState_f);
+    QObject::connect(this, &baseActionExecution_c::addExecutionMessage_signal, this, &baseActionExecution_c::setExecutionError_f);
+    QObject::connect(this, &baseActionExecution_c::addExecutionMessage_signal, actionExecutionResultObj_pri, &actionExecutionResult_c::appendMessage_f);
+    QObject::connect(this, &baseActionExecution_c::anyFinish_signal, actionExecutionResultObj_pri, &actionExecutionResult_c::trySetFinished_f);
+    QObject::connect(actionExecutionResultObj_pri, &actionExecutionResult_c::finished_signal, this, &QObject::deleteLater);
+}
+
+void baseActionExecution_c::emitExecutionMessage_f(const textCompilation_c& message_par_con, const executionMessage_c::type_ec type_par_con)
+{
+    //message lifetime created using this funcion is tied to the actionDataExecutionResult_c object
+    executionMessage_c* msgTmp(new executionMessage_c(actionExecutionResultObj_pri, actionExecutionResultObj_pri->action_ptr_f()->reference_f(), message_par_con, type_par_con));
+    Q_EMIT addExecutionMessage_signal(msgTmp);
+}
+
+void baseActionExecution_c::emitExecutionMessage_f(const text_c& message_par_con, const executionMessage_c::type_ec type_par_con)
+{
+    //message lifetime created using this funcion is tied to the actionDataExecutionResult_c object
+    executionMessage_c* msgTmp(new executionMessage_c(
+                                   actionExecutionResultObj_pri
+                                   , actionExecutionResultObj_pri->action_ptr_f()->reference_f()
+                                   , textCompilation_c(message_par_con)
+                                   , type_par_con)
+                               );
+#ifdef DEBUGJOUVEN
+    //qDebug() << "message_par_con.text() " << message_par_con.rawReplace_f() << Qt::endl;
+    //qDebug() << "msgTmp.text() " << msgTmp->text_f().toRawReplace_f() << Qt::endl;
+    //qDebug() << "type_par_con " << executionMessage_c::executionMessageTypeToString_f(type_par_con) << Qt::endl;
+    //qDebug() << "msgTmp->type_f() " << executionMessage_c::executionMessageTypeToString_f(msgTmp->type_f()) << Qt::endl;
+#endif
+    Q_EMIT addExecutionMessage_signal(msgTmp);
 }
 
 void baseActionExecution_c::execute_f()
@@ -35,7 +61,8 @@ void baseActionExecution_c::execute_f()
 //    }
 //    else
 //    {
-        derivedExecute_f();
+    Q_EMIT executionStateChange_signal(actionExecutionState_ec::executing);
+    derivedExecute_f();
 //    }
 }
 

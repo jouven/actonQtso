@@ -19,7 +19,7 @@ protected:
 public:
     timerCheckExecution_c() = delete;
     explicit timerCheckExecution_c(
-            checkDataExecutionResult_c* checkExecutionResultObj_par_con
+            checkExecutionResult_c* checkExecutionResultObj_par_con
             , timerCheck_c* timerCheckPtr_par
     );
 private Q_SLOTS:

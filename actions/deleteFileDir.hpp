@@ -42,7 +42,6 @@ public:
     );
 
     QString path_f() const;
-    QString pathParsed_f() const;
 
     void setPath_f(const QString& path_par_con);
     bool errorIfNotExists_f() const;
@@ -71,12 +70,16 @@ class EXPIMP_ACTONQTSO deleteFileDirAction_c : public action_c, public deleteFil
 
     action_c* derivedClone_f() const override;
 
-    baseActionExecution_c* createExecutionObj_f(actionDataExecutionResult_c* actionDataExecutionResult_ptr_par) override;
+    baseActionExecution_c* createExecutionObj_f(actionExecutionResult_c* actionDataExecutionResult_ptr_par) override;
     actionType_ec type_f() const override;
     //QString typeStr_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     deleteFileDirAction_c() = default;
-    deleteFileDirAction_c(const actionData_c& actionData_par_con, const deleteFileDirData_c& deleteFileDirData_par_con);
+    deleteFileDirAction_c(actonDataHub_c* parent_par, const actionData_c& actionData_par_con, const deleteFileDirData_c& deleteFileDirData_par_con);
+
+    QString pathParsed_f() const;
 
     void updateDeleteFileDirData_f(const deleteFileDirData_c& deleteFileDirData_par_con);
 };

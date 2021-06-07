@@ -19,7 +19,7 @@ protected:
 public:
     metaEndExecutionCycleActionExecution_c() = delete;
     explicit metaEndExecutionCycleActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            actionExecutionResult_c* actionExecutionResultObj_par_con
             , metaEndExecutionCycleAction_c* metaEndExecutionCycleActionPtr_par
     );
 };

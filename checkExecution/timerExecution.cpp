@@ -12,12 +12,11 @@
 #endif
 
 timerCheckExecution_c::timerCheckExecution_c(
-        checkDataExecutionResult_c* checkExecutionResultObj_par_con
+        checkExecutionResult_c* checkExecutionResultObj_par_con
         , timerCheck_c* timerCheckPtr_par)
     : baseCheckExecution_c(checkExecutionResultObj_par_con)
     , timerCheckPtr_pri(timerCheckPtr_par)
-{
-}
+{}
 
 void timerCheckExecution_c::timerFinished_f()
 {
@@ -44,7 +43,7 @@ void timerCheckExecution_c::derivedExecute_f()
                 if (timerCheckPtr_pri->errorOnPastDateTimeValue_f())
                 {
                     QDateTime dateTimeTmp(QDateTime::fromMSecsSinceEpoch(timerCheckPtr_pri->value_f()));
-                    Q_EMIT addError_signal({"Timer dateTime value is past: {0}", dateTimeTmp.toString(dateTimeFormat_con) });
+                    emitExecutionMessage_f({"Timer dateTime value is past: {0}", dateTimeTmp.toString(dateTimeFormat_con)}, executionMessage_c::type_ec::error);
                 }
                 else
                 {
@@ -61,7 +60,7 @@ void timerCheckExecution_c::derivedExecute_f()
         break;
     }
 #ifdef DEBUGJOUVEN
-    //qDebug() << "timeoutValueTmp " << timeoutValueTmp << endl;
+    //qDebug() << "timeoutValueTmp " << timeoutValueTmp << Qt::endl;
 #endif
     if (timeoutValueTmp >= 0)
     {

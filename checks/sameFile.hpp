@@ -39,10 +39,10 @@ public:
     void read_f(const QJsonObject &json_par_con);
 
     QString fileAPath_f() const;
-    QString fileAPathParsed_f() const;
+
     void setFileAPath_f(const QString& fileAPath_par_con);
     QString fileBPath_f() const;
-    QString fileBPathParsed_f() const;
+
     void setFileBPath_f(const QString& fileBPath_par_con);
 
     bool isFieldsDataValid_f(textCompilation_c* errorsPtr_par = nullptr) const;
@@ -59,7 +59,7 @@ class EXPIMP_ACTONQTSO sameFileCheck_c : public check_c, public sameFileData_c
 
     check_c* derivedClone_f() const override;
 
-    baseCheckExecution_c* createExecutionObj_f(checkDataExecutionResult_c* checkDataExecutionResult_ptr_par) override;
+    baseCheckExecution_c* createExecutionObj_f(checkExecutionResult_c* checkDataExecutionResult_ptr_par) override;
     checkType_ec type_f() const override;
 
     //uint_fast64_t derivedStringTriggerCreationConflictCount_f(const QString& stringTrigger_par_con) const override;
@@ -69,11 +69,16 @@ class EXPIMP_ACTONQTSO sameFileCheck_c : public check_c, public sameFileData_c
     uint64_t derivedStringTriggerDependencyCount_f(const QString& stringTrigger_par_con) const override;
     QSet<QString> derivedStringTriggersInUse_f(const QSet<QString>& searchValues_par_con) const override;
     //QSet<QString> derivedStringTriggerCreationCollection_f() const override;
+
+    QString derivedReference_f() const override;
 public:
     sameFileCheck_c() = default;
     sameFileCheck_c(const checkData_c& checkData_par_con, const sameFileData_c& sameFileData_par_con);
 
     void updateSameFileData_f(const sameFileData_c& sameFileData_par_con);
+
+    QString fileAPathParsed_f() const;
+    QString fileBPathParsed_f() const;
 };
 
 #endif // ACTONQTSO_SAMEFILE_HPP

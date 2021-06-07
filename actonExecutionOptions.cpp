@@ -4,6 +4,11 @@
 
 #include "textQtso/text.hpp"
 #include "essentialQtso/macros.hpp"
+#include "threadedFunctionQtso/threadedFunctionQt.hpp"
+
+#ifdef DEBUGJOUVEN
+#include "essentialQtso/essentialQt.hpp"
+#endif
 
 #include <QJsonObject>
 
@@ -66,16 +71,6 @@ void executionOptions_c::setExtraThreads_f(const uint_fast64_t extraThreads_par_
     extraThreads_pri = extraThreads_par_con;
 }
 
-uint_fast64_t executionOptions_c::killTimeoutMilliseconds_f() const
-{
-    return killTimeoutMilliseconds_pri;
-}
-
-void executionOptions_c::setKillTimeoutMilliseconds_f(const uint_fast64_t killTimeoutMilliseconds_par_con)
-{
-    killTimeoutMilliseconds_pri = killTimeoutMilliseconds_par_con;
-}
-
 stringParserMap_c* executionOptions_c::stringParserMap_f() const
 {
     return stringParserMap_pri;
@@ -91,13 +86,11 @@ executionOptions_c::executionOptions_c(
         , const uint_fast64_t loopXTimesCount_par_con
         //, const bool stopExecutingOnError_par_con
         , const uint_fast64_t extraThreads_par_con
-        , const uint_fast64_t killTimeoutMilliseconds_par_con
 )
     : executionLoopType_pri(executionLoopType_par_con)
     , loopXTimesCount_pri(loopXTimesCount_par_con)
     //, stopExecutingOnError_pri(stopExecutingOnError_par_con)
     , extraThreads_pri(extraThreads_par_con)
-    , killTimeoutMilliseconds_pri(killTimeoutMilliseconds_par_con)
 {}
 
 void executionOptions_c::write_f(QJsonObject& json_par) const
@@ -107,7 +100,6 @@ void executionOptions_c::write_f(QJsonObject& json_par) const
     //json["stopExecutionOnError"] = stopExecutingOnError_pri;
     //json number limits... save string
     json_par["extraThreads"] = QString::number(extraThreads_pri);
-    json_par["killTimeoutMilliseconds"] = QString::number(killTimeoutMilliseconds_pri);
     if (stringParserMap_pri not_eq nullptr)
     {
         QJsonObject stringParserJSONObjectTmp;
@@ -126,15 +118,14 @@ void executionOptions_c::read_f(const QJsonObject& json_par_con)
     //json number limits... load from string
     if (json_par_con["loopXTimesCount"].isString())
     {
-        loopXTimesCount_pri = json_par_con["loopXTimesCount"].toString("0").toLongLong();
+        loopXTimesCount_pri = json_par_con["loopXTimesCount"].toString(QString::number(loopXTimesCount_pri)).toLongLong();
     }
     if (json_par_con["extraThreads"].isString())
     {
-        extraThreads_pri = json_par_con["extraThreads"].toString("1").toLongLong();
-    }
-    if (json_par_con["killTimeoutMilliseconds"].isString())
-    {
-        killTimeoutMilliseconds_pri = json_par_con["killTimeoutMilliseconds"].toString("10000").toLongLong();
+#ifdef DEBUGJOUVEN
+        //QOUT_TS("QString::number(extraThreads_pri)).toLongLong() " << json_par_con["extraThreads"].toString(QString::number(extraThreads_pri)).toLongLong() << Qt::endl);
+#endif
+        extraThreads_pri = json_par_con["extraThreads"].toString(QString::number(extraThreads_pri)).toLongLong();
     }
     if (json_par_con["stringParserMap"].isUndefined())
     {

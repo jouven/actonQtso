@@ -19,7 +19,7 @@ protected:
 public:
     deleteFiledirActionExecution_c() = delete;
     explicit deleteFiledirActionExecution_c(
-            actionDataExecutionResult_c* actionExecutionResultObj_par_con
+            actionExecutionResult_c* actionExecutionResultObj_par_con
             , deleteFileDirAction_c* deleteFileDirActionPtr_par
     );
 };
