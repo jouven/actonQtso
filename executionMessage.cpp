@@ -1,6 +1,7 @@
 #include "executionMessage.hpp"
 
 #include "QDateTime"
+#include "QMap"
 
 QString executionMessage_c::reference_f() const
 {

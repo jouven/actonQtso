@@ -25,7 +25,7 @@ protected:
 
     baseCheckExecution_c(checkExecutionResult_c* checkExecutionResultObj_par_con);
 
-    //TODO AT THE END 20210218 noticed that derived class executions only emit error/s and actonQtg in the checksWindow only has a column
+    //TODO?, AT THE END 20210218 I noticed that derived class executions only emit error/s and actonQtg in the checksWindow only has a column
     //for the error/s but the possibility of emiting information messages is there too
     void emitExecutionMessage_f(const textCompilation_c& message_par_con, const executionMessage_c::type_ec type_par_con);
     void emitExecutionMessage_f(const text_c& message_par_con, const executionMessage_c::type_ec type_par_con);

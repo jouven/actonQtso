@@ -38,27 +38,6 @@ qint64 executionResult_c::finishedTime_f() const
     return finishedTime_pro;
 }
 
-//bool executionResult_c::tryClear_f()
-//{
-//    bool resultTmp(false);
-//    if (finished_pro)
-//    {
-//        //TODO unparent?
-//        messages_pro.clear();
-
-//        started_pro = false;
-//        finished_pro = false;
-//        stoppedByUser_pro = false;
-
-//        startTime_pro = 0;
-//        finishedTime_pro = 0;
-
-//        derivedTryClear_f();
-//        resultTmp = true;
-//    }
-//    return resultTmp;
-//}
-
 void executionResult_c::appendMessage_f(executionMessage_c* message_par_con)
 {
     if (not finished_pro)

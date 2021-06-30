@@ -40,9 +40,6 @@ protected:
 
     bool stoppedByUser_pro = false;
 
-    //virtual void derivedSetStarted_f() = 0;
-    //will clear the object if finished
-    //virtual void derivedTryClear_f() = 0;
     virtual bool derivedTrySetFinished_f() = 0;
     virtual void derivedAppendMessage_f(executionMessage_c* message_par_con) = 0;
 
@@ -95,8 +92,6 @@ public:
     //will only set started if started_pro == false
     void setStarted_f();
 
-    //will only clear if the executionResult has finished otherwise does nothing
-    //bool tryClear_f();
     void trySetFinished_f();
     //does a find and if found removes the message/s in messages_pro (doesn't destroy them)
     void unreferenceMessages_f(const std::vector<executionMessage_c*>& messagePtrs_par_con);
